@@ -20,8 +20,8 @@ import {
 import { Goal } from '../types';
 
 interface SidebarProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
+  currentPage: string;
+  setCurrentPage: (page: string) => void;
   selectedUniShort: string;
   goals: Goal[];
   onAddGoal: (text: string) => void;
@@ -33,8 +33,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ 
-  activeTab, 
-  onTabChange, 
+  currentPage, 
+  setCurrentPage, 
   selectedUniShort,
   goals,
   onAddGoal,
@@ -48,11 +48,11 @@ export default function Sidebar({
   const [newGoalText, setNewGoalText] = useState('');
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Compass },
-    { id: 'notebooks', label: 'My Notebooks', icon: BookOpen },
-    { id: 'graph', label: 'Semantic Knowledge Graph', icon: Network },
-    { id: 'revision', label: 'Revision & Quizzes', icon: CheckSquare },
-    { id: 'lepak', label: 'Campus Study Lounge', icon: Coffee }
+    { page: 'Dashboard', label: 'Dashboard', icon: Compass },
+    { page: 'Notebooks', label: 'My Notebooks', icon: BookOpen },
+    { page: 'KnowledgeGraph', label: 'Semantic Knowledge Graph', icon: Network },
+    { page: 'Revision', label: 'Revision & Quizzes', icon: CheckSquare },
+    { page: 'StudyLounge', label: 'Campus Study Lounge', icon: Coffee }
   ];
 
   // Derive goals stats
@@ -113,11 +113,11 @@ export default function Sidebar({
         )}
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = currentPage === item.page;
           return (
             <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
+              key={item.page}
+              onClick={() => setCurrentPage(item.page)}
               title={item.label}
               className={`group flex w-full items-center rounded-xl text-xs font-semibold tracking-normal transition-all duration-200 cursor-pointer ${
                 isActive

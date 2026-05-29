@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
 import { Notebook, Goal } from './types';
 import Sidebar from './components/Sidebar';
@@ -12,11 +13,27 @@ import SlangLounge from './components/SlangLounge';
 import CreateNotebookModal from './components/CreateNotebookModal';
 import { createNotebook, createNotebookFile, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
 
+const pageToPath = {
+  Dashboard: '/dashboard',
+  Notebooks: '/notebooks',
+  KnowledgeGraph: '/knowledge-graph',
+  Revision: '/revision',
+  StudyLounge: '/study-lounge',
+} as const;
+
+const pathToPage = Object.fromEntries(
+  Object.entries(pageToPath).map(([page, path]) => [path, page]),
+) as Record<string, string>;
+
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentPage = pathToPage[location.pathname] ?? 'Dashboard';
+  const searchParams = new URLSearchParams(location.search);
+  const activeNotebookId = currentPage === 'Notebooks' ? searchParams.get('notebookId') : null;
+
   // Active states
   const [selectedUniId, setSelectedUniId] = useState<string>('um');
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
   const [preFilledQuestion, setPreFilledQuestion] = useState<string>('');
   const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState<boolean>(false);
   const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
@@ -68,11 +85,23 @@ export default function App() {
 
   const activeNotebook = curNotebooksList.find(nb => nb.id === activeNotebookId);
 
+  const setCurrentPage = useCallback((page: string) => {
+    navigate(pageToPath[page as keyof typeof pageToPath] ?? pageToPath.Dashboard);
+  }, [navigate]);
+
+  const openNotebook = useCallback((notebookId: string | null) => {
+    if (!notebookId) {
+      navigate(pageToPath.Notebooks);
+      return;
+    }
+
+    navigate(`${pageToPath.Notebooks}?notebookId=${encodeURIComponent(notebookId)}`);
+  }, [navigate]);
+
   // Trigger from Header or Selectors
   const handleSelectUni = (id: string) => {
     setSelectedUniId(id);
-    setActiveNotebookId(null);
-    setActiveTab('dashboard');
+    setCurrentPage('Dashboard');
   };
 
   const handleAddNewNotebook = async (name: string, courseCode: string, color: string, description: string) => {
@@ -112,7 +141,7 @@ export default function App() {
     setNotebooks((prev) => prev.filter((nb) => nb.id !== notebookId));
 
     if (activeNotebookId === notebookId) {
-      setActiveNotebookId(null);
+      openNotebook(null);
     }
   };
 
@@ -151,10 +180,9 @@ export default function App() {
     const foundNb = curNotebooksList.find(n => n.courseCode.toLowerCase() === code.toLowerCase());
 
     if (foundNb) {
-      setActiveNotebookId(foundNb.id);
-      setActiveTab('notebooks');
+      openNotebook(foundNb.id);
     } else {
-      setActiveTab('notebooks');
+      openNotebook(null);
     }
   };
 
@@ -169,13 +197,8 @@ export default function App() {
 
       {/* Floating/Standard Left Navigation sidebar with interactive goals */}
       <Sidebar 
-        activeTab={activeTab} 
-        onTabChange={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'notebooks') {
-            setActiveNotebookId(null); // Show all notebooks list by default!
-          }
-        }} 
+        currentPage={currentPage} 
+        setCurrentPage={setCurrentPage} 
         selectedUniShort={curUniversity.shortName}
         goals={goals}
         onAddGoal={handleAddGoal}
@@ -197,64 +220,71 @@ export default function App() {
           selectedUniId={selectedUniId} 
           onSelectUni={handleSelectUni} 
           streak={MOCK_STREAK}
-          activeTab={activeTab}
+          activeTab={currentPage}
         />
 
         {/* Dynamic Context Canvas */}
         <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full pb-16 relative z-10">
-          {activeTab === 'dashboard' && (
-          <DashboardView 
-              notebooks={curNotebooksList}
-              onOpenNotebook={(nbId) => {
-                setActiveNotebookId(nbId);
-                setActiveTab('notebooks');
-              }}
-              onUploadFile={handleAddNewFile}
-              onEditNotebook={(entry) => setEditingNotebook(entry)}
-              onDeleteNotebook={handleDeleteNotebook}
-              onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
-              streak={MOCK_STREAK}
-              notebookError={notebookLoadError}
+          <Routes>
+            <Route path="/" element={<Navigate to={pageToPath.Dashboard} replace />} />
+            <Route
+              path={pageToPath.Dashboard}
+              element={(
+                <DashboardView
+                  notebooks={curNotebooksList}
+                  onOpenNotebook={openNotebook}
+                  onUploadFile={handleAddNewFile}
+                  onEditNotebook={(entry) => setEditingNotebook(entry)}
+                  onDeleteNotebook={handleDeleteNotebook}
+                  onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
+                  streak={MOCK_STREAK}
+                  notebookError={notebookLoadError}
+                />
+              )}
             />
-          )}
-
-          {activeTab === 'notebooks' && (
-            <NotebookView 
-              notebook={activeNotebook || null}
-              allNotebooks={curNotebooksList}
-              onSelectNotebook={(id) => setActiveNotebookId(id)}
-              onBackToDashboard={() => setActiveTab('dashboard')}
-              onAskInChat={handleAskInChat}
-              onUploadFile={handleAddNewFile}
-              onDeleteFile={handleDeleteFile}
-              onEditNotebook={(entry) => setEditingNotebook(entry)}
-              onDeleteNotebook={handleDeleteNotebook}
-              onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
+            <Route
+              path={pageToPath.Notebooks}
+              element={(
+                <NotebookView
+                  notebook={activeNotebook || null}
+                  allNotebooks={curNotebooksList}
+                  onSelectNotebook={openNotebook}
+                  onBackToDashboard={() => setCurrentPage('Dashboard')}
+                  onAskInChat={handleAskInChat}
+                  onUploadFile={handleAddNewFile}
+                  onDeleteFile={handleDeleteFile}
+                  onEditNotebook={(entry) => setEditingNotebook(entry)}
+                  onDeleteNotebook={handleDeleteNotebook}
+                  onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
+                />
+              )}
             />
-          )}
-
-          {activeTab === 'graph' && (
-            <KnowledgeGraphView 
-              nodes={curGraphData.nodes}
-              links={curGraphData.links}
-              university={curUniversity}
-              onAskInChat={handleAskInChat}
-              onOpenNotebookByCode={handleOpenNotebookByCode}
+            <Route
+              path={pageToPath.KnowledgeGraph}
+              element={(
+                <KnowledgeGraphView
+                  nodes={curGraphData.nodes}
+                  links={curGraphData.links}
+                  university={curUniversity}
+                  onAskInChat={handleAskInChat}
+                  onOpenNotebookByCode={handleOpenNotebookByCode}
+                />
+              )}
             />
-          )}
-
-          {activeTab === 'revision' && (
-            <RevisionView 
-              flashcards={MOCK_FLASHCARDS}
-              quizzes={MOCK_QUIZZES}
-              courses={curUniversity.courses}
-              onAskInChat={handleAskInChat}
+            <Route
+              path={pageToPath.Revision}
+              element={(
+                <RevisionView
+                  flashcards={MOCK_FLASHCARDS}
+                  quizzes={MOCK_QUIZZES}
+                  courses={curUniversity.courses}
+                  onAskInChat={handleAskInChat}
+                />
+              )}
             />
-          )}
-
-          {activeTab === 'lepak' && (
-            <SlangLounge />
-          )}
+            <Route path={pageToPath.StudyLounge} element={<SlangLounge />} />
+            <Route path="*" element={<Navigate to={pageToPath.Dashboard} replace />} />
+          </Routes>
         </main>
       </div>
 

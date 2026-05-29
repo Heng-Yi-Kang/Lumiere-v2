@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-05-30
+
+### Frontend routing
+
+- Added React Router to the Vite frontend.
+- Introduced a page-name routing registry in `frontend/src/App.tsx` with `pageToPath` and `pathToPage`.
+- Replaced sidebar tab state navigation with semantic page navigation through `setCurrentPage(pageName)`.
+- Added direct URL support for the main app screens:
+  - `/dashboard`
+  - `/notebooks`
+  - `/knowledge-graph`
+  - `/revision`
+  - `/study-lounge`
+- Preserved notebook detail context with `/notebooks?notebookId=<id>` so the pathname still resolves to the `Notebooks` page.
+- Added root and unknown-route redirects back to `/dashboard`.
+
+### Documentation
+
+- Added `docs/frontend-routing.md` to describe the routing pattern imported from the reference project.
+- Updated README and agent guidance with the new routing contract.
+
+### Verification
+
+- Ran frontend `pnpm check` successfully.
+- Verified the Vite dev server serves both `/` and `/notebooks?notebookId=example`.
+
 ## 2026-05-29
 
 ### Notebook module

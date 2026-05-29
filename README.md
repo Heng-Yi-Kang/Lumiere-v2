@@ -27,6 +27,20 @@ This repository now contains a Vite frontend in `frontend/` and a separate Next.
 - PostgreSQL: `localhost:5432`
 - pgAdmin: `http://localhost:5050`
 
+## Frontend Routing
+
+The frontend uses React Router for direct URL access while keeping app navigation based on semantic page names. The route registry lives in [`frontend/src/App.tsx`](frontend/src/App.tsx):
+
+- `Dashboard` -> `/dashboard`
+- `Notebooks` -> `/notebooks`
+- `KnowledgeGraph` -> `/knowledge-graph`
+- `Revision` -> `/revision`
+- `StudyLounge` -> `/study-lounge`
+
+Sidebar and shell-level navigation should call `setCurrentPage('PageName')` instead of pushing raw URLs. Detail context can still use query parameters; notebook detail selection uses `/notebooks?notebookId=<id>`.
+
+See [`docs/frontend-routing.md`](docs/frontend-routing.md) for the routing pattern and maintenance rules.
+
 ## Database
 
 The database container uses `pgvector/pgvector:0.8.2-pg16`, so the `vector` extension is available immediately through the init script in [`docker/postgres/init/001-enable-pgvector.sql`](docker/postgres/init/001-enable-pgvector.sql).
