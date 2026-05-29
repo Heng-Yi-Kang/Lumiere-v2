@@ -25,8 +25,8 @@ export default function App() {
   // Loaded mock data based on university selector state
   const curUniversity = UNIVERSITIES.find(u => u.id === selectedUniId) || UNIVERSITIES[0];
   
-  // Notebook data is persisted in the backend database and loaded per university.
-  const [universityNotebooks, setUniversityNotebooks] = useState<Record<string, Notebook[]>>({});
+  // Notebook data is persisted in the backend database and shared across the workspace.
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [notebookLoadError, setNotebookLoadError] = useState<string>('');
 
   // Track goals with Local Storage persistence
@@ -49,38 +49,20 @@ export default function App() {
   }, [goals]);
 
   useEffect(() => {
-    let cancelled = false;
-
     const loadNotebooks = async () => {
       try {
         setNotebookLoadError('');
-        const notebooks = await fetchNotebooks(selectedUniId);
-
-        if (!cancelled) {
-          setUniversityNotebooks((prev) => ({
-            ...prev,
-            [selectedUniId]: notebooks,
-          }));
-        }
+        const loadedNotebooks = await fetchNotebooks();
+        setNotebooks(loadedNotebooks);
       } catch (error) {
-        if (!cancelled) {
-          setNotebookLoadError(error instanceof Error ? error.message : 'Failed to load notebooks.');
-          setUniversityNotebooks((prev) => ({
-            ...prev,
-            [selectedUniId]: prev[selectedUniId] || [],
-          }));
-        }
+        setNotebookLoadError(error instanceof Error ? error.message : 'Failed to load notebooks.');
       }
     };
 
     void loadNotebooks();
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedUniId]);
-
-  const curNotebooksList = universityNotebooks[selectedUniId] || [];
+  const curNotebooksList = notebooks;
   const curGraphData = MOCK_KNOWLEDGE_GRAPH[selectedUniId] || { nodes: [], links: [] };
 
   const activeNotebook = curNotebooksList.find(nb => nb.id === activeNotebookId);
@@ -94,30 +76,19 @@ export default function App() {
 
   const handleAddNewNotebook = async (name: string, courseCode: string, color: string, description: string) => {
     const notebook = await createNotebook({
-      universityId: selectedUniId,
       name,
       courseCode,
       color,
       description,
     });
 
-    setUniversityNotebooks((prev) => {
-      const copy = { ...prev };
-      const list = copy[selectedUniId] || [];
-      copy[selectedUniId] = [notebook, ...list];
-      return copy;
-    });
+    setNotebooks((prev) => [notebook, ...prev]);
   };
 
   const handleAddNewFile = async (notebookId: string, file: FileItem) => {
     const notebook = await createNotebookFile(notebookId, file);
 
-    setUniversityNotebooks((prev) => {
-      const copy = { ...prev };
-      const list = copy[selectedUniId] || [];
-      copy[selectedUniId] = list.map((nb) => (nb.id === notebook.id ? notebook : nb));
-      return copy;
-    });
+    setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
 
   // Goals CRUD functions
@@ -203,7 +174,6 @@ export default function App() {
           {activeTab === 'dashboard' && (
           <DashboardView 
               notebooks={curNotebooksList}
-              university={curUniversity}
               onOpenNotebook={(nbId) => {
                 setActiveNotebookId(nbId);
                 setActiveTab('notebooks');

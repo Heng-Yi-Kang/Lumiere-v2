@@ -105,7 +105,6 @@ export interface StudyStreak {
 
 export interface Notebook {
   id: string;
-  universityId?: string;
   name: string;
   courseCode: string;
   color: string;

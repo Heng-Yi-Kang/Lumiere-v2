@@ -25,13 +25,12 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function fetchNotebooks(universityId: string) {
-  const payload = await requestJson<NotebookResponse>(`/api/notebooks?universityId=${encodeURIComponent(universityId)}`);
+export async function fetchNotebooks() {
+  const payload = await requestJson<NotebookResponse>('/api/notebooks');
   return payload.notebooks || [];
 }
 
 export async function createNotebook(input: {
-  universityId: string;
   name: string;
   courseCode: string;
   color: string;

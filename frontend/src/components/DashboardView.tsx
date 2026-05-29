@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Notebook, FileItem, University } from '../types';
+import { Notebook, FileItem } from '../types';
 import { 
   Plus, 
   FolderLock, 
@@ -20,7 +20,6 @@ import { StudyStreak } from '../types';
 
 interface DashboardViewProps {
   notebooks: Notebook[];
-  university: University;
   onOpenNotebook: (notebookId: string) => void;
   onAddNewFile: (notebookId: string, newFile: FileItem) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
@@ -30,7 +29,6 @@ interface DashboardViewProps {
 
 export default function DashboardView({ 
   notebooks, 
-  university, 
   onOpenNotebook, 
   onAddNewFile,
   onCreateNotebookRequested,
@@ -164,7 +162,7 @@ export default function DashboardView({
               Welcome, Yi Kang! 👋
             </h1>
             <p className="max-w-xl text-xs font-medium text-slate-400 leading-relaxed">
-              Your materials are linked. You have <span className="text-indigo-300 font-extrabold">{notebooks.length} notebooks</span> active for <span className="underline decoration-indigo-400 font-extrabold text-slate-200">{university.nativeName}</span> course modules. Ready to score that 4.00 flat?
+              Your materials are linked. You have <span className="text-indigo-300 font-extrabold">{notebooks.length} notebooks</span> ready across your active course library. Ready to score that 4.00 flat?
             </p>
           </div>
 
