@@ -1,4 +1,4 @@
-import { deleteNotebookStoredFile } from '@/lib/notebook-files';
+import { buildNotebookStoredFileUrl, deleteNotebookStoredFile } from '@/lib/notebook-files';
 import { jsonResponse, optionsResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
 import { prisma } from '@/lib/prisma';
@@ -24,7 +24,7 @@ export async function GET(
       name: true,
       previewContent: true,
       previewFormat: true,
-      sourceUrl: true,
+      sourcePath: true,
       summary: true,
       totalPages: true,
       type: true,
@@ -42,7 +42,7 @@ export async function GET(
       name: file.name,
       previewContent: file.previewContent ?? undefined,
       previewFormat: file.previewFormat ?? undefined,
-      sourceUrl: file.sourceUrl ?? undefined,
+      sourceUrl: buildNotebookStoredFileUrl(notebookId, file.sourcePath),
       summary: file.summary ?? undefined,
       totalPages: file.totalPages ?? undefined,
       type: file.type,

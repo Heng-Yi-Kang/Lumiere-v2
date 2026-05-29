@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BookOpen,
   Download,
+  Edit3,
   Eye,
   ExternalLink,
   FileText,
@@ -28,6 +29,8 @@ interface NotebookViewProps {
   onAskInChat: (question: string) => void;
   onUploadFile?: (notebookId: string, file: File) => Promise<void> | void;
   onDeleteFile?: (notebookId: string, fileId: string) => Promise<void> | void;
+  onEditNotebook?: (notebook: Notebook) => void;
+  onDeleteNotebook?: (notebookId: string) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
 }
 
@@ -60,6 +63,8 @@ export default function NotebookView({
   onAskInChat,
   onUploadFile,
   onDeleteFile,
+  onEditNotebook,
+  onDeleteNotebook,
   onCreateNotebookRequested,
 }: NotebookViewProps) {
   type UploadPhase = 'idle' | 'validating' | 'uploading' | 'extracting' | 'success';
@@ -72,7 +77,9 @@ export default function NotebookView({
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   const [uploadFileName, setUploadFileName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeletingNotebook, setIsDeletingNotebook] = useState(false);
   const [pendingDeleteFile, setPendingDeleteFile] = useState<FileItem | null>(null);
+  const [isDeleteNotebookModalOpen, setIsDeleteNotebookModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -147,8 +154,8 @@ export default function NotebookView({
   }, [materialSearchText, notebook]);
 
   const activePreview = selectedMaterial ? previewCache[selectedMaterial.id] : undefined;
-  const viewerUrl = getViewerUrl(activePreview?.sourceUrl || selectedMaterial?.sourceUrl);
-  const selectedViewerUrl = getViewerUrl(selectedMaterial?.sourceUrl);
+  const viewerUrl = getViewerUrl(activePreview?.sourceUrl);
+  const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const uploadProgressValue = uploadPhase === 'validating'
     ? 10
     : uploadPhase === 'uploading'
@@ -229,6 +236,27 @@ export default function NotebookView({
     }
   };
 
+  const handleDeleteCurrentNotebook = async () => {
+    if (!notebook || !onDeleteNotebook || isDeletingNotebook) {
+      return;
+    }
+
+    setIsDeletingNotebook(true);
+    setPreviewError('');
+
+    try {
+      await Promise.resolve(onDeleteNotebook(notebook.id));
+      setSelectedMaterial(null);
+      setPendingDeleteFile(null);
+      setIsDeleteNotebookModalOpen(false);
+      onSelectNotebook(null);
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : 'Delete failed.');
+    } finally {
+      setIsDeletingNotebook(false);
+    }
+  };
+
   if (!notebook) {
     return (
       <div className="space-y-8 text-left animate-fade-in relative z-10" id="all-notebooks-tab">
@@ -240,7 +268,7 @@ export default function NotebookView({
               </span>
               <h2 className="text-2xl font-black text-white font-display">My Academic Course Notebooks</h2>
               <p className="max-w-2xl text-xs text-slate-400">
-                Upload lecture materials, keep file URLs persisted in the backend, and open previews inline without leaving the notebook.
+                Upload lecture materials and open previews inline without leaving the notebook.
               </p>
             </div>
             <button
@@ -310,17 +338,37 @@ export default function NotebookView({
             </div>
           </div>
 
-          <button
-            onClick={() =>
-              onAskInChat(`Explain the main ideas from the files in my "${notebook.name}" notebook.`)
-            }
-            className="rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-xs font-bold text-indigo-100 transition hover:bg-indigo-500/20"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4" />
-              Ask AI About This Notebook
-            </span>
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => onEditNotebook?.(notebook)}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-slate-100 transition hover:bg-white/10"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Edit3 className="h-4 w-4" />
+                Edit Notebook
+              </span>
+            </button>
+            <button
+              onClick={() => setIsDeleteNotebookModalOpen(true)}
+              className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-bold text-rose-100 transition hover:bg-rose-500/20"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Trash2 className="h-4 w-4" />
+                Delete Notebook
+              </span>
+            </button>
+            <button
+              onClick={() =>
+                onAskInChat(`Explain the main ideas from the files in my "${notebook.name}" notebook.`)
+              }
+              className="rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-xs font-bold text-indigo-100 transition hover:bg-indigo-500/20"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4" />
+                Ask AI About This Notebook
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -336,7 +384,7 @@ export default function NotebookView({
             <div className="space-y-2">
               <h2 className="text-sm font-black text-white font-display">Upload Material</h2>
               <p className="text-xs leading-relaxed text-slate-400">
-                PDF, DOCX, PPTX, and TXT only. Files are saved on the backend filesystem and linked in the database.
+                PDF, DOCX, PPTX, and TXT only. Files are saved on the backend filesystem and indexed in the notebook.
               </p>
             </div>
 
@@ -380,7 +428,7 @@ export default function NotebookView({
 
             <div className="mt-4 rounded-2xl border border-white/5 bg-slate-950/25 p-4 text-[11px] leading-relaxed text-slate-400">
               <p>Limit: 100MB per file.</p>
-              <p>Stored under the backend app and served from a stable URL.</p>
+              <p>Stored under the backend app for preview and download.</p>
               <p>Delete removes both the database record and the stored file immediately.</p>
             </div>
           </div>
@@ -558,8 +606,8 @@ export default function NotebookView({
                 </div>
 
                 <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 text-sm text-slate-300">
-                  <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Stored Source</div>
-                  <div className="mt-2 break-all">{activePreview?.sourceUrl || selectedMaterial.sourceUrl || 'No source URL recorded.'}</div>
+                  <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">File Details</div>
+                  <div className="mt-2">Inline preview and download are generated from notebook storage on demand.</div>
                   {activePreview?.totalPages ? (
                     <div className="mt-3 text-xs text-slate-400">{activePreview.totalPages} pages detected</div>
                   ) : null}
@@ -641,6 +689,38 @@ export default function NotebookView({
                 className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isDeleting ? 'Deleting...' : 'Delete file'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteNotebookModalOpen && notebook && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#02050b]/80 p-4 backdrop-blur-sm"
+          onClick={() => setIsDeleteNotebookModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b101c] p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-lg font-black text-white font-display">Delete notebook?</h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              This removes <span className="font-semibold text-slate-200">{notebook.name}</span>, all notebook records, and all stored files immediately.
+            </p>
+            <div className="mt-6 flex justify-end gap-2.5">
+              <button
+                onClick={() => setIsDeleteNotebookModalOpen(false)}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleDeleteCurrentNotebook()}
+                disabled={isDeletingNotebook}
+                className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeletingNotebook ? 'Deleting...' : 'Delete notebook'}
               </button>
             </div>
           </div>

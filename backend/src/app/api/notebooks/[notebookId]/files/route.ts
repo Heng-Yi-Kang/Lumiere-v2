@@ -52,7 +52,6 @@ export async function POST(
           previewFormat: uploadData.previewFormat || null,
           size: uploadData.size,
           sourcePath: uploadData.sourcePath,
-          sourceUrl: uploadData.sourceUrl,
           status: 'ready',
           summary: uploadData.summary || null,
           totalPages: uploadData.totalPages ?? null,

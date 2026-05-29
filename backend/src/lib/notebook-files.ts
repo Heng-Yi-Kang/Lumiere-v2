@@ -25,7 +25,6 @@ type UploadResult = {
   previewFormat?: PreviewFormat;
   size: string;
   sourcePath: string;
-  sourceUrl: string;
   summary?: string;
   totalPages?: number;
   type: SupportedNotebookFileType;
@@ -48,6 +47,15 @@ export class NotebookFileValidationError extends Error {}
 
 export function getNotebookUploadRoot() {
   return process.env.NOTEBOOK_UPLOAD_ROOT || path.join(process.cwd(), 'public', 'uploads', 'notebooks');
+}
+
+export function buildNotebookStoredFileUrl(notebookId: string, sourcePath: string | null | undefined) {
+  if (!sourcePath) {
+    return undefined;
+  }
+
+  const storedName = path.basename(sourcePath);
+  return `/uploads/notebooks/${encodeURIComponent(notebookId)}/${encodeURIComponent(storedName)}`;
 }
 
 function getFileExtension(fileName: string) {
@@ -227,8 +235,6 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(storedPath, buffer);
 
-  const sourceUrl = `/uploads/notebooks/${encodeURIComponent(notebookId)}/${encodeURIComponent(storedName)}`;
-
   try {
     const preview = await buildDerivedPreview(extension, storedPath);
 
@@ -240,7 +246,6 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       previewFormat: preview.previewFormat,
       size: formatBytes(file.size),
       sourcePath: storedPath,
-      sourceUrl,
       summary: buildSummary(preview.extractedText, file.name),
       totalPages: preview.totalPages,
       type: extension,

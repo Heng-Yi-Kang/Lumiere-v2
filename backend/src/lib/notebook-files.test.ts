@@ -33,7 +33,7 @@ describe('persistNotebookUpload', () => {
     expect(result.type).toBe('txt');
     expect(result.previewFormat).toBe('text');
     expect(result.previewContent).toContain('Hello notebook');
-    expect(result.sourceUrl).toContain('/uploads/notebooks/nb-1/');
+    expect(result.sourcePath).toContain(path.join('nb-1', ''));
 
     const storedFile = await stat(result.sourcePath);
     expect(storedFile.isFile()).toBe(true);

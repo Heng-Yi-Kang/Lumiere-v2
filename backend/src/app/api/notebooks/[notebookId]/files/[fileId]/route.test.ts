@@ -32,7 +32,7 @@ describe('GET /api/notebooks/[notebookId]/files/[fileId]', () => {
       name: 'week-1.txt',
       previewContent: 'Preview text',
       previewFormat: 'text',
-      sourceUrl: '/uploads/notebooks/nb-1/week-1.txt',
+      sourcePath: path.join('uploads', 'notebooks', 'nb-1', 'week-1.txt'),
       summary: 'Summary',
       totalPages: null,
       type: 'txt',
@@ -46,6 +46,7 @@ describe('GET /api/notebooks/[notebookId]/files/[fileId]', () => {
     expect(response.status).toBe(200);
     expect(payload.preview.previewContent).toBe('Preview text');
     expect(payload.preview.type).toBe('txt');
+    expect(payload.preview.sourceUrl).toContain('/uploads/notebooks/nb-1/week-1.txt');
   });
 });
 

@@ -28,7 +28,6 @@ export interface FileItem {
   transcript?: TranscriptSegment[];
   summary?: string;
   totalPages?: number;
-  sourceUrl?: string;
 }
 
 export interface NotebookFilePreview {

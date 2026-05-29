@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
-import { Notebook, University, Goal } from './types';
+import { Notebook, Goal } from './types';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
@@ -10,8 +10,7 @@ import KnowledgeGraphView from './components/KnowledgeGraphView';
 import RevisionView from './components/RevisionView';
 import SlangLounge from './components/SlangLounge';
 import CreateNotebookModal from './components/CreateNotebookModal';
-import { createNotebook, createNotebookFile, deleteNotebookFile, fetchNotebooks } from './lib/notebooksApi';
-import { Flame, Sparkles, BookOpen } from 'lucide-react';
+import { createNotebook, createNotebookFile, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
 
 export default function App() {
   // Active states
@@ -20,6 +19,7 @@ export default function App() {
   const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
   const [preFilledQuestion, setPreFilledQuestion] = useState<string>('');
   const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState<boolean>(false);
+  const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
@@ -96,6 +96,24 @@ export default function App() {
     const notebook = await deleteNotebookFile(notebookId, fileId);
 
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+  };
+
+  const handleUpdateNotebook = async (notebookId: string, name: string, description: string) => {
+    const notebook = await updateNotebook(notebookId, {
+      name,
+      description,
+    });
+
+    setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+  };
+
+  const handleDeleteNotebook = async (notebookId: string) => {
+    await deleteNotebook(notebookId);
+    setNotebooks((prev) => prev.filter((nb) => nb.id !== notebookId));
+
+    if (activeNotebookId === notebookId) {
+      setActiveNotebookId(null);
+    }
   };
 
   // Goals CRUD functions
@@ -207,6 +225,8 @@ export default function App() {
               onAskInChat={handleAskInChat}
               onUploadFile={handleAddNewFile}
               onDeleteFile={handleDeleteFile}
+              onEditNotebook={(entry) => setEditingNotebook(entry)}
+              onDeleteNotebook={handleDeleteNotebook}
               onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
             />
           )}
@@ -243,6 +263,24 @@ export default function App() {
           onSubmit={async (name, courseCode, color, description) => {
             await handleAddNewNotebook(name, courseCode, color, description);
             setIsNewNotebookModalOpen(false);
+          }}
+          courses={curUniversity.courses}
+        />
+      )}
+
+      {editingNotebook && (
+        <CreateNotebookModal
+          mode="edit"
+          initialValues={{
+            name: editingNotebook.name,
+            courseCode: editingNotebook.courseCode,
+            color: editingNotebook.color,
+            description: editingNotebook.description,
+          }}
+          onClose={() => setEditingNotebook(null)}
+          onSubmit={async (name, _courseCode, _color, description) => {
+            await handleUpdateNotebook(editingNotebook.id, name, description);
+            setEditingNotebook(null);
           }}
           courses={curUniversity.courses}
         />

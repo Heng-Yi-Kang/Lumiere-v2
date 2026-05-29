@@ -40,7 +40,6 @@ model NotebookFile {
   status      String   @default("ready")
   summary     String?
   totalPages  Int?
-  sourceUrl   String?
   sourcePath  String?
   previewFormat String?
   previewContent String?

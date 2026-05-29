@@ -23,7 +23,6 @@ export function serializeNotebook(notebook: NotebookWithFiles) {
       status: file.status as 'processing' | 'ready',
       summary: file.summary ?? undefined,
       totalPages: file.totalPages ?? undefined,
-      sourceUrl: file.sourceUrl ?? undefined,
     })),
   };
 }

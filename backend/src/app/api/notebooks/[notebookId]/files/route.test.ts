@@ -56,7 +56,6 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
           status: 'ready',
           summary: data.files.create.summary,
           totalPages: data.files.create.totalPages,
-          sourceUrl: data.files.create.sourceUrl,
         },
       ],
     }));

@@ -30,6 +30,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(payload?.error || `Request failed with status ${response.status}`);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return (await response.json()) as T;
 }
 
@@ -100,4 +104,29 @@ export async function deleteNotebookFile(notebookId: string, fileId: string) {
   }
 
   return payload.notebook;
+}
+
+export async function updateNotebook(
+  notebookId: string,
+  input: {
+    name: string;
+    description: string;
+  },
+) {
+  const payload = await requestJson<NotebookResponse>(`/api/notebooks/${encodeURIComponent(notebookId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+
+  if (!payload.notebook) {
+    throw new Error('Notebook update was not returned by the API');
+  }
+
+  return payload.notebook;
+}
+
+export async function deleteNotebook(notebookId: string) {
+  await requestJson<void>(`/api/notebooks/${encodeURIComponent(notebookId)}`, {
+    method: 'DELETE',
+  });
 }
