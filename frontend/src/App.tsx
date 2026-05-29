@@ -21,6 +21,7 @@ export default function App() {
   const [preFilledQuestion, setPreFilledQuestion] = useState<string>('');
   const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState<boolean>(false);
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
   // Loaded mock data based on university selector state
   const curUniversity = UNIVERSITIES.find(u => u.id === selectedUniId) || UNIVERSITIES[0];
@@ -163,10 +164,16 @@ export default function App() {
         onToggleGoal={handleToggleGoal}
         onSetPriorityGoal={handleSetPriorityGoal}
         onDeleteGoal={handleDeleteGoal}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
       {/* Main Layout Area */}
-      <div className="flex-1 pl-64 flex flex-col min-h-screen relative z-10 bg-transparent">
+      <div
+        className={`flex-1 flex flex-col min-h-screen relative z-10 bg-transparent transition-[padding] duration-300 ${
+          isSidebarCollapsed ? 'pl-20' : 'pl-64'
+        }`}
+      >
         {/* Top Header bar with Picker & Streak ranks */}
         <Header 
           selectedUniId={selectedUniId} 

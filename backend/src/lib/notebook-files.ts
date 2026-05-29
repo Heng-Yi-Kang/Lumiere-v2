@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import mammoth from 'mammoth';
-import { OfficeParser } from 'officeparser';
 import sanitizeHtml from 'sanitize-html';
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
@@ -38,6 +38,11 @@ type DerivedPreview = {
   previewFormat: PreviewFormat;
   totalPages?: number;
 };
+
+type OfficeParserModule = typeof import('officeparser');
+
+const require = createRequire(import.meta.url);
+let officeParserModulePromise: Promise<OfficeParserModule> | undefined;
 
 export class NotebookFileValidationError extends Error {}
 
@@ -119,7 +124,16 @@ function sanitizePreviewHtml(html: string) {
   });
 }
 
+async function getOfficeParser() {
+  officeParserModulePromise ??= Promise.resolve(
+    require('officeparser') as OfficeParserModule,
+  );
+
+  return officeParserModulePromise;
+}
+
 async function buildPdfPreview(filePath: string) {
+  const { OfficeParser } = await getOfficeParser();
   const ast = await OfficeParser.parseOffice(filePath);
 
   return {
@@ -143,6 +157,7 @@ async function buildDocxPreview(filePath: string) {
 }
 
 async function buildPptxPreview(filePath: string) {
+  const { OfficeParser } = await getOfficeParser();
   const ast = await OfficeParser.parseOffice(filePath, {
     ignoreNotes: false,
   });

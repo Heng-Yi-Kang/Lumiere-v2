@@ -479,7 +479,7 @@ export default function NotebookView({
 
       {selectedMaterial && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#03060b]/85 p-4 backdrop-blur-md"
+          className="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center bg-[#03060b]/85 p-4 backdrop-blur-md md:left-64"
           onClick={() => setSelectedMaterial(null)}
         >
           <div
