@@ -1,1 +1,10 @@
+node_modules/
+backend/.next/
+backend/node_modules/
+frontend/.next/
+frontend/node_modules/
 .pnpm-store/
+.env*
+!.env.example
+!backend/.env.example
+!frontend/.env.example

@@ -1,0 +1,18 @@
+{
+  "name": "lumiere-v2",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev:frontend": "pnpm --dir frontend dev",
+    "dev:backend": "pnpm --dir backend dev",
+    "build:frontend": "pnpm --dir frontend build",
+    "build:backend": "pnpm --dir backend build",
+    "typecheck:frontend": "pnpm --dir frontend typecheck",
+    "typecheck:backend": "pnpm --dir backend typecheck",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f",
+    "db:reset": "docker compose down -v"
+  }
+}
