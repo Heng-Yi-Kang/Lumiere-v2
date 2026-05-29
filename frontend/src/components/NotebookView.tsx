@@ -294,7 +294,37 @@ export default function NotebookView({
                 <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-300">
                   {entry.courseCode}
                 </span>
-                <span className="text-[11px] font-bold text-slate-400">{entry.fileCount} files</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-400">{entry.fileCount} files</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onEditNotebook?.(entry);
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                      title={`Edit ${entry.name}`}
+                      aria-label={`Edit ${entry.name}`}
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (window.confirm(`Delete "${entry.name}" and all its files?`)) {
+                          void onDeleteNotebook?.(entry.id);
+                        }
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-200 transition hover:bg-rose-500/20"
+                      title={`Delete ${entry.name}`}
+                      aria-label={`Delete ${entry.name}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
               <h3 className="mt-4 text-base font-black text-white font-display">{entry.name}</h3>
               <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-400">

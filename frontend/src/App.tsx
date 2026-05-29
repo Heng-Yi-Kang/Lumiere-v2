@@ -210,6 +210,8 @@ export default function App() {
                 setActiveTab('notebooks');
               }}
               onUploadFile={handleAddNewFile}
+              onEditNotebook={(entry) => setEditingNotebook(entry)}
+              onDeleteNotebook={handleDeleteNotebook}
               onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
               streak={MOCK_STREAK}
               notebookError={notebookLoadError}

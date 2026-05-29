@@ -9,7 +9,9 @@ import {
   Sparkles, 
   ArrowRight,
   FileText,
-  Check
+  Check,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 
 import { StudyStreak } from '../types';
@@ -19,6 +21,8 @@ interface DashboardViewProps {
   notebooks: Notebook[];
   onOpenNotebook: (notebookId: string) => void;
   onUploadFile: (notebookId: string, file: File) => Promise<void> | void;
+  onEditNotebook?: (notebook: Notebook) => void;
+  onDeleteNotebook?: (notebookId: string) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
   streak?: StudyStreak;
   notebookError?: string;
@@ -28,6 +32,8 @@ export default function DashboardView({
   notebooks, 
   onOpenNotebook, 
   onUploadFile,
+  onEditNotebook,
+  onDeleteNotebook,
   onCreateNotebookRequested,
   streak,
   notebookError
@@ -441,8 +447,38 @@ export default function DashboardView({
                   <div className="rounded-lg bg-white/5 px-2 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border border-white/5 font-mono">
                     {nb.courseCode}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <span className="font-extrabold text-slate-200 font-mono">{nb.fileCount}</span> files
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <span className="font-extrabold text-slate-200 font-mono">{nb.fileCount}</span> files
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onEditNotebook?.(nb);
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                        title={`Edit ${nb.name}`}
+                        aria-label={`Edit ${nb.name}`}
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (window.confirm(`Delete "${nb.name}" and all its files?`)) {
+                            void onDeleteNotebook?.(nb.id);
+                          }
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-200 transition hover:bg-rose-500/20"
+                        title={`Delete ${nb.name}`}
+                        aria-label={`Delete ${nb.name}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 

@@ -48,11 +48,11 @@ export default function Sidebar({
   const [newGoalText, setNewGoalText] = useState('');
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Compass, badge: null, desc: 'Central workspace' },
-    { id: 'notebooks', label: 'My Notebooks', icon: BookOpen, badge: null, desc: 'Academic files & recording transcription' },
-    { id: 'graph', label: 'Semantic Knowledge Graph', icon: Network, badge: 'Interactive', desc: 'Cross-module mapping' },
-    { id: 'revision', label: 'Revision & Quizzes', icon: CheckSquare, badge: 'Spaced', desc: 'Flashcards & test prep' },
-    { id: 'lepak', label: 'Campus Study Lounge', icon: Coffee, badge: 'Study Tips', desc: 'Academic tips & GPA planning tool' }
+    { id: 'dashboard', label: 'Dashboard', icon: Compass },
+    { id: 'notebooks', label: 'My Notebooks', icon: BookOpen },
+    { id: 'graph', label: 'Semantic Knowledge Graph', icon: Network },
+    { id: 'revision', label: 'Revision & Quizzes', icon: CheckSquare },
+    { id: 'lepak', label: 'Campus Study Lounge', icon: Coffee }
   ];
 
   // Derive goals stats
@@ -130,23 +130,9 @@ export default function Sidebar({
                   isActive ? 'text-indigo-400' : 'text-slate-350 group-hover:text-white'
                 }`} />
                 {!isCollapsed && (
-                  <div className="flex flex-col items-start leading-tight">
-                    <span className={isActive ? 'text-white' : 'text-slate-200'}>{item.label}</span>
-                    <span className="text-[9px] font-normal text-slate-400 block opacity-0 group-hover:opacity-100 transition-opacity">
-                      {item.desc}
-                    </span>
-                  </div>
+                  <span className={isActive ? 'text-white' : 'text-slate-200'}>{item.label}</span>
                 )}
               </div>
-              {!isCollapsed && item.badge && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold ${
-                  isActive 
-                    ? 'bg-indigo-500/30 text-indigo-200' 
-                    : 'bg-white/5 text-slate-300 group-hover:bg-white/10 group-hover:text-white'
-                }`}>
-                  {item.badge}
-                </span>
-              )}
             </button>
           );
         })}
