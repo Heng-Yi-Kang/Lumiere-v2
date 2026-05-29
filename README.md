@@ -36,4 +36,4 @@ This repository now contains a Vite frontend in `frontend/` and a separate Next.
 The database container uses `pgvector/pgvector:0.8.2-pg16`, so the `vector` extension is available immediately through the init script in [`docker/postgres/init/001-enable-pgvector.sql`](docker/postgres/init/001-enable-pgvector.sql).
 
 pgAdmin credentials and database credentials are defined in [`.env.example`](.env.example) and can be overridden in your local `.env` file.
-Keep the root `.env` and `backend/.env` values aligned so Prisma can connect to the same database that Docker starts.
+Prisma reads `backend/.env` through `dotenv/config`, so keep that file aligned with the Docker database settings.
