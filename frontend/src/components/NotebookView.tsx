@@ -40,7 +40,7 @@ interface NotebookViewProps {
   onSelectNotebook: (id: string | null) => void;
   onBackToDashboard: () => void;
   onAskInChat: (question: string) => void;
-  onAddNewFile?: (notebookId: string, file: FileItem) => void;
+  onAddNewFile?: (notebookId: string, file: FileItem) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
 }
 
@@ -327,7 +327,7 @@ export default function NotebookView({
             };
 
             if (onAddNewFile) {
-              onAddNewFile(notebook.id, newFile);
+              void Promise.resolve(onAddNewFile(notebook.id, newFile)).catch(() => {});
             }
             setIsUploadingProgress(false);
             setUploadFileName('');
@@ -368,9 +368,9 @@ export default function NotebookView({
               transcript: meta.transcript
             };
 
-            if (onAddNewFile) {
-              onAddNewFile(notebook.id, newFile);
-            }
+              if (onAddNewFile) {
+                void Promise.resolve(onAddNewFile(notebook.id, newFile)).catch(() => {});
+              }
             setIsUploadingProgress(false);
             setYtUrl('');
             setYtTitle('');
@@ -410,9 +410,9 @@ export default function NotebookView({
               transcript: [] // no native audio transcript segments for plain text link
             };
 
-            if (onAddNewFile) {
-              onAddNewFile(notebook.id, newFile);
-            }
+              if (onAddNewFile) {
+                void Promise.resolve(onAddNewFile(notebook.id, newFile)).catch(() => {});
+              }
             setIsUploadingProgress(false);
             setWebUrl('');
             setWebTitle('');

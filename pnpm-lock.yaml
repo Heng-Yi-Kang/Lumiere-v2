@@ -13,6 +13,9 @@ importers:
       '@prisma/client':
         specifier: ^6.0.0
         version: 6.19.3(prisma@6.19.3(typescript@5.8.3))(typescript@5.8.3)
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.4.2
       next:
         specifier: ^15.0.0
         version: 15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6)

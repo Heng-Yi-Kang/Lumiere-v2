@@ -1,8 +1,4 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
-
-# Lumiere v2
+# Lumiere
 
 This repository now contains a Vite frontend in `frontend/` and a separate Next.js backend in `backend/`, with PostgreSQL, pgvector, and pgAdmin provided through Docker.
 

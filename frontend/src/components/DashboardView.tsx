@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Notebook, FileItem, University } from '../types';
 import { 
   Plus, 
@@ -22,9 +22,10 @@ interface DashboardViewProps {
   notebooks: Notebook[];
   university: University;
   onOpenNotebook: (notebookId: string) => void;
-  onAddNewFile: (notebookId: string, newFile: FileItem) => void;
+  onAddNewFile: (notebookId: string, newFile: FileItem) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
   streak?: StudyStreak;
+  notebookError?: string;
 }
 
 export default function DashboardView({ 
@@ -33,13 +34,25 @@ export default function DashboardView({
   onOpenNotebook, 
   onAddNewFile,
   onCreateNotebookRequested,
-  streak
+  streak,
+  notebookError
 }: DashboardViewProps) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedNotebookId, setSelectedNotebookId] = useState(notebooks[0]?.id || '');
   const [uploadProgress, setUploadProgress] = useState(-1); // -1: idle, 0-100: working, 101: done
   const [virtualFileName, setVirtualFileName] = useState('');
   const [virtualFileType, setVirtualFileType] = useState<'pdf' | 'audio' | 'video'>('pdf');
+
+  useEffect(() => {
+    if (notebooks.length === 0) {
+      setSelectedNotebookId('');
+      return;
+    }
+
+    if (!selectedNotebookId || !notebooks.some((nb) => nb.id === selectedNotebookId)) {
+      setSelectedNotebookId(notebooks[0].id);
+    }
+  }, [notebooks, selectedNotebookId]);
 
   // Trigger simulated file processing sequences
   const handleDrag = (e: React.DragEvent) => {
@@ -77,7 +90,7 @@ export default function DashboardView({
             ] : undefined
           };
 
-          onAddNewFile(selectedNotebookId, generatedFile);
+          void Promise.resolve(onAddNewFile(selectedNotebookId, generatedFile)).catch(() => {});
 
           setTimeout(() => {
             setUploadProgress(-1);
@@ -105,7 +118,9 @@ export default function DashboardView({
       } else if (extension === 'mp4' || extension === 'mov' || extension === 'mkv') {
         detectedType = 'video';
       }
-      executeSimulatedUpload(name, detectedType);
+      if (selectedNotebookId) {
+        executeSimulatedUpload(name, detectedType);
+      }
     }
   };
 
@@ -118,11 +133,19 @@ export default function DashboardView({
     ];
     // Pick based on university or random
     const rand = fileOptions[Math.floor(Math.random() * fileOptions.length)];
-    executeSimulatedUpload(rand.name, rand.type as any);
+    if (selectedNotebookId) {
+      executeSimulatedUpload(rand.name, rand.type as any);
+    }
   };
 
   return (
-    <div className="space-y-6 text-left">
+      <div className="space-y-6 text-left">
+      {notebookError && (
+        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-semibold text-rose-200">
+          Notebook API error: {notebookError}
+        </div>
+      )}
+
       {/* Welcome Greetings Bar - Premium Frosted Design */}
       <div className="rounded-3xl bg-white/[0.03] backdrop-blur-xl border border-white/10 p-6 text-white shadow-2xl relative overflow-hidden">
         <div className="absolute right-0 top-0 opacity-15 blur-2xl pointer-events-none">
@@ -201,7 +224,7 @@ export default function DashboardView({
               <button
                 id="simulate-file-btn"
                 onClick={triggerUploadClick}
-                disabled={uploadProgress >= 0}
+                disabled={uploadProgress >= 0 || notebooks.length === 0}
                 className="w-full rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 p-2 text-xs font-extrabold text-white transition-all disabled:opacity-50 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5 text-indigo-400" />

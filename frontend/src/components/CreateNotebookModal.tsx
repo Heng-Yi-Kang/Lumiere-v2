@@ -4,7 +4,7 @@ import { Course } from '../types';
 
 interface CreateNotebookModalProps {
   onClose: () => void;
-  onSubmit: (name: string, courseCode: string, color: string, description: string) => void;
+  onSubmit: (name: string, courseCode: string, color: string, description: string) => Promise<void> | void;
   courses: Course[];
 }
 
@@ -26,8 +26,9 @@ export default function CreateNotebookModal({ onClose, onSubmit, courses }: Crea
   const [color, setColor] = useState('blue');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -44,7 +45,14 @@ export default function CreateNotebookModal({ onClose, onSubmit, courses }: Crea
       return;
     }
 
-    onSubmit(finalName, finalCode, color, finalDesc);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(finalName, finalCode, color, finalDesc);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Failed to create notebook.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -203,9 +211,10 @@ export default function CreateNotebookModal({ onClose, onSubmit, courses }: Crea
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-500 py-2 px-5 text-xs font-bold text-white shadow-lg shadow-indigo-600/25 transition-all cursor-pointer border border-indigo-500/10"
+              disabled={isSubmitting}
+              className="rounded-xl bg-indigo-600 hover:bg-indigo-500 py-2 px-5 text-xs font-bold text-white shadow-lg shadow-indigo-600/25 transition-all cursor-pointer border border-indigo-500/10 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Configure & Build
+              {isSubmitting ? 'Saving...' : 'Configure & Build'}
             </button>
           </div>
         </form>

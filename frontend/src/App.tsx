@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UNIVERSITIES, MOCK_NOTEBOOKS, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
+import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
 import { Notebook, FileItem, University, Goal } from './types';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -10,6 +10,7 @@ import KnowledgeGraphView from './components/KnowledgeGraphView';
 import RevisionView from './components/RevisionView';
 import SlangLounge from './components/SlangLounge';
 import CreateNotebookModal from './components/CreateNotebookModal';
+import { createNotebook, createNotebookFile, fetchNotebooks } from './lib/notebooksApi';
 import { Flame, Sparkles, BookOpen } from 'lucide-react';
 
 export default function App() {
@@ -24,16 +25,9 @@ export default function App() {
   // Loaded mock data based on university selector state
   const curUniversity = UNIVERSITIES.find(u => u.id === selectedUniId) || UNIVERSITIES[0];
   
-  // Stateful notebooks to allow virtual mock uploading inside the browser (persisted to localStorage)
-  const [universityNotebooks, setUniversityNotebooks] = useState<Record<string, Notebook[]>>(() => {
-    const saved = localStorage.getItem('lumiere_notebooks');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (_) {}
-    }
-    return MOCK_NOTEBOOKS;
-  });
+  // Notebook data is persisted in the backend database and loaded per university.
+  const [universityNotebooks, setUniversityNotebooks] = useState<Record<string, Notebook[]>>({});
+  const [notebookLoadError, setNotebookLoadError] = useState<string>('');
 
   // Track goals with Local Storage persistence
   const [goals, setGoals] = useState<Goal[]>(() => {
@@ -51,12 +45,40 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('lumiere_notebooks', JSON.stringify(universityNotebooks));
-  }, [universityNotebooks]);
-
-  useEffect(() => {
     localStorage.setItem('lumiere_goals', JSON.stringify(goals));
   }, [goals]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadNotebooks = async () => {
+      try {
+        setNotebookLoadError('');
+        const notebooks = await fetchNotebooks(selectedUniId);
+
+        if (!cancelled) {
+          setUniversityNotebooks((prev) => ({
+            ...prev,
+            [selectedUniId]: notebooks,
+          }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setNotebookLoadError(error instanceof Error ? error.message : 'Failed to load notebooks.');
+          setUniversityNotebooks((prev) => ({
+            ...prev,
+            [selectedUniId]: prev[selectedUniId] || [],
+          }));
+        }
+      }
+    };
+
+    void loadNotebooks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedUniId]);
 
   const curNotebooksList = universityNotebooks[selectedUniId] || [];
   const curGraphData = MOCK_KNOWLEDGE_GRAPH[selectedUniId] || { nodes: [], links: [] };
@@ -70,41 +92,30 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
-  const handleAddNewNotebook = (name: string, courseCode: string, color: string, description: string) => {
-    setUniversityNotebooks(prev => {
+  const handleAddNewNotebook = async (name: string, courseCode: string, color: string, description: string) => {
+    const notebook = await createNotebook({
+      universityId: selectedUniId,
+      name,
+      courseCode,
+      color,
+      description,
+    });
+
+    setUniversityNotebooks((prev) => {
       const copy = { ...prev };
       const list = copy[selectedUniId] || [];
-      const newNb: Notebook = {
-        id: `nb-${Date.now()}`,
-        name,
-        courseCode,
-        color,
-        description,
-        fileCount: 0,
-        files: [],
-        conceptCount: Math.floor(Math.random() * 4) + 3 // add some initial simulation concepts count
-      };
-      copy[selectedUniId] = [...list, newNb];
+      copy[selectedUniId] = [notebook, ...list];
       return copy;
     });
   };
 
-  const handleAddNewFile = (notebookId: string, file: FileItem) => {
-    // Append in-memory file list
-    setUniversityNotebooks(prev => {
+  const handleAddNewFile = async (notebookId: string, file: FileItem) => {
+    const notebook = await createNotebookFile(notebookId, file);
+
+    setUniversityNotebooks((prev) => {
       const copy = { ...prev };
       const list = copy[selectedUniId] || [];
-      const updatedList = list.map(nb => {
-        if (nb.id === notebookId) {
-          return {
-            ...nb,
-            fileCount: nb.fileCount + 1,
-            files: [file, ...nb.files]
-          };
-        }
-        return nb;
-      });
-      copy[selectedUniId] = updatedList;
+      copy[selectedUniId] = list.map((nb) => (nb.id === notebook.id ? notebook : nb));
       return copy;
     });
   };
@@ -190,7 +201,7 @@ export default function App() {
         {/* Dynamic Context Canvas */}
         <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full pb-16 relative z-10">
           {activeTab === 'dashboard' && (
-            <DashboardView 
+          <DashboardView 
               notebooks={curNotebooksList}
               university={curUniversity}
               onOpenNotebook={(nbId) => {
@@ -200,6 +211,7 @@ export default function App() {
               onAddNewFile={handleAddNewFile}
               onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
               streak={MOCK_STREAK}
+              notebookError={notebookLoadError}
             />
           )}
 
@@ -244,8 +256,8 @@ export default function App() {
       {isNewNotebookModalOpen && (
         <CreateNotebookModal 
           onClose={() => setIsNewNotebookModalOpen(false)}
-          onSubmit={(name, courseCode, color, description) => {
-            handleAddNewNotebook(name, courseCode, color, description);
+          onSubmit={async (name, courseCode, color, description) => {
+            await handleAddNewNotebook(name, courseCode, color, description);
             setIsNewNotebookModalOpen(false);
           }}
           courses={curUniversity.courses}

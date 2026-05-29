@@ -27,6 +27,7 @@ export interface FileItem {
   transcript?: TranscriptSegment[];
   summary?: string;
   totalPages?: number;
+  sourceUrl?: string;
 }
 
 export interface TranscriptSegment {
@@ -104,6 +105,7 @@ export interface StudyStreak {
 
 export interface Notebook {
   id: string;
+  universityId?: string;
   name: string;
   courseCode: string;
   color: string;
