@@ -13,14 +13,16 @@ This repository is a Vite + React + TypeScript frontend. The app lives under `fr
 Keep feature code close to the view or component that uses it. Prefer small, focused modules over large shared files unless the logic is reused.
 
 ## Build, Test, and Development Commands
-Run commands from `frontend/`.
+Run commands from `frontend/` and use `pnpm` for installs and scripts.
 
-- `npm install`: install dependencies
-- `npm run dev`: start the local Vite dev server on port 3000
-- `npm run build`: create a production build in `dist/`
-- `npm run preview`: serve the production build locally
-- `npm run lint`: run TypeScript type-checking with `tsc --noEmit`
-- `npm run clean`: remove generated build output
+- `pnpm install --frozen-lockfile`: install dependencies from the committed lockfile
+- `pnpm dev`: start the local Vite dev server on port 3000
+- `pnpm build`: create a production build in `dist/`
+- `pnpm preview`: serve the production build locally
+- `pnpm lint`: run TypeScript type-checking with `tsc --noEmit`
+- `pnpm typecheck`: run the TypeScript compiler without emitting files
+- `pnpm check`: run type-checking and a production build
+- `pnpm clean`: remove generated build output
 
 ## Coding Style & Naming Conventions
 Use TypeScript and React function components. Follow the existing project style:
@@ -33,7 +35,7 @@ Use TypeScript and React function components. Follow the existing project style:
 Path aliases are configured with `@/*` in `frontend/tsconfig.json`, so imports may use `@/components/...` instead of long relative paths.
 
 ## Testing Guidelines
-There is no dedicated test runner configured yet. Treat `npm run lint` as the baseline verification step before committing changes. If you add tests, place them near the code they cover and use clear names that match the unit or view under test.
+There is no dedicated test runner configured yet. Treat `pnpm lint` or `pnpm check` as the baseline verification step before committing changes. If you add tests, place them near the code they cover and use clear names that match the unit or view under test.
 
 ## Commit & Pull Request Guidelines
 Commit history is short and uses concise imperative messages, sometimes with a prefix such as `feat:`. Keep commits focused and descriptive, for example `feat: add notebook sidebar state`.
@@ -46,3 +48,9 @@ Pull requests should include:
 
 ## Security & Configuration Tips
 Do not commit secrets. Copy `frontend/.env.example` to `.env.local` and set `GEMINI_API_KEY` locally before running the app.
+
+## pnpm Workflow Notes
+Follow the repository guide in [`docs/pnpm-agent-guide.md`](docs/pnpm-agent-guide.md) when changing dependencies or running package scripts.
+- Prefer `pnpm add`, `pnpm remove`, and `pnpm up` for dependency changes.
+- Keep `pnpm-lock.yaml` authoritative once it is generated for the frontend.
+- Use `pnpm exec` for project-local binaries that are not wrapped by scripts.
