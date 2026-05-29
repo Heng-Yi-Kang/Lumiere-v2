@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Notebook, FileItem } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { Notebook } from '../types';
 import { 
   Plus, 
   FolderLock, 
@@ -21,7 +21,7 @@ import { StudyStreak } from '../types';
 interface DashboardViewProps {
   notebooks: Notebook[];
   onOpenNotebook: (notebookId: string) => void;
-  onAddNewFile: (notebookId: string, newFile: FileItem) => Promise<void> | void;
+  onUploadFile: (notebookId: string, file: File) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
   streak?: StudyStreak;
   notebookError?: string;
@@ -30,7 +30,7 @@ interface DashboardViewProps {
 export default function DashboardView({ 
   notebooks, 
   onOpenNotebook, 
-  onAddNewFile,
+  onUploadFile,
   onCreateNotebookRequested,
   streak,
   notebookError
@@ -38,8 +38,10 @@ export default function DashboardView({
   const [dragActive, setDragActive] = useState(false);
   const [selectedNotebookId, setSelectedNotebookId] = useState(notebooks[0]?.id || '');
   const [uploadProgress, setUploadProgress] = useState(-1); // -1: idle, 0-100: working, 101: done
-  const [virtualFileName, setVirtualFileName] = useState('');
-  const [virtualFileType, setVirtualFileType] = useState<'pdf' | 'audio' | 'video'>('pdf');
+  const [selectedFileName, setSelectedFileName] = useState('');
+  const [selectedFileType, setSelectedFileType] = useState<'pdf' | 'docx' | 'pptx' | 'txt'>('pdf');
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (notebooks.length === 0) {
@@ -52,7 +54,6 @@ export default function DashboardView({
     }
   }, [notebooks, selectedNotebookId]);
 
-  // Trigger simulated file processing sequences
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -63,42 +64,32 @@ export default function DashboardView({
     }
   };
 
-  const executeSimulatedUpload = (name: string, type: 'pdf' | 'audio' | 'video') => {
-    setVirtualFileName(name || `LMS_Slide_Semester2_${type === 'pdf' ? 'Week10.pdf' : 'Recording.mp3'}`);
-    setVirtualFileType(type);
-    setUploadProgress(0);
+  const executeUpload = async (file: File) => {
+    if (!selectedNotebookId) {
+      return;
+    }
 
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          
-          // Complete upload and trigger parent file adding logic!
-          const generatedFile: FileItem = {
-            id: `f-virtual-${Date.now()}`,
-            name: name || `Syllabus_Slide_${type === 'pdf' ? 'Week10.pdf' : 'Lecture_Audio.mp3'}`,
-            type: type === 'audio' ? 'audio' : type === 'video' ? 'video' : 'pdf',
-            size: type === 'pdf' ? '3.5 MB' : '32 MB',
-            uploadDate: '28 May 2026',
-            status: 'ready',
-            summary: 'Lumiere has extracted topics, generated semantic concept maps, and pre-composed quizzes for this file. You can ask grounded questions about it inside AI Study Chat.',
-            totalPages: type === 'pdf' ? 14 : undefined,
-            transcript: type === 'audio' ? [
-              { id: 'vts-1', startTime: 0, endTime: 10, speaker: 'Lecturer', text: 'Today we will start the discussion on a new module' }
-            ] : undefined
-          };
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension !== 'pdf' && extension !== 'docx' && extension !== 'pptx' && extension !== 'txt') {
+      setUploadError('Only PDF, DOCX, PPTX, and TXT files are supported.');
+      return;
+    }
 
-          void Promise.resolve(onAddNewFile(selectedNotebookId, generatedFile)).catch(() => {});
+    setUploadError('');
+    setSelectedFileName(file.name);
+    setSelectedFileType(extension);
+    setUploadProgress(15);
 
-          setTimeout(() => {
-            setUploadProgress(-1);
-          }, 1500);
-
-          return 101; 
-        }
-        return prev + 10;
-      });
-    }, 150);
+    try {
+      await Promise.resolve(onUploadFile(selectedNotebookId, file));
+      setUploadProgress(101);
+      window.setTimeout(() => {
+        setUploadProgress(-1);
+      }, 1200);
+    } catch (error) {
+      setUploadProgress(-1);
+      setUploadError(error instanceof Error ? error.message : 'Upload failed.');
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -107,33 +98,12 @@ export default function DashboardView({
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      const name = file.name;
-      const extension = name.split('.').pop()?.toLowerCase();
-      let detectedType: 'pdf' | 'audio' | 'video' = 'pdf';
-      if (extension === 'mp3' || extension === 'wav' || extension === 'm4a') {
-        detectedType = 'audio';
-      } else if (extension === 'mp4' || extension === 'mov' || extension === 'mkv') {
-        detectedType = 'video';
-      }
-      if (selectedNotebookId) {
-        executeSimulatedUpload(name, detectedType);
-      }
+      void executeUpload(e.dataTransfer.files[0]);
     }
   };
 
   const triggerUploadClick = () => {
-    const fileOptions = [
-      { name: 'WIX1001_Calculus_Notes_Revision.pdf', type: 'pdf' },
-      { name: 'Dr_Hafizah_AI_Lab_Explanation_2.mp3', type: 'audio' },
-      { name: 'Taylor_Retail_Customs_SST_Guideline.pdf', type: 'pdf' },
-      { name: 'Full_Lecture_Software_Engineering_Rec.mp3', type: 'audio' }
-    ];
-    // Pick based on university or random
-    const rand = fileOptions[Math.floor(Math.random() * fileOptions.length)];
-    if (selectedNotebookId) {
-      executeSimulatedUpload(rand.name, rand.type as any);
-    }
+    fileInputRef.current?.click();
   };
 
   return (
@@ -141,6 +111,11 @@ export default function DashboardView({
       {notebookError && (
         <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-semibold text-rose-200">
           Notebook API error: {notebookError}
+        </div>
+      )}
+      {uploadError && (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs font-semibold text-amber-100">
+          {uploadError}
         </div>
       )}
 
@@ -193,7 +168,7 @@ export default function DashboardView({
               Upload Materials & Audio Recordings
             </h2>
             <p className="text-xs text-slate-400">
-              Drag PDFs, PowerPoint slides, lecture video, or WhatsApp/Telegram screenshots.
+              Drag PDF, DOCX, PPTX, or TXT files directly into a notebook.
             </p>
           </div>
 
@@ -228,6 +203,19 @@ export default function DashboardView({
                 <Plus className="h-3.5 w-3.5 text-indigo-400" />
                 Select File
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.pptx,.txt"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    void executeUpload(file);
+                  }
+                  event.target.value = '';
+                }}
+              />
             </div>
           </div>
 
@@ -249,22 +237,22 @@ export default function DashboardView({
                   <UploadCloud className="h-5 w-5 text-indigo-400" />
                 </div>
                 <div className="text-xs font-semibold text-slate-200">
-                  Drag your LMS slide or recording here, or click to pick
+                  Drag your lecture material here, or click to pick
                 </div>
                 <div className="text-[10px] text-slate-400">
-                  Supports PDF, MP3, WAV, Slide Decks, and OCR Images up to 200MB
+                  Supports PDF, DOCX, PPTX, and TXT up to 100MB
                 </div>
               </div>
             ) : uploadProgress <= 100 ? (
               <div className="w-full max-w-sm space-y-3 col-span-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2 font-black text-slate-200">
-                    {virtualFileType === 'pdf' ? (
+                    {selectedFileType === 'pdf' ? (
                       <FileText className="h-4 w-4 text-rose-400 animate-bounce" />
                     ) : (
-                      <Music className="h-4 w-4 text-blue-400 animate-bounce" />
+                      <BookMarked className="h-4 w-4 text-blue-400 animate-bounce" />
                     )}
-                    <span className="truncate max-w-[200px]">{virtualFileName}</span>
+                    <span className="truncate max-w-[200px]">{selectedFileName}</span>
                   </span>
                   <span className="font-extrabold text-[#34d399] text-glow-emerald">
                     {uploadProgress < 100 ? `${uploadProgress}%` : 'Reading...'}
@@ -282,9 +270,9 @@ export default function DashboardView({
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400 justify-center">
                   <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />
                   <span>
-                    {uploadProgress < 30 ? 'Uploading chunk files...' :
-                     uploadProgress < 65 ? 'Running OCR & Segment Tree Extraction...' :
-                     'Formulating local flashcard & quizzes...'}
+                    {uploadProgress < 30 ? 'Uploading file to notebook storage...' :
+                     uploadProgress < 65 ? 'Extracting preview and indexing content...' :
+                     'Persisting metadata and refreshing notebook...'}
                   </span>
                 </div>
               </div>

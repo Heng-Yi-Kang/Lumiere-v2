@@ -20,7 +20,8 @@ export interface Course {
 export interface FileItem {
   id: string;
   name: string;
-  type: 'pdf' | 'video' | 'audio' | 'image' | 'link';
+  type: 'pdf' | 'docx' | 'pptx' | 'txt' | 'video' | 'audio' | 'image' | 'link';
+  mimeType?: string;
   size: string;
   uploadDate: string;
   status: 'processing' | 'ready';
@@ -28,6 +29,18 @@ export interface FileItem {
   summary?: string;
   totalPages?: number;
   sourceUrl?: string;
+}
+
+export interface NotebookFilePreview {
+  id: string;
+  name: string;
+  type: 'pdf' | 'docx' | 'pptx' | 'txt';
+  mimeType?: string;
+  sourceUrl?: string;
+  previewFormat?: 'pdf' | 'html' | 'text';
+  previewContent?: string;
+  totalPages?: number;
+  summary?: string;
 }
 
 export interface TranscriptSegment {

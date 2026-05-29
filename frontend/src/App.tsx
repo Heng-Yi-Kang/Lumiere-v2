@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
-import { Notebook, FileItem, University, Goal } from './types';
+import { Notebook, University, Goal } from './types';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
@@ -10,7 +10,7 @@ import KnowledgeGraphView from './components/KnowledgeGraphView';
 import RevisionView from './components/RevisionView';
 import SlangLounge from './components/SlangLounge';
 import CreateNotebookModal from './components/CreateNotebookModal';
-import { createNotebook, createNotebookFile, fetchNotebooks } from './lib/notebooksApi';
+import { createNotebook, createNotebookFile, deleteNotebookFile, fetchNotebooks } from './lib/notebooksApi';
 import { Flame, Sparkles, BookOpen } from 'lucide-react';
 
 export default function App() {
@@ -85,8 +85,14 @@ export default function App() {
     setNotebooks((prev) => [notebook, ...prev]);
   };
 
-  const handleAddNewFile = async (notebookId: string, file: FileItem) => {
+  const handleAddNewFile = async (notebookId: string, file: File) => {
     const notebook = await createNotebookFile(notebookId, file);
+
+    setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+  };
+
+  const handleDeleteFile = async (notebookId: string, fileId: string) => {
+    const notebook = await deleteNotebookFile(notebookId, fileId);
 
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
@@ -178,7 +184,7 @@ export default function App() {
                 setActiveNotebookId(nbId);
                 setActiveTab('notebooks');
               }}
-              onAddNewFile={handleAddNewFile}
+              onUploadFile={handleAddNewFile}
               onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
               streak={MOCK_STREAK}
               notebookError={notebookLoadError}
@@ -192,7 +198,8 @@ export default function App() {
               onSelectNotebook={(id) => setActiveNotebookId(id)}
               onBackToDashboard={() => setActiveTab('dashboard')}
               onAskInChat={handleAskInChat}
-              onAddNewFile={handleAddNewFile}
+              onUploadFile={handleAddNewFile}
+              onDeleteFile={handleDeleteFile}
               onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
             />
           )}

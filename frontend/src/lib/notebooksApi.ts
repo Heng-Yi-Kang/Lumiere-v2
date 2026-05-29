@@ -1,6 +1,6 @@
-import { FileItem, Notebook } from '../types';
+import { Notebook, NotebookFilePreview } from '../types';
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
 
 type NotebookResponse = {
   notebooks?: Notebook[];
@@ -8,13 +8,21 @@ type NotebookResponse = {
   error?: string;
 };
 
+type NotebookPreviewResponse = {
+  preview?: NotebookFilePreview;
+  error?: string;
+};
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const headers = new Headers(init?.headers);
+
+  if (!headers.has('Content-Type') && !(init?.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${NOTEBOOKS_API_BASE_URL}${path}`, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -50,12 +58,42 @@ export async function createNotebook(input: {
 
 export async function createNotebookFile(
   notebookId: string,
-  file: Omit<FileItem, 'id'> & { sourceUrl?: string },
+  file: File,
 ) {
+  const formData = new FormData();
+  formData.append('file', file);
+
   const payload = await requestJson<NotebookResponse>(`/api/notebooks/${encodeURIComponent(notebookId)}/files`, {
     method: 'POST',
-    body: JSON.stringify(file),
+    body: formData,
   });
+
+  if (!payload.notebook) {
+    throw new Error('Notebook update was not returned by the API');
+  }
+
+  return payload.notebook;
+}
+
+export async function fetchNotebookFilePreview(notebookId: string, fileId: string) {
+  const payload = await requestJson<NotebookPreviewResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}`,
+  );
+
+  if (!payload.preview) {
+    throw new Error('Notebook file preview was not returned by the API');
+  }
+
+  return payload.preview;
+}
+
+export async function deleteNotebookFile(notebookId: string, fileId: string) {
+  const payload = await requestJson<NotebookResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}`,
+    {
+      method: 'DELETE',
+    },
+  );
 
   if (!payload.notebook) {
     throw new Error('Notebook update was not returned by the API');
