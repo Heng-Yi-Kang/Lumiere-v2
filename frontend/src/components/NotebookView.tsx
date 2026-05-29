@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
+  Download,
   Eye,
+  ExternalLink,
   FileText,
   FolderOpen,
   LoaderCircle,
@@ -16,6 +18,7 @@ import {
 } from 'lucide-react';
 import { FileItem, Notebook, NotebookFilePreview } from '../types';
 import { fetchNotebookFilePreview, NOTEBOOKS_API_BASE_URL } from '../lib/notebooksApi';
+import { validateNotebookUpload } from '../lib/notebookUpload';
 
 interface NotebookViewProps {
   notebook: Notebook | null;
@@ -59,14 +62,17 @@ export default function NotebookView({
   onDeleteFile,
   onCreateNotebookRequested,
 }: NotebookViewProps) {
+  type UploadPhase = 'idle' | 'validating' | 'uploading' | 'extracting' | 'success';
   const [materialSearchText, setMaterialSearchText] = useState('');
   const [selectedMaterial, setSelectedMaterial] = useState<FileItem | null>(null);
   const [previewCache, setPreviewCache] = useState<Record<string, NotebookFilePreview>>({});
   const [previewError, setPreviewError] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
+  const [uploadFileName, setUploadFileName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingDeleteFile, setPendingDeleteFile] = useState<FileItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -74,6 +80,19 @@ export default function NotebookView({
     setPreviewError('');
     setUploadError('');
   }, [notebook?.id]);
+
+  useEffect(() => {
+    if (uploadPhase !== 'success') {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setUploadPhase('idle');
+      setUploadFileName('');
+    }, 1400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [uploadPhase]);
 
   useEffect(() => {
     if (!notebook || !selectedMaterial) {
@@ -129,21 +148,57 @@ export default function NotebookView({
 
   const activePreview = selectedMaterial ? previewCache[selectedMaterial.id] : undefined;
   const viewerUrl = getViewerUrl(activePreview?.sourceUrl || selectedMaterial?.sourceUrl);
+  const selectedViewerUrl = getViewerUrl(selectedMaterial?.sourceUrl);
+  const uploadProgressValue = uploadPhase === 'validating'
+    ? 10
+    : uploadPhase === 'uploading'
+      ? 45
+      : uploadPhase === 'extracting'
+        ? 82
+        : uploadPhase === 'success'
+          ? 100
+          : 0;
+  const uploadStatusLabel = uploadPhase === 'validating'
+    ? 'Validating file before upload...'
+    : uploadPhase === 'uploading'
+      ? 'Sending file to notebook storage...'
+      : uploadPhase === 'extracting'
+        ? 'Extracting preview content and refreshing notebook...'
+        : uploadPhase === 'success'
+          ? 'Upload finished. Material is ready.'
+          : '';
 
   const handleUpload = async (file: File) => {
     if (!notebook || !onUploadFile) {
       return;
     }
 
+    const validationError = validateNotebookUpload(file);
+    if (validationError) {
+      setUploadError(validationError);
+      setUploadPhase('idle');
+      return;
+    }
+
     setUploadError('');
-    setIsUploading(true);
+    setUploadFileName(file.name);
+    setUploadPhase('validating');
 
     try {
+      await Promise.resolve();
+      setUploadPhase('uploading');
+      await Promise.resolve();
+      setUploadPhase('extracting');
       await Promise.resolve(onUploadFile(notebook.id, file));
+      setUploadPhase('success');
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'Upload failed.');
+      setUploadPhase('idle');
+      setUploadFileName('');
     } finally {
-      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -170,6 +225,7 @@ export default function NotebookView({
       setPreviewError(error instanceof Error ? error.message : 'Delete failed.');
     } finally {
       setIsDeleting(false);
+      setPendingDeleteFile(null);
     }
   };
 
@@ -286,11 +342,11 @@ export default function NotebookView({
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
+              disabled={uploadPhase !== 'idle'}
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-400/25 bg-indigo-500/10 px-4 py-6 text-sm font-bold text-indigo-100 transition hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isUploading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
-              {isUploading ? 'Uploading and extracting preview...' : 'Select File'}
+              {uploadPhase !== 'idle' ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+              {uploadPhase !== 'idle' ? 'Processing upload...' : 'Select File'}
             </button>
 
             <input
@@ -303,9 +359,24 @@ export default function NotebookView({
                 if (file) {
                   void handleUpload(file);
                 }
-                event.target.value = '';
               }}
             />
+
+            {uploadPhase !== 'idle' && (
+              <div className="mt-4 rounded-2xl border border-white/5 bg-slate-950/30 p-4">
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="truncate font-bold text-slate-100">{uploadFileName}</span>
+                  <span className="font-black text-indigo-300">{uploadProgressValue}%</span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/5">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 transition-all duration-200"
+                    style={{ width: `${uploadProgressValue}%` }}
+                  />
+                </div>
+                <p className="mt-3 text-[11px] text-slate-400">{uploadStatusLabel}</p>
+              </div>
+            )}
 
             <div className="mt-4 rounded-2xl border border-white/5 bg-slate-950/25 p-4 text-[11px] leading-relaxed text-slate-400">
               <p>Limit: 100MB per file.</p>
@@ -389,7 +460,7 @@ export default function NotebookView({
                       </span>
                     </button>
                     <button
-                      onClick={() => void handleDelete(file)}
+                      onClick={() => setPendingDeleteFile(file)}
                       disabled={isDeleting}
                       className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -495,7 +566,32 @@ export default function NotebookView({
                 </div>
               </div>
 
-              <div className="mt-5 flex gap-2.5 border-t border-white/5 pt-4">
+              <div className="mt-5 flex flex-wrap gap-2.5 border-t border-white/5 pt-4">
+                {selectedViewerUrl ? (
+                  <>
+                    <a
+                      href={selectedViewerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-100 transition hover:bg-white/10"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <ExternalLink className="h-4 w-4" />
+                        Open
+                      </span>
+                    </a>
+                    <a
+                      href={selectedViewerUrl}
+                      download={selectedMaterial.name}
+                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-100 transition hover:bg-white/10"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <Download className="h-4 w-4" />
+                        Download
+                      </span>
+                    </a>
+                  </>
+                ) : null}
                 <button
                   onClick={() =>
                     onAskInChat(
@@ -507,13 +603,45 @@ export default function NotebookView({
                   Ask AI About Material
                 </button>
                 <button
-                  onClick={() => void handleDelete(selectedMaterial)}
+                  onClick={() => setPendingDeleteFile(selectedMaterial)}
                   disabled={isDeleting}
                   className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Delete
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDeleteFile && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#02050b]/80 p-4 backdrop-blur-sm"
+          onClick={() => setPendingDeleteFile(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b101c] p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-lg font-black text-white font-display">Delete material?</h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              This removes <span className="font-semibold text-slate-200">{pendingDeleteFile.name}</span> from the notebook and deletes the stored file immediately.
+            </p>
+            <div className="mt-6 flex justify-end gap-2.5">
+              <button
+                onClick={() => setPendingDeleteFile(null)}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleDelete(pendingDeleteFile)}
+                disabled={isDeleting}
+                className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete file'}
+              </button>
             </div>
           </div>
         </div>

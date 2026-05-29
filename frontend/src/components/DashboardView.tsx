@@ -5,18 +5,15 @@ import {
   FolderLock, 
   UploadCloud, 
   BookMarked, 
-  Network, 
   Clock, 
   Sparkles, 
   ArrowRight,
   FileText,
-  Video,
-  Music,
-  Check,
-  AlertCircle
+  Check
 } from 'lucide-react';
 
 import { StudyStreak } from '../types';
+import { isSupportedNotebookExtension, validateNotebookUpload } from '../lib/notebookUpload';
 
 interface DashboardViewProps {
   notebooks: Notebook[];
@@ -35,9 +32,10 @@ export default function DashboardView({
   streak,
   notebookError
 }: DashboardViewProps) {
+  type UploadPhase = 'idle' | 'validating' | 'uploading' | 'extracting' | 'success';
   const [dragActive, setDragActive] = useState(false);
   const [selectedNotebookId, setSelectedNotebookId] = useState(notebooks[0]?.id || '');
-  const [uploadProgress, setUploadProgress] = useState(-1); // -1: idle, 0-100: working, 101: done
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [selectedFileType, setSelectedFileType] = useState<'pdf' | 'docx' | 'pptx' | 'txt'>('pdf');
   const [uploadError, setUploadError] = useState('');
@@ -53,6 +51,19 @@ export default function DashboardView({
       setSelectedNotebookId(notebooks[0].id);
     }
   }, [notebooks, selectedNotebookId]);
+
+  useEffect(() => {
+    if (uploadPhase !== 'success') {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setUploadPhase('idle');
+      setSelectedFileName('');
+    }, 1400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [uploadPhase]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -70,7 +81,12 @@ export default function DashboardView({
     }
 
     const extension = file.name.split('.').pop()?.toLowerCase();
-    if (extension !== 'pdf' && extension !== 'docx' && extension !== 'pptx' && extension !== 'txt') {
+    const validationError = validateNotebookUpload(file);
+    if (validationError) {
+      setUploadError(validationError);
+      return;
+    }
+    if (!extension || !isSupportedNotebookExtension(extension)) {
       setUploadError('Only PDF, DOCX, PPTX, and TXT files are supported.');
       return;
     }
@@ -78,17 +94,22 @@ export default function DashboardView({
     setUploadError('');
     setSelectedFileName(file.name);
     setSelectedFileType(extension);
-    setUploadProgress(15);
+    setUploadPhase('validating');
 
     try {
+      await Promise.resolve();
+      setUploadPhase('uploading');
+      await Promise.resolve();
+      setUploadPhase('extracting');
       await Promise.resolve(onUploadFile(selectedNotebookId, file));
-      setUploadProgress(101);
-      window.setTimeout(() => {
-        setUploadProgress(-1);
-      }, 1200);
+      setUploadPhase('success');
     } catch (error) {
-      setUploadProgress(-1);
+      setUploadPhase('idle');
       setUploadError(error instanceof Error ? error.message : 'Upload failed.');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -105,6 +126,26 @@ export default function DashboardView({
   const triggerUploadClick = () => {
     fileInputRef.current?.click();
   };
+
+  const uploadProgress = uploadPhase === 'validating'
+    ? 10
+    : uploadPhase === 'uploading'
+      ? 45
+      : uploadPhase === 'extracting'
+        ? 82
+        : uploadPhase === 'success'
+          ? 101
+          : -1;
+
+  const uploadStatus = uploadPhase === 'validating'
+    ? 'Validating file before upload...'
+    : uploadPhase === 'uploading'
+      ? 'Uploading file to notebook storage...'
+      : uploadPhase === 'extracting'
+        ? 'Extracting preview and refreshing notebook...'
+        : uploadPhase === 'success'
+          ? 'Upload completed successfully.'
+          : '';
 
   return (
       <div className="space-y-6 text-left">
@@ -197,7 +238,7 @@ export default function DashboardView({
               <button
                 id="simulate-file-btn"
                 onClick={triggerUploadClick}
-                disabled={uploadProgress >= 0 || notebooks.length === 0}
+                disabled={uploadPhase !== 'idle' || notebooks.length === 0}
                 className="w-full rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 p-2 text-xs font-extrabold text-white transition-all disabled:opacity-50 flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5 text-indigo-400" />
@@ -213,7 +254,6 @@ export default function DashboardView({
                   if (file) {
                     void executeUpload(file);
                   }
-                  event.target.value = '';
                 }}
               />
             </div>
@@ -255,7 +295,7 @@ export default function DashboardView({
                     <span className="truncate max-w-[200px]">{selectedFileName}</span>
                   </span>
                   <span className="font-extrabold text-[#34d399] text-glow-emerald">
-                    {uploadProgress < 100 ? `${uploadProgress}%` : 'Reading...'}
+                    {uploadProgress < 100 ? `${uploadProgress}%` : 'Ready'}
                   </span>
                 </div>
                 
@@ -269,11 +309,7 @@ export default function DashboardView({
 
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400 justify-center">
                   <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />
-                  <span>
-                    {uploadProgress < 30 ? 'Uploading file to notebook storage...' :
-                     uploadProgress < 65 ? 'Extracting preview and indexing content...' :
-                     'Persisting metadata and refreshing notebook...'}
-                  </span>
+                  <span>{uploadStatus}</span>
                 </div>
               </div>
             ) : (

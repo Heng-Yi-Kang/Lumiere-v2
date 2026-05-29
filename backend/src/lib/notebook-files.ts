@@ -5,7 +5,6 @@ import mammoth from 'mammoth';
 import { OfficeParser } from 'officeparser';
 import sanitizeHtml from 'sanitize-html';
 
-const UPLOAD_ROOT = path.join(process.cwd(), 'public', 'uploads', 'notebooks');
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt';
@@ -41,6 +40,10 @@ type DerivedPreview = {
 };
 
 export class NotebookFileValidationError extends Error {}
+
+export function getNotebookUploadRoot() {
+  return process.env.NOTEBOOK_UPLOAD_ROOT || path.join(process.cwd(), 'public', 'uploads', 'notebooks');
+}
 
 function getFileExtension(fileName: string) {
   return path.extname(fileName).slice(1).toLowerCase();
@@ -199,7 +202,7 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
     throw new NotebookFileValidationError(`Invalid MIME type for .${extension} file.`);
   }
 
-  const notebookDirectory = path.join(UPLOAD_ROOT, notebookId);
+  const notebookDirectory = path.join(getNotebookUploadRoot(), notebookId);
   await fs.mkdir(notebookDirectory, { recursive: true });
 
   const safeName = sanitizeFileName(file.name);

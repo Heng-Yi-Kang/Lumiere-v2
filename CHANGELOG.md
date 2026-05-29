@@ -55,12 +55,26 @@
 - Reworked notebook detail view around document uploads and inline modal preview.
 - Added notebook file delete actions from both the file list and the preview modal.
 - Updated dashboard upload flow to use actual file selection and backend upload instead of simulated material creation.
+- Added shared client-side upload validation for:
+  - unsupported extensions
+  - empty files
+  - files larger than `100 MB`
+- Added clearer staged upload status messaging in both the dashboard and notebook workspace.
+- Added `open in new tab` and `download` actions in the inline notebook material modal.
+- Added a confirmation modal before destructive notebook file deletion.
+
+### Testing and cleanup
+
+- Added backend `vitest` coverage for notebook uploads, preview fetches, invalid file-type rejection, oversize rejection, and hard delete cleanup.
+- Added a test seam to override the notebook upload root so filesystem write/delete behavior can be verified in temporary directories.
+- Reduced `TODO.md` to the still-open strategic items now that the actionable upload and deletion follow-ups are complete.
 
 ### Verification
 
 - Ran Prisma client generation.
 - Ran backend typecheck successfully.
 - Ran frontend typecheck successfully.
+- Ran backend test suite successfully.
 - Ran backend production build successfully.
 - Ran frontend production build successfully.
 
