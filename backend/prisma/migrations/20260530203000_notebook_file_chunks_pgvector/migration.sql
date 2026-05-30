@@ -26,9 +26,9 @@ CREATE INDEX "NotebookFileChunk_notebookId_idx"
 CREATE INDEX "NotebookFileChunk_notebookFileId_idx"
   ON "NotebookFileChunk"("notebookFileId");
 
-CREATE INDEX "NotebookFileChunk_embedding_hnsw_idx"
+CREATE INDEX "NotebookFileChunk_embedding_subvector_hnsw_idx"
   ON "NotebookFileChunk"
-  USING hnsw ("embedding" vector_cosine_ops);
+  USING hnsw ((subvector("embedding", 1, 2000)::vector(2000)) vector_cosine_ops);
 
 ALTER TABLE "NotebookFileChunk"
   ADD CONSTRAINT "NotebookFileChunk_notebookFileId_fkey"

@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 export const RAG_CHUNK_SIZE = 2000;
 export const RAG_CHUNK_OVERLAP = 400;
 export const RAG_VECTOR_DIMENSIONS = 4096;
+export const RAG_INDEX_SUBVECTOR_DIMENSIONS = 2000;
 
 type RagSearchOptions = {
   fileId?: string;
@@ -149,19 +150,33 @@ export async function retrieveNotebookRagContext(options: RagSearchOptions) {
   const embedding = await generateEmbedding(options.query);
   assertVectorDimensions(embedding);
   const vector = toVectorLiteral(embedding);
+  const candidateLimit = Math.min(Math.max(limit * 4, 20), 100);
+  const indexedSubvectorCast = Prisma.raw(`vector(${RAG_INDEX_SUBVECTOR_DIMENSIONS})`);
   const fileFilter = options.fileId ? Prisma.sql`AND c."notebookFileId" = ${options.fileId}` : Prisma.empty;
 
   return prisma.$queryRaw<RagSearchResult[]>`
+    WITH candidate_chunks AS MATERIALIZED (
+      SELECT
+        c."id",
+        c."notebookFileId",
+        c."chunkIndex",
+        c."content",
+        c."embedding"
+      FROM "NotebookFileChunk" c
+      WHERE c."notebookId" = ${options.notebookId}
+        ${fileFilter}
+      ORDER BY subvector(c."embedding", 1, CAST(${RAG_INDEX_SUBVECTOR_DIMENSIONS} AS integer))::${indexedSubvectorCast}
+        <=> subvector(${vector}::vector, 1, CAST(${RAG_INDEX_SUBVECTOR_DIMENSIONS} AS integer))::${indexedSubvectorCast}
+      LIMIT ${candidateLimit}
+    )
     SELECT
       c."notebookFileId" AS "fileId",
       f."name" AS "fileName",
       c."chunkIndex",
       c."content",
       1 - (c."embedding" <=> ${vector}::vector) AS "score"
-    FROM "NotebookFileChunk" c
+    FROM candidate_chunks c
     INNER JOIN "NotebookFile" f ON f."id" = c."notebookFileId"
-    WHERE c."notebookId" = ${options.notebookId}
-      ${fileFilter}
     ORDER BY c."embedding" <=> ${vector}::vector
     LIMIT ${limit}
   `;
