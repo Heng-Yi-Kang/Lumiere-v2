@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
-import { NotebookFileValidationError, persistNotebookUpload } from '@/lib/notebook-files';
+import { deleteNotebookStoredFile, NotebookFileValidationError, persistNotebookUpload } from '@/lib/notebook-files';
 import { jsonResponse, optionsResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
+import { indexNotebookFileForRag } from '@/lib/rag';
 
 export async function OPTIONS() {
   return optionsResponse();
@@ -67,9 +68,41 @@ export async function POST(
     },
   });
 
+  const createdFile = notebook.files.find((file) => file.sourcePath === uploadData.sourcePath);
+
+  if (!createdFile) {
+    await deleteNotebookStoredFile([uploadData.sourcePath]);
+    return jsonResponse({ error: 'Failed to persist uploaded file.' }, { status: 500 });
+  }
+
+  try {
+    await indexNotebookFileForRag({
+      extractedText: createdFile.extractedText,
+      fileId: createdFile.id,
+      fileName: createdFile.name,
+      fileType: createdFile.type,
+      notebookId,
+    });
+  } catch (error) {
+    await prisma.notebookFile.delete({
+      where: { id: createdFile.id },
+    }).catch(() => undefined);
+    await deleteNotebookStoredFile([createdFile.sourcePath]);
+    return jsonResponse({ error: 'Failed to index uploaded file for search.' }, { status: 500 });
+  }
+
+  const refreshedNotebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
+    include: {
+      files: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+
   return jsonResponse(
     {
-      notebook: serializeNotebook(notebook),
+      notebook: refreshedNotebook ? serializeNotebook(refreshedNotebook) : serializeNotebook(notebook),
     },
     { status: 201 },
   );

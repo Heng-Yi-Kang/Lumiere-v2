@@ -48,6 +48,28 @@ model NotebookFile {
   updatedAt   DateTime @updatedAt
 
   notebook    Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  chunks      NotebookFileChunk[]
 
   @@index([notebookId])
+}
+
+model NotebookFileChunk {
+  id              String   @id @default(cuid())
+  notebookId      String
+  notebookFileId  String
+  chunkIndex      Int
+  content         String
+  tokenCount      Int?
+  metadata        Json     @default("{}")
+  embedding       Unsupported("vector")
+  embeddingModel  String
+  embeddingDims   Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  notebookFile    NotebookFile @relation(fields: [notebookFileId], references: [id], onDelete: Cascade)
+
+  @@unique([notebookFileId, chunkIndex])
+  @@index([notebookId])
+  @@index([notebookFileId])
 }
