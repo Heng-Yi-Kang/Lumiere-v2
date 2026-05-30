@@ -1,9 +1,46 @@
 import { jsonResponse, optionsResponse } from '@/lib/http';
 import { generateChatCompletion } from '@/lib/openai-chat';
 import { prisma } from '@/lib/prisma';
-import { formatRagContextForPrompt, retrieveNotebookRagContext } from '@/lib/rag';
+import { formatRagContextForPrompt, retrieveNotebookRagContext, splitIntoChunks } from '@/lib/rag';
 
 const NO_GROUNDED_CONTEXT_MESSAGE = 'No grounded context is available for this request. Upload and index at least one file in this notebook before asking grounded questions.';
+const FALLBACK_CONTEXT_LIMIT = 6;
+
+type NotebookFileForChat = {
+  extractedText: string | null;
+  id: string;
+  name: string;
+};
+
+function buildExtractedTextFallbackResults(files: NotebookFileForChat[], limit = FALLBACK_CONTEXT_LIMIT) {
+  return files
+    .flatMap((file) =>
+      splitIntoChunks(file.extractedText || '').map((content, chunkIndex) => ({
+        chunkIndex,
+        content,
+        fileId: file.id,
+        fileName: file.name,
+        score: 1,
+      })),
+    )
+    .slice(0, limit);
+}
+
+function buildScopeLabel(params: {
+  isFallbackContext: boolean;
+  notebookName: string;
+  scopedFile?: { name: string } | null;
+}) {
+  if (params.isFallbackContext) {
+    return params.scopedFile
+      ? `stored extracted text from file "${params.scopedFile.name}" in notebook "${params.notebookName}"`
+      : `stored extracted text from notebook "${params.notebookName}"`;
+  }
+
+  return params.scopedFile
+    ? `file "${params.scopedFile.name}" in notebook "${params.notebookName}"`
+    : `all indexed files in notebook "${params.notebookName}"`;
+}
 
 export async function OPTIONS() {
   return optionsResponse();
@@ -32,6 +69,7 @@ export async function POST(
       name: true,
       files: {
         select: {
+          extractedText: true,
           id: true,
           name: true,
         },
@@ -72,7 +110,12 @@ export async function POST(
     query: question,
   });
 
-  if (!results.length) {
+  const fallbackResults = results.length
+    ? []
+    : buildExtractedTextFallbackResults(scopedFile ? [scopedFile] : notebook.files);
+  const groundedResults = results.length ? results : fallbackResults;
+
+  if (!groundedResults.length) {
     return jsonResponse({
       answer: NO_GROUNDED_CONTEXT_MESSAGE,
       citations: [],
@@ -86,19 +129,21 @@ export async function POST(
     });
   }
 
-  const scopeLabel = scopedFile
-    ? `file "${scopedFile.name}" in notebook "${notebook.name}"`
-    : `all indexed files in notebook "${notebook.name}"`;
+  const scopeLabel = buildScopeLabel({
+    isFallbackContext: !results.length && fallbackResults.length > 0,
+    notebookName: notebook.name,
+    scopedFile,
+  });
 
   const answer = await generateChatCompletion({
-    context: formatRagContextForPrompt(results),
+    context: formatRagContextForPrompt(groundedResults),
     question,
     scopeLabel,
   });
 
   return jsonResponse({
     answer,
-    citations: results.map((result) => ({
+    citations: groundedResults.map((result) => ({
       fileId: result.fileId,
       fileName: result.fileName,
       position: `Chunk ${result.chunkIndex + 1}`,

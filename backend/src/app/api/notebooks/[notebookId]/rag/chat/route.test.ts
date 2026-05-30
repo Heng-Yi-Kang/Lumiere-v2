@@ -11,8 +11,11 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 vi.mock('@/lib/rag', () => ({
-  formatRagContextForPrompt: vi.fn().mockReturnValue('formatted context'),
+  formatRagContextForPrompt: vi.fn((results: Array<{ content: string }>) =>
+    results.map((result) => result.content).join('\n\n'),
+  ),
   retrieveNotebookRagContext: vi.fn(),
+  splitIntoChunks: vi.fn((text: string) => text.trim() ? [text.trim()] : []),
 }));
 
 vi.mock('@/lib/openai-chat', () => ({
@@ -77,7 +80,7 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
 
   it('generates a grounded answer from retrieved notebook chunks', async () => {
     prismaMock.notebook.findUnique.mockResolvedValue({
-      files: [{ id: 'file-1', name: 'week-1.txt' }],
+      files: [{ extractedText: null, id: 'file-1', name: 'week-1.txt' }],
       id: 'nb-1',
       name: 'Algorithms',
     });
@@ -113,6 +116,45 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
       expect.objectContaining({
         question: 'Explain greedy algorithms',
         scopeLabel: 'all indexed files in notebook "Algorithms"',
+      }),
+    );
+  });
+
+  it('falls back to extracted file text when indexed chunks are missing', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      files: [
+        {
+          extractedText: 'Local search is unavailable, but this uploaded text can still ground the answer.',
+          id: 'file-1',
+          name: 'week-1.txt',
+        },
+      ],
+      id: 'nb-1',
+      name: 'Algorithms',
+    });
+    vi.mocked(retrieveNotebookRagContext).mockResolvedValue([]);
+
+    const response = await POST(
+      new Request('http://localhost/api/notebooks/nb-1/rag/chat', {
+        body: JSON.stringify({ question: 'What does the file say?' }),
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ notebookId: 'nb-1' }) },
+    );
+    const payload = await response.json();
+
+    expect(payload.grounded).toBe(true);
+    expect(payload.citations).toEqual([
+      expect.objectContaining({
+        fileId: 'file-1',
+        fileName: 'week-1.txt',
+        position: 'Chunk 1',
+      }),
+    ]);
+    expect(generateChatCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.stringContaining('this uploaded text can still ground the answer'),
+        scopeLabel: 'stored extracted text from notebook "Algorithms"',
       }),
     );
   });
