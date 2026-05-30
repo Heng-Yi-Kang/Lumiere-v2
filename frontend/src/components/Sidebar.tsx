@@ -14,8 +14,6 @@ import {
   Settings,
   X,
   Trophy,
-  PanelLeftClose,
-  PanelLeftOpen
 } from 'lucide-react';
 import { Goal } from '../types';
 
@@ -74,12 +72,20 @@ export default function Sidebar({
       }`}
     >
       {/* Platform Branding */}
-      <div className={`flex h-16 items-center border-b border-white/10 gap-2 ${isCollapsed ? 'px-4 justify-center' : 'px-6'}`}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 to-fuchsia-500 shadow-lg shadow-indigo-500/20">
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        className={`flex h-16 w-full items-center gap-2 border-b border-white/10 text-left transition-colors hover:bg-white/[0.03] ${
+          isCollapsed ? 'justify-center px-4' : 'px-6'
+        }`}
+        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 to-fuchsia-500 shadow-lg shadow-indigo-500/20">
           <span className="text-white font-bold text-lg font-display">L</span>
         </div>
         {!isCollapsed && (
-          <div className="flex flex-col">
+          <div className="min-w-0 flex flex-col">
             <div className="flex items-center gap-1.5 leading-none">
               <span className="text-base font-black tracking-tight text-white uppercase font-display bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Lumiere</span>
               <span className="rounded-full bg-indigo-500/20 px-1.5 py-0.5 text-[8.5px] font-black tracking-widest text-[#a5b4fc] uppercase">
@@ -91,18 +97,7 @@ export default function Sidebar({
             </span>
           </div>
         )}
-        <button
-          type="button"
-          onClick={onToggleCollapsed}
-          className={`ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-300 transition-colors hover:bg-white/10 hover:text-white ${
-            isCollapsed ? 'ml-0' : ''
-          }`}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-        </button>
-      </div>
+      </button>
 
       {/* Main Navigation Menu */}
       <nav className={`flex-1 space-y-1.5 py-6 overflow-y-auto ${isCollapsed ? 'px-3' : 'px-4'}`}>
