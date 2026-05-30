@@ -16,6 +16,7 @@ import {
 
 import { StudyStreak } from '../types';
 import { isSupportedNotebookExtension, validateNotebookUpload } from '../lib/notebookUpload';
+import { getNotebookColorTone } from '../lib/notebookColors';
 
 interface DashboardViewProps {
   notebooks: Notebook[];
@@ -426,25 +427,16 @@ export default function DashboardView({
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {notebooks.map((nb) => {
-            const glowColors: Record<string, string> = {
-              blue: 'hover:border-blue-500/40 hover:shadow-blue-500/5 before:bg-blue-500',
-              indigo: 'hover:border-indigo-500/40 hover:shadow-indigo-500/5 before:bg-indigo-500',
-              amber: 'hover:border-amber-500/40 hover:shadow-amber-500/5 before:bg-amber-500',
-              cyan: 'hover:border-cyan-500/40 hover:shadow-cyan-500/5 before:bg-cyan-500',
-              rose: 'hover:border-rose-500/40 hover:shadow-rose-500/5 before:bg-rose-500',
-              red: 'hover:border-red-500/40 hover:shadow-red-500/5 before:bg-red-500',
-              violet: 'hover:border-violet-500/40 hover:shadow-violet-500/5 before:bg-violet-500',
-            };
-            const currentGlow = glowColors[nb.color] || 'hover:border-emerald-500/40 hover:shadow-emerald-500/5 before:bg-emerald-500';
+            const colorTone = getNotebookColorTone(nb.color);
 
             return (
               <div
                 key={nb.id}
                 onClick={() => onOpenNotebook(nb.id)}
-                className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 cursor-pointer shadow-md transition-all duration-300 hover:bg-white/[0.06] hover:-translate-y-0.5 before:absolute before:left-0 before:top-0 before:h-full before:w-1 ${currentGlow}`}
+                className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 cursor-pointer shadow-md transition-all duration-300 hover:bg-white/[0.06] hover:-translate-y-0.5 before:absolute before:left-0 before:top-0 before:h-full before:w-1 ${colorTone.borderGlow} ${colorTone.strip}`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="rounded-lg bg-white/5 px-2 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border border-white/5 font-mono">
+                  <div className={`rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wider border font-mono ${colorTone.badge}`}>
                     {nb.courseCode}
                   </div>
                   <div className="flex items-center gap-2">
@@ -488,8 +480,8 @@ export default function DashboardView({
                 </p>
 
                 <div className="flex items-center justify-between mt-4 border-t border-white/5 pt-3">
-                  <div className="flex items-center gap-1.5 text-[10px] text-indigo-300 font-extrabold bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/10 font-mono">
-                    <Sparkles className="h-3 w-3 text-indigo-400" />
+                  <div className={`flex items-center gap-1.5 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border font-mono ${colorTone.subtleBlock}`}>
+                    <Sparkles className="h-3 w-3" />
                     <span>{nb.conceptCount} Semantic Concepts</span>
                   </div>
                   <div className="flex items-center text-xs font-extrabold text-slate-200 hover:text-indigo-400 gap-0.5 transition-colors">

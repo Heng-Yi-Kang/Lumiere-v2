@@ -24,7 +24,7 @@ describe('PATCH /api/notebooks/[notebookId]', () => {
     prismaMock.notebook.update.mockReset();
   });
 
-  it('updates the notebook title and description', async () => {
+  it('updates the notebook title, color, and description', async () => {
     prismaMock.notebook.findUnique.mockResolvedValue({ id: 'nb-1' });
     prismaMock.notebook.update.mockResolvedValue({
       id: 'nb-1',
@@ -41,6 +41,7 @@ describe('PATCH /api/notebooks/[notebookId]', () => {
         method: 'PATCH',
         body: JSON.stringify({
           name: ' Updated Notebook ',
+          color: ' rose ',
           description: ' Updated description ',
         }),
         headers: {
@@ -60,6 +61,7 @@ describe('PATCH /api/notebooks/[notebookId]', () => {
         where: { id: 'nb-1' },
         data: {
           name: 'Updated Notebook',
+          color: 'rose',
           description: 'Updated description',
         },
       }),

@@ -20,6 +20,7 @@ import {
 import { FileItem, Notebook, NotebookFilePreview } from '../types';
 import { fetchNotebookFilePreview, NOTEBOOKS_API_BASE_URL } from '../lib/notebooksApi';
 import { validateNotebookUpload } from '../lib/notebookUpload';
+import { getNotebookColorTone } from '../lib/notebookColors';
 
 interface NotebookViewProps {
   notebook: Notebook | null;
@@ -154,6 +155,7 @@ export default function NotebookView({
   }, [materialSearchText, notebook]);
 
   const activePreview = selectedMaterial ? previewCache[selectedMaterial.id] : undefined;
+  const colorTone = notebook ? getNotebookColorTone(notebook.color) : null;
   const viewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const uploadProgressValue = uploadPhase === 'validating'
@@ -272,7 +274,7 @@ export default function NotebookView({
             </div>
             <button
               onClick={onCreateNotebookRequested}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-500"
+              className="rounded-xl border border-indigo-500/20 bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-500"
             >
               <span className="inline-flex items-center gap-1.5">
                 <Plus className="h-4 w-4" />
@@ -283,14 +285,17 @@ export default function NotebookView({
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {allNotebooks.map((entry) => (
+          {allNotebooks.map((entry) => {
+            const entryTone = getNotebookColorTone(entry.color);
+
+            return (
             <button
               key={entry.id}
               onClick={() => onSelectNotebook(entry.id)}
-              className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 text-left backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-indigo-500/30 hover:bg-white/[0.05]"
+              className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 text-left backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/[0.05] ${entryTone.borderGlow}`}
             >
               <div className="flex items-center justify-between">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-300">
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest border ${entryTone.badge}`}>
                   {entry.courseCode}
                 </span>
                 <div className="flex items-center gap-2">
@@ -330,7 +335,8 @@ export default function NotebookView({
                 {entry.description || 'No description set yet.'}
               </p>
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -359,7 +365,7 @@ export default function NotebookView({
               </button>
             </div>
             <div className="space-y-1">
-              <p className="text-[11px] font-black uppercase tracking-widest text-indigo-300">{notebook.courseCode}</p>
+              <p className={`text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-indigo-300'}`}>{notebook.courseCode}</p>
               <h1 className="text-2xl font-black text-white font-display">{notebook.name}</h1>
               <p className="max-w-3xl text-xs leading-relaxed text-slate-400">
                 {notebook.description || 'No description set yet.'}
@@ -370,7 +376,7 @@ export default function NotebookView({
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => onEditNotebook?.(notebook)}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-slate-100 transition hover:bg-white/10"
+              className={`rounded-2xl border px-4 py-3 text-xs font-bold transition ${colorTone?.button}`}
             >
               <span className="inline-flex items-center gap-1.5">
                 <Edit3 className="h-4 w-4" />
@@ -390,7 +396,7 @@ export default function NotebookView({
               onClick={() =>
                 onAskInChat(`Explain the main ideas from the files in my "${notebook.name}" notebook.`)
               }
-              className="rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-xs font-bold text-indigo-100 transition hover:bg-indigo-500/20"
+              className={`rounded-2xl border px-4 py-3 text-xs font-bold transition ${colorTone?.button}`}
             >
               <span className="inline-flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4" />
@@ -409,7 +415,7 @@ export default function NotebookView({
 
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-6">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl">
+          <div className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl ${colorTone?.borderGlow}`}>
             <div className="space-y-2">
               <h2 className="text-sm font-black text-white font-display">Upload Material</h2>
               <p className="text-xs leading-relaxed text-slate-400">
@@ -420,7 +426,7 @@ export default function NotebookView({
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadPhase !== 'idle'}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-400/25 bg-indigo-500/10 px-4 py-6 text-sm font-bold text-indigo-100 transition hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+              className={`mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-6 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${colorTone?.button}`}
             >
               {uploadPhase !== 'idle' ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
               {uploadPhase !== 'idle' ? 'Processing upload...' : 'Select File'}
@@ -440,10 +446,10 @@ export default function NotebookView({
             />
 
             {uploadPhase !== 'idle' && (
-              <div className="mt-4 rounded-2xl border border-white/5 bg-slate-950/30 p-4">
+              <div className={`mt-4 rounded-2xl border bg-slate-950/30 p-4 ${colorTone?.subtleBlock}`}>
                 <div className="flex items-center justify-between gap-3 text-xs">
                   <span className="truncate font-bold text-slate-100">{uploadFileName}</span>
-                  <span className="font-black text-indigo-300">{uploadProgressValue}%</span>
+                  <span className={`font-black ${colorTone?.text}`}>{uploadProgressValue}%</span>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/5">
                   <div
@@ -455,24 +461,24 @@ export default function NotebookView({
               </div>
             )}
 
-            <div className="mt-4 rounded-2xl border border-white/5 bg-slate-950/25 p-4 text-[11px] leading-relaxed text-slate-400">
+            <div className={`mt-4 rounded-2xl border bg-slate-950/25 p-4 text-[11px] leading-relaxed text-slate-400 ${colorTone?.subtleBlock}`}>
               <p>Limit: 100MB per file.</p>
               <p>Stored under the backend app for preview and download.</p>
               <p>Delete removes both the database record and the stored file immediately.</p>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl">
+          <div className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl ${colorTone?.borderGlow}`}>
             <div className="space-y-2">
               <h2 className="text-sm font-black text-white font-display">Notebook Snapshot</h2>
               <p className="text-xs text-slate-400">Quick counts for the current notebook.</p>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+              <div className={`rounded-2xl border bg-white/[0.03] p-4 ${colorTone?.subtleBlock}`}>
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Files</div>
                 <div className="mt-2 text-2xl font-black text-white">{notebook.fileCount}</div>
               </div>
-              <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+              <div className={`rounded-2xl border bg-white/[0.03] p-4 ${colorTone?.subtleBlock}`}>
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Concepts</div>
                 <div className="mt-2 text-2xl font-black text-white">{notebook.conceptCount}</div>
               </div>
@@ -480,7 +486,7 @@ export default function NotebookView({
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl">
+        <div className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl ${colorTone?.borderGlow}`}>
           <div className="flex flex-col gap-3 border-b border-white/5 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-black text-white font-display">Materials Directory</h2>
@@ -493,7 +499,7 @@ export default function NotebookView({
                 value={materialSearchText}
                 onChange={(event) => setMaterialSearchText(event.target.value)}
                 placeholder="Search files..."
-                className="w-full rounded-xl border border-white/10 bg-slate-950/50 py-2 pl-8 pr-3 text-xs text-slate-100 outline-none transition focus:border-indigo-400 sm:w-56"
+                className={`w-full rounded-xl border border-white/10 bg-slate-950/50 py-2 pl-8 pr-3 text-xs text-slate-100 outline-none transition sm:w-56 ${colorTone?.borderGlow}`}
               />
             </div>
           </div>
@@ -508,7 +514,7 @@ export default function NotebookView({
               filteredFiles.map((file) => (
                 <div
                   key={file.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-white/5 bg-slate-950/25 p-4 transition hover:border-indigo-500/20 hover:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between"
+                  className={`flex flex-col gap-3 rounded-2xl border border-white/5 bg-slate-950/25 p-4 transition hover:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between ${colorTone?.borderGlow}`}
                 >
                   <button
                     onClick={() => setSelectedMaterial(file)}
@@ -529,7 +535,7 @@ export default function NotebookView({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedMaterial(file)}
-                      className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+                      className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${colorTone?.button}`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <Eye className="h-4 w-4" />
@@ -573,7 +579,7 @@ export default function NotebookView({
             <div className="w-full border-b border-white/10 bg-[#0e1627] p-5 xl:w-[58%] xl:border-b-0 xl:border-r">
               <div className="space-y-2 border-b border-white/5 pb-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 p-2">
+                  <div className={`rounded-lg border p-2 ${colorTone?.subtleBlock}`}>
                     {getFileIcon(selectedMaterial.type)}
                   </div>
                   <div className="min-w-0">
@@ -624,17 +630,17 @@ export default function NotebookView({
 
             <div className="flex w-full flex-col justify-between p-5 xl:w-[42%]">
               <div className="space-y-4">
-                <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-4">
-                  <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-emerald-300">
+                <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock}`}>
+                  <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text}`}>
                     <Sparkles className="h-4 w-4" />
                     Extracted Summary
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-emerald-100/90">
+                  <p className="mt-3 text-sm leading-relaxed text-slate-100/90">
                     {activePreview?.summary || selectedMaterial.summary || 'No summary was generated for this file.'}
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 text-sm text-slate-300">
+                <div className={`rounded-2xl border bg-white/[0.03] p-4 text-sm text-slate-300 ${colorTone?.subtleBlock}`}>
                   <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">File Details</div>
                   <div className="mt-2">Inline preview and download are generated from notebook storage on demand.</div>
                   {activePreview?.totalPages ? (
@@ -650,7 +656,7 @@ export default function NotebookView({
                       href={selectedViewerUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-100 transition hover:bg-white/10"
+                      className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button}`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <ExternalLink className="h-4 w-4" />
@@ -660,7 +666,7 @@ export default function NotebookView({
                     <a
                       href={selectedViewerUrl}
                       download={selectedMaterial.name}
-                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-100 transition hover:bg-white/10"
+                      className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button}`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <Download className="h-4 w-4" />
@@ -675,7 +681,7 @@ export default function NotebookView({
                       `I'm reviewing "${selectedMaterial.name}" from notebook "${notebook.name}". Summarize the important concepts and likely exam angles.`,
                     )
                   }
-                  className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white transition hover:bg-indigo-500"
+                  className={`flex-1 rounded-xl border py-2.5 text-xs font-bold transition ${colorTone?.button}`}
                 >
                   Ask AI About Material
                 </button>

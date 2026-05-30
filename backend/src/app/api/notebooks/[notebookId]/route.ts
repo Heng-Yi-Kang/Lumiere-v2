@@ -15,6 +15,7 @@ export async function PATCH(
   const body = (await request.json().catch(() => null)) as
     | {
         name?: string;
+        color?: string;
         description?: string;
       }
     | null;
@@ -38,6 +39,7 @@ export async function PATCH(
     where: { id: notebookId },
     data: {
       name,
+      color: body?.color?.trim() || 'blue',
       description: body?.description?.trim() || '',
     },
     include: {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, BookOpen, Edit3 } from 'lucide-react';
 import { Course } from '../types';
+import { DEFAULT_NOTEBOOK_COLOR, NOTEBOOK_COLORS } from '../lib/notebookColors';
 
 interface CreateNotebookModalProps {
   onClose: () => void;
@@ -15,16 +16,6 @@ interface CreateNotebookModalProps {
   };
 }
 
-const COLORS = [
-  { id: 'blue', name: 'Royal Blue', bgClass: 'bg-blue-500' },
-  { id: 'indigo', name: 'Midnight Indigo', bgClass: 'bg-indigo-500' },
-  { id: 'amber', name: 'Golden Amber', bgClass: 'bg-amber-500' },
-  { id: 'cyan', name: 'Teal Cyan', bgClass: 'bg-cyan-500' },
-  { id: 'rose', name: 'Deep Rose', bgClass: 'bg-rose-500' },
-  { id: 'violet', name: 'Soft Violet', bgClass: 'bg-violet-500' },
-  { id: 'red', name: 'Crimson Red', bgClass: 'bg-red-500' },
-];
-
 export default function CreateNotebookModal({
   onClose,
   onSubmit,
@@ -37,7 +28,7 @@ export default function CreateNotebookModal({
   const [courseCode, setCourseCode] = useState(initialValues?.courseCode || courses[0]?.code || '');
   const [customCourseCode, setCustomCourseCode] = useState('');
   const [useCustomCode, setUseCustomCode] = useState(false);
-  const [color, setColor] = useState(initialValues?.color || 'blue');
+  const [color, setColor] = useState(initialValues?.color || DEFAULT_NOTEBOOK_COLOR);
   const [description, setDescription] = useState(initialValues?.description || '');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,77 +117,75 @@ export default function CreateNotebookModal({
           </div>
 
           {!isEditMode ? (
-            <>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 font-mono">
-                    Course Code mapping
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setUseCustomCode(!useCustomCode)}
-                    className="text-[10px] font-bold text-indigo-400 hover:underline font-mono"
-                  >
-                    {useCustomCode ? 'Select predefined course' : 'Input custom code'}
-                  </button>
-                </div>
-
-                {useCustomCode ? (
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-3 flex items-center text-[10px] font-bold text-slate-500 font-mono">
-                      CODE
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. WIX1002"
-                      value={customCourseCode}
-                      onChange={(e) => setCustomCourseCode(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/40 py-2.5 pl-12 pr-4 text-xs font-bold text-white outline-none placeholder:text-slate-600 focus:border-indigo-500 font-mono"
-                    />
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <select
-                      value={courseCode}
-                      onChange={(e) => setCourseCode(e.target.value)}
-                      className="w-full cursor-pointer rounded-xl border border-white/10 bg-slate-950/40 p-2.5 text-xs font-bold text-slate-100 outline-none focus:border-indigo-500 font-mono"
-                    >
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.code} className="bg-[#0f172a] text-slate-100">
-                          {course.code} - {course.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
                 <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 font-mono">
-                  Visual Accent Color
+                  Course Code mapping
                 </label>
-                <div className="flex flex-wrap gap-2.5">
-                  {COLORS.map((col) => {
-                    const isSelected = color === col.id;
-                    return (
-                      <button
-                        key={col.id}
-                        type="button"
-                        onClick={() => setColor(col.id)}
-                        className={`relative flex h-7 w-7 items-center justify-center rounded-full ${col.bgClass} cursor-pointer transition-transform hover:scale-110 ${
-                          isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#0b101c]' : ''
-                        }`}
-                        title={col.name}
-                      >
-                        {isSelected ? <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setUseCustomCode(!useCustomCode)}
+                  className="text-[10px] font-bold text-indigo-400 hover:underline font-mono"
+                >
+                  {useCustomCode ? 'Select predefined course' : 'Input custom code'}
+                </button>
               </div>
-            </>
+
+              {useCustomCode ? (
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-3 flex items-center text-[10px] font-bold text-slate-500 font-mono">
+                    CODE
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. WIX1002"
+                    value={customCourseCode}
+                    onChange={(e) => setCustomCourseCode(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/40 py-2.5 pl-12 pr-4 text-xs font-bold text-white outline-none placeholder:text-slate-600 focus:border-indigo-500 font-mono"
+                  />
+                </div>
+              ) : (
+                <div className="relative">
+                  <select
+                    value={courseCode}
+                    onChange={(e) => setCourseCode(e.target.value)}
+                    className="w-full cursor-pointer rounded-xl border border-white/10 bg-slate-950/40 p-2.5 text-xs font-bold text-slate-100 outline-none focus:border-indigo-500 font-mono"
+                  >
+                    {courses.map((course) => (
+                      <option key={course.id} value={course.code} className="bg-[#0f172a] text-slate-100">
+                        {course.code} - {course.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           ) : null}
+
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 font-mono">
+              Visual Accent Color
+            </label>
+            <div className="flex flex-wrap gap-2.5">
+              {NOTEBOOK_COLORS.map((col) => {
+                const isSelected = color === col.id;
+                return (
+                  <button
+                    key={col.id}
+                    type="button"
+                    onClick={() => setColor(col.id)}
+                    className={`relative flex h-7 w-7 items-center justify-center rounded-full ${col.swatchClass} cursor-pointer transition-transform hover:scale-110 ${
+                      isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#0b101c]' : ''
+                    }`}
+                    title={col.name}
+                  >
+                    {isSelected ? <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <div className="space-y-1.5">
             <label htmlFor="nb-desc-input" className="block text-[10px] font-black uppercase tracking-wider text-slate-400 font-mono">

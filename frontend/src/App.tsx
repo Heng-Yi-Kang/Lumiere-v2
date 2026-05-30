@@ -141,17 +141,18 @@ export default function App() {
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
 
-  const handleUpdateNotebook = async (notebookId: string, name: string, description: string) => {
+  const handleUpdateNotebook = async (notebookId: string, name: string, color: string, description: string) => {
     notebookLoadRequestIdRef.current += 1;
     const previousNotebook = notebooks.find((nb) => nb.id === notebookId);
 
     setNotebooks((prev) =>
-      prev.map((nb) => (nb.id === notebookId ? { ...nb, name, description } : nb)),
+      prev.map((nb) => (nb.id === notebookId ? { ...nb, name, color, description } : nb)),
     );
 
     try {
       const notebook = await updateNotebook(notebookId, {
         name,
+        color,
         description,
       });
 
@@ -371,8 +372,8 @@ export default function App() {
             description: editingNotebook.description,
           }}
           onClose={() => setEditingNotebook(null)}
-          onSubmit={async (name, _courseCode, _color, description) => {
-            await handleUpdateNotebook(editingNotebook.id, name, description);
+          onSubmit={async (name, _courseCode, color, description) => {
+            await handleUpdateNotebook(editingNotebook.id, name, color, description);
             setEditingNotebook(null);
           }}
           courses={curUniversity.courses}

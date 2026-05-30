@@ -110,6 +110,7 @@ export async function updateNotebook(
   notebookId: string,
   input: {
     name: string;
+    color: string;
     description: string;
   },
 ) {
