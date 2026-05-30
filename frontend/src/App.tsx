@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
-import { Notebook, Goal } from './types';
+import { ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
@@ -34,10 +34,11 @@ export default function App() {
 
   // Active states
   const [selectedUniId, setSelectedUniId] = useState<string>('um');
-  const [preFilledQuestion, setPreFilledQuestion] = useState<string>('');
+  const [preFilledRequest, setPreFilledRequest] = useState<GroundedChatRequest | null>(null);
   const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState<boolean>(false);
   const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
+  const [chatGroundingScope, setChatGroundingScope] = useState<ChatGroundingScope | undefined>(undefined);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
   // Loaded mock data based on university selector state
@@ -233,8 +234,26 @@ export default function App() {
     });
   };
 
-  const handleAskInChat = (question: string) => {
-    setPreFilledQuestion(question);
+  const activeGroundingScope: ChatGroundingScope | undefined = activeNotebook
+    ? {
+        notebookId: activeNotebook.id,
+        notebookName: activeNotebook.name,
+      }
+    : undefined;
+  const studyBuddyGroundingScope = chatGroundingScope || activeGroundingScope;
+
+  useEffect(() => {
+    if (chatGroundingScope && chatGroundingScope.notebookId !== activeNotebook?.id) {
+      setChatGroundingScope(undefined);
+    }
+  }, [activeNotebook?.id, chatGroundingScope]);
+
+  const handleAskInChat = (question: string, scope?: ChatGroundingScope) => {
+    setChatGroundingScope(scope || activeGroundingScope);
+    setPreFilledRequest({
+      question,
+      scope: scope || activeGroundingScope,
+    });
     setIsStudyBuddyOpen(true);
   };
 
@@ -383,8 +402,9 @@ export default function App() {
       {/* Floating Study Buddy Helper */}
       <StudyBuddy 
         notebooks={curNotebooksList}
-        preFilledQuestion={preFilledQuestion}
-        onClearPreFill={() => setPreFilledQuestion('')}
+        activeGroundingScope={studyBuddyGroundingScope}
+        preFilledRequest={preFilledRequest}
+        onClearPreFill={() => setPreFilledRequest(null)}
         isOpen={isStudyBuddyOpen}
         setIsOpen={setIsStudyBuddyOpen}
       />

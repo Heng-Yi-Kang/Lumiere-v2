@@ -1,4 +1,4 @@
-import { Notebook, NotebookFilePreview } from '../types';
+import { GroundedChatResponse, Notebook, NotebookFilePreview } from '../types';
 
 export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
 
@@ -10,6 +10,10 @@ type NotebookResponse = {
 
 type NotebookPreviewResponse = {
   preview?: NotebookFilePreview;
+  error?: string;
+};
+
+type GroundedChatApiResponse = GroundedChatResponse & {
   error?: string;
 };
 
@@ -130,4 +134,21 @@ export async function deleteNotebook(notebookId: string) {
   await requestJson<void>(`/api/notebooks/${encodeURIComponent(notebookId)}`, {
     method: 'DELETE',
   });
+}
+
+export async function askGroundedNotebookChat(input: {
+  fileId?: string;
+  notebookId: string;
+  question: string;
+}) {
+  return requestJson<GroundedChatApiResponse>(
+    `/api/notebooks/${encodeURIComponent(input.notebookId)}/rag/chat`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        fileId: input.fileId,
+        question: input.question,
+      }),
+    },
+  );
 }

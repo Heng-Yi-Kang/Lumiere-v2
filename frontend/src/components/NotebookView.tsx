@@ -17,7 +17,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { FileItem, Notebook, NotebookFilePreview } from '../types';
+import { ChatGroundingScope, FileItem, Notebook, NotebookFilePreview } from '../types';
 import { fetchNotebookFilePreview, NOTEBOOKS_API_BASE_URL } from '../lib/notebooksApi';
 import { validateNotebookUpload } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
@@ -27,7 +27,7 @@ interface NotebookViewProps {
   allNotebooks: Notebook[];
   onSelectNotebook: (id: string | null) => void;
   onBackToDashboard: () => void;
-  onAskInChat: (question: string) => void;
+  onAskInChat: (question: string, scope?: ChatGroundingScope) => void;
   onUploadFile?: (notebookId: string, file: File) => Promise<void> | void;
   onDeleteFile?: (notebookId: string, fileId: string) => Promise<void> | void;
   onEditNotebook?: (notebook: Notebook) => void;
@@ -394,7 +394,13 @@ export default function NotebookView({
             </button>
             <button
               onClick={() =>
-                onAskInChat(`Explain the main ideas from the files in my "${notebook.name}" notebook.`)
+                onAskInChat(
+                  `Explain the main ideas from the files in my "${notebook.name}" notebook.`,
+                  {
+                    notebookId: notebook.id,
+                    notebookName: notebook.name,
+                  },
+                )
               }
               className={`rounded-2xl border px-4 py-3 text-xs font-bold transition ${colorTone?.button}`}
             >
@@ -679,6 +685,12 @@ export default function NotebookView({
                   onClick={() =>
                     onAskInChat(
                       `I'm reviewing "${selectedMaterial.name}" from notebook "${notebook.name}". Summarize the important concepts and likely exam angles.`,
+                      {
+                        fileId: selectedMaterial.id,
+                        fileName: selectedMaterial.name,
+                        notebookId: notebook.id,
+                        notebookName: notebook.name,
+                      },
                     )
                   }
                   className={`flex-1 rounded-xl border py-2.5 text-xs font-bold transition ${colorTone?.button}`}

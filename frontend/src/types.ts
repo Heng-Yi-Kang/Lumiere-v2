@@ -56,6 +56,7 @@ export interface Citation {
   fileName: string;
   type: 'page' | 'timestamp';
   position: string; // e.g. "Page 4" or "12:34"
+  score?: number;
 }
 
 export interface ChatMessage {
@@ -64,7 +65,27 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
   citations?: Citation[];
+  grounded?: boolean;
   suggestedPrompts?: string[];
+}
+
+export interface ChatGroundingScope {
+  fileId?: string;
+  fileName?: string;
+  notebookId: string;
+  notebookName: string;
+}
+
+export interface GroundedChatRequest {
+  question: string;
+  scope?: ChatGroundingScope;
+}
+
+export interface GroundedChatResponse {
+  answer: string;
+  citations: Citation[];
+  grounded: boolean;
+  scope: ChatGroundingScope;
 }
 
 export interface ConceptNode {
