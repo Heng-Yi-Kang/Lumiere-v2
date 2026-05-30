@@ -1,5 +1,5 @@
 import { deleteNotebookStoredFile } from '@/lib/notebook-files';
-import { jsonResponse, optionsResponse } from '@/lib/http';
+import { jsonResponse, noContentResponse, optionsResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
 import { prisma } from '@/lib/prisma';
 
@@ -79,5 +79,5 @@ export async function DELETE(
     where: { id: notebookId },
   });
 
-  return new Response(null, { status: 204 });
+  return noContentResponse();
 }

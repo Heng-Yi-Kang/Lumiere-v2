@@ -97,6 +97,7 @@ describe('DELETE /api/notebooks/[notebookId]', () => {
     });
 
     expect(response.status).toBe(204);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBeDefined();
     expect(prismaMock.notebook.delete).toHaveBeenCalledWith({
       where: { id: 'nb-1' },
     });

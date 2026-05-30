@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': process.env.FRONTEND_ORIGIN || '*',
-  'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -20,6 +20,13 @@ export function jsonResponse(body: unknown, init?: ResponseInit) {
 }
 
 export function optionsResponse() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+}
+
+export function noContentResponse() {
   return new NextResponse(null, {
     status: 204,
     headers: corsHeaders,

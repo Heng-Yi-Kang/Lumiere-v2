@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
 import { Notebook, Goal } from './types';
@@ -46,6 +46,7 @@ export default function App() {
   // Notebook data is persisted in the backend database and shared across the workspace.
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [notebookLoadError, setNotebookLoadError] = useState<string>('');
+  const notebookLoadRequestIdRef = useRef(0);
 
   // Track goals with Local Storage persistence
   const [goals, setGoals] = useState<Goal[]>(() => {
@@ -68,11 +69,21 @@ export default function App() {
 
   useEffect(() => {
     const loadNotebooks = async () => {
+      const requestId = ++notebookLoadRequestIdRef.current;
+
       try {
         setNotebookLoadError('');
         const loadedNotebooks = await fetchNotebooks();
+        if (requestId !== notebookLoadRequestIdRef.current) {
+          return;
+        }
+
         setNotebooks(loadedNotebooks);
       } catch (error) {
+        if (requestId !== notebookLoadRequestIdRef.current) {
+          return;
+        }
+
         setNotebookLoadError(error instanceof Error ? error.message : 'Failed to load notebooks.');
       }
     };
@@ -105,6 +116,7 @@ export default function App() {
   };
 
   const handleAddNewNotebook = async (name: string, courseCode: string, color: string, description: string) => {
+    notebookLoadRequestIdRef.current += 1;
     const notebook = await createNotebook({
       name,
       courseCode,
@@ -116,32 +128,81 @@ export default function App() {
   };
 
   const handleAddNewFile = async (notebookId: string, file: File) => {
+    notebookLoadRequestIdRef.current += 1;
     const notebook = await createNotebookFile(notebookId, file);
 
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
 
   const handleDeleteFile = async (notebookId: string, fileId: string) => {
+    notebookLoadRequestIdRef.current += 1;
     const notebook = await deleteNotebookFile(notebookId, fileId);
 
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
 
   const handleUpdateNotebook = async (notebookId: string, name: string, description: string) => {
-    const notebook = await updateNotebook(notebookId, {
-      name,
-      description,
-    });
+    notebookLoadRequestIdRef.current += 1;
+    const previousNotebook = notebooks.find((nb) => nb.id === notebookId);
 
-    setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+    setNotebooks((prev) =>
+      prev.map((nb) => (nb.id === notebookId ? { ...nb, name, description } : nb)),
+    );
+
+    try {
+      const notebook = await updateNotebook(notebookId, {
+        name,
+        description,
+      });
+
+      setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+    } catch (error) {
+      if (previousNotebook) {
+        setNotebooks((prev) =>
+          prev.map((nb) => (nb.id === notebookId ? previousNotebook : nb)),
+        );
+      }
+
+      throw error;
+    }
   };
 
   const handleDeleteNotebook = async (notebookId: string) => {
-    await deleteNotebook(notebookId);
+    notebookLoadRequestIdRef.current += 1;
+    const deletedNotebook = notebooks.find((nb) => nb.id === notebookId);
+    const wasActiveNotebook = activeNotebookId === notebookId;
+
     setNotebooks((prev) => prev.filter((nb) => nb.id !== notebookId));
 
-    if (activeNotebookId === notebookId) {
+    if (wasActiveNotebook) {
       openNotebook(null);
+    }
+
+    try {
+      await deleteNotebook(notebookId);
+    } catch (error) {
+      if (deletedNotebook) {
+        setNotebooks((prev) =>
+          prev.some((nb) => nb.id === notebookId) ? prev : [deletedNotebook, ...prev],
+        );
+      }
+
+      if (wasActiveNotebook) {
+        openNotebook(notebookId);
+      }
+
+      throw error;
+    }
+
+    try {
+      const requestId = ++notebookLoadRequestIdRef.current;
+      const loadedNotebooks = await fetchNotebooks();
+      if (requestId === notebookLoadRequestIdRef.current) {
+        setNotebooks(loadedNotebooks);
+        setNotebookLoadError('');
+      }
+    } catch (error) {
+      setNotebookLoadError(error instanceof Error ? error.message : 'Failed to refresh notebooks.');
     }
   };
 

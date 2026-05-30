@@ -249,7 +249,6 @@ export default function NotebookView({
       setSelectedMaterial(null);
       setPendingDeleteFile(null);
       setIsDeleteNotebookModalOpen(false);
-      onSelectNotebook(null);
     } catch (error) {
       setPreviewError(error instanceof Error ? error.message : 'Delete failed.');
     } finally {
