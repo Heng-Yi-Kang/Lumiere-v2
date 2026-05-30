@@ -1,4 +1,4 @@
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -7,8 +7,20 @@ import {
   persistNotebookUpload,
 } from './notebook-files';
 
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}
+
 describe('persistNotebookUpload', () => {
   const originalUploadRoot = process.env.NOTEBOOK_UPLOAD_ROOT;
+  const originalSttApiBase = process.env.STT_API_BASE;
+  const originalSttApiKey = process.env.STT_API_KEY;
+  const originalSttModel = process.env.STT_MODEL;
   let tempDir = '';
 
   beforeEach(async () => {
@@ -17,7 +29,11 @@ describe('persistNotebookUpload', () => {
   });
 
   afterEach(async () => {
-    process.env.NOTEBOOK_UPLOAD_ROOT = originalUploadRoot;
+    restoreEnv('NOTEBOOK_UPLOAD_ROOT', originalUploadRoot);
+    restoreEnv('STT_API_BASE', originalSttApiBase);
+    restoreEnv('STT_API_KEY', originalSttApiKey);
+    restoreEnv('STT_MODEL', originalSttModel);
+    vi.unstubAllGlobals();
     if (tempDir) {
       await rm(tempDir, { recursive: true, force: true });
     }
@@ -62,5 +78,51 @@ describe('persistNotebookUpload', () => {
     await expect(persistNotebookUpload('nb-1', oversizedFile)).rejects.toBeInstanceOf(
       NotebookFileValidationError,
     );
+  });
+
+  it('transcribes audio uploads and stores the transcript as text preview content', async () => {
+    process.env.STT_API_BASE = 'https://stt.example.test/v1';
+    process.env.STT_API_KEY = 'test-key';
+    process.env.STT_MODEL = 'qwen3-asr-1.7b';
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      text: 'Audio transcript for indexing.',
+    })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const upload = new File(['audio-bytes'], 'lecture.mp3', {
+      type: 'audio/mpeg',
+    });
+
+    const result = await persistNotebookUpload('nb-1', upload);
+
+    expect(result.type).toBe('audio');
+    expect(result.previewFormat).toBe('text');
+    expect(result.previewContent).toBe('Audio transcript for indexing.');
+    expect(result.extractedText).toBe('Audio transcript for indexing.');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://stt.example.test/v1/audio/transcriptions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test-key',
+        },
+      }),
+    );
+  });
+
+  it('removes the stored audio file when transcription fails', async () => {
+    process.env.STT_API_BASE = 'https://stt.example.test/v1';
+    process.env.STT_API_KEY = 'test-key';
+    process.env.STT_MODEL = 'qwen3-asr-1.7b';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('bad request', { status: 400 })));
+
+    const upload = new File(['audio-bytes'], 'lecture.mp3', {
+      type: 'audio/mpeg',
+    });
+
+    await expect(persistNotebookUpload('nb-1', upload)).rejects.toThrow(/Transcription request failed/);
+
+    const storedFiles = await readdir(path.join(tempDir, 'nb-1')).catch(() => []);
+    expect(storedFiles).toEqual([]);
   });
 });

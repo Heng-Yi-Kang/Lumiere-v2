@@ -33,7 +33,7 @@ export interface FileItem {
 export interface NotebookFilePreview {
   id: string;
   name: string;
-  type: 'pdf' | 'docx' | 'pptx' | 'txt';
+  type: 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio';
   mimeType?: string;
   sourceUrl?: string;
   previewFormat?: 'pdf' | 'html' | 'text';

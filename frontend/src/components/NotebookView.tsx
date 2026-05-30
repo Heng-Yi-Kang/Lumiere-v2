@@ -16,6 +16,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  Volume2,
   X,
 } from 'lucide-react';
 import { ChatGroundingScope, FileItem, Notebook, NotebookFilePreview } from '../types';
@@ -46,6 +47,8 @@ function getFileIcon(type: FileItem['type']) {
       return <MonitorPlay className="h-4.5 w-4.5 text-amber-300" />;
     case 'txt':
       return <FileText className="h-4.5 w-4.5 text-emerald-300" />;
+    case 'audio':
+      return <Volume2 className="h-4.5 w-4.5 text-violet-300" />;
   }
 }
 
@@ -319,7 +322,7 @@ export default function NotebookView({
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-emerald-300">2. Upload your first files</div>
-                    <div className="mt-1 text-xs leading-relaxed text-slate-400">Add PDFs, DOCX, PPTX, or TXT notes from lectures, tutorials, or revision packs.</div>
+                    <div className="mt-1 text-xs leading-relaxed text-slate-400">Add PDFs, DOCX, PPTX, TXT notes, or lecture audio from classes and revision packs.</div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-amber-300">3. Study from one place</div>
@@ -472,7 +475,7 @@ export default function NotebookView({
             <div className="space-y-2">
               <h2 className="text-sm font-black text-white font-display">Upload Material</h2>
               <p className="text-xs leading-relaxed text-slate-400">
-                PDF, DOCX, PPTX, and TXT only. Files are saved on the backend filesystem and indexed in the notebook.
+                PDF, DOCX, PPTX, TXT, and audio files are saved on the backend filesystem and indexed in the notebook.
               </p>
             </div>
 
@@ -488,7 +491,7 @@ export default function NotebookView({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,.pptx,.txt"
+              accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0];

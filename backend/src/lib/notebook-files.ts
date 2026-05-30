@@ -4,10 +4,11 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import mammoth from 'mammoth';
 import sanitizeHtml from 'sanitize-html';
+import { transcribeAudioFile } from '@/lib/stt';
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
-type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt';
+type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio';
 type PreviewFormat = 'pdf' | 'html' | 'text';
 
 const MIME_TYPE_MAP: Record<SupportedNotebookFileType, string[]> = {
@@ -15,7 +16,22 @@ const MIME_TYPE_MAP: Record<SupportedNotebookFileType, string[]> = {
   docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   pptx: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
   txt: ['text/plain'],
+  audio: [
+    'audio/aac',
+    'audio/flac',
+    'audio/m4a',
+    'audio/mp3',
+    'audio/mp4',
+    'audio/mpeg',
+    'audio/ogg',
+    'audio/wav',
+    'audio/x-m4a',
+    'audio/x-wav',
+    'video/mp4',
+  ],
 };
+
+const AUDIO_EXTENSIONS = new Set(['aac', 'flac', 'm4a', 'mp3', 'mp4', 'ogg', 'wav']);
 
 type UploadResult = {
   extractedText?: string;
@@ -62,8 +78,16 @@ function getFileExtension(fileName: string) {
   return path.extname(fileName).slice(1).toLowerCase();
 }
 
-function isSupportedNotebookFileType(value: string): value is SupportedNotebookFileType {
-  return value === 'pdf' || value === 'docx' || value === 'pptx' || value === 'txt';
+function getNotebookFileType(value: string): SupportedNotebookFileType | undefined {
+  if (AUDIO_EXTENSIONS.has(value)) {
+    return 'audio';
+  }
+
+  if (value === 'pdf' || value === 'docx' || value === 'pptx' || value === 'txt') {
+    return value;
+  }
+
+  return undefined;
 }
 
 function sanitizeFileName(fileName: string) {
@@ -190,7 +214,24 @@ async function buildTxtPreview(filePath: string) {
   } satisfies DerivedPreview;
 }
 
-async function buildDerivedPreview(type: SupportedNotebookFileType, filePath: string): Promise<DerivedPreview> {
+async function buildAudioPreview(filePath: string, fileName: string, mimeType: string): Promise<DerivedPreview> {
+  const transcript = await transcribeAudioFile({
+    fileName,
+    filePath,
+    mimeType,
+  });
+
+  return {
+    extractedText: transcript,
+    previewContent: transcript,
+    previewFormat: 'text' as const,
+  } satisfies DerivedPreview;
+}
+
+async function buildDerivedPreview(
+  type: Exclude<SupportedNotebookFileType, 'audio'>,
+  filePath: string,
+): Promise<DerivedPreview> {
   switch (type) {
     case 'pdf':
       return buildPdfPreview(filePath);
@@ -207,9 +248,10 @@ async function buildDerivedPreview(type: SupportedNotebookFileType, filePath: st
 
 export async function persistNotebookUpload(notebookId: string, file: File): Promise<UploadResult> {
   const extension = getFileExtension(file.name);
+  const fileType = getNotebookFileType(extension);
 
-  if (!isSupportedNotebookFileType(extension)) {
-    throw new NotebookFileValidationError('Only pdf, docx, pptx, and txt files are supported.');
+  if (!fileType) {
+    throw new NotebookFileValidationError('Only pdf, docx, pptx, txt, and common audio files are supported.');
   }
 
   if (file.size <= 0) {
@@ -220,7 +262,7 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
     throw new NotebookFileValidationError('File exceeds the 100 MB upload limit.');
   }
 
-  const allowedMimeTypes = MIME_TYPE_MAP[extension];
+  const allowedMimeTypes = MIME_TYPE_MAP[fileType];
   if (file.type && !allowedMimeTypes.includes(file.type)) {
     throw new NotebookFileValidationError(`Invalid MIME type for .${extension} file.`);
   }
@@ -236,7 +278,9 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
   await fs.writeFile(storedPath, buffer);
 
   try {
-    const preview = await buildDerivedPreview(extension, storedPath);
+    const preview = fileType === 'audio'
+      ? await buildAudioPreview(storedPath, file.name, file.type || allowedMimeTypes[0])
+      : await buildDerivedPreview(fileType, storedPath);
 
     return {
       extractedText: preview.extractedText,
@@ -248,7 +292,7 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       sourcePath: storedPath,
       summary: buildSummary(preview.extractedText, file.name),
       totalPages: preview.totalPages,
-      type: extension,
+      type: fileType,
       uploadDate: formatUploadDate(new Date()),
     };
   } catch (error) {

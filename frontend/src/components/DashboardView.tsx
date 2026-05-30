@@ -17,6 +17,7 @@ import {
 
 import { StudyStreak } from '../types';
 import { isSupportedNotebookExtension, validateNotebookUpload } from '../lib/notebookUpload';
+import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 
 interface DashboardViewProps {
@@ -45,7 +46,7 @@ export default function DashboardView({
   const [selectedNotebookId, setSelectedNotebookId] = useState(notebooks[0]?.id || '');
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   const [selectedFileName, setSelectedFileName] = useState('');
-  const [selectedFileType, setSelectedFileType] = useState<'pdf' | 'docx' | 'pptx' | 'txt'>('pdf');
+  const [selectedFileType, setSelectedFileType] = useState<SupportedNotebookExtension>('pdf');
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -95,7 +96,7 @@ export default function DashboardView({
       return;
     }
     if (!extension || !isSupportedNotebookExtension(extension)) {
-      setUploadError('Only PDF, DOCX, PPTX, and TXT files are supported.');
+      setUploadError('Only PDF, DOCX, PPTX, TXT, and common audio files are supported.');
       return;
     }
 
@@ -242,7 +243,7 @@ export default function DashboardView({
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
               <div className="text-[10px] font-black uppercase tracking-widest text-emerald-300">2. Upload</div>
               <p className="mt-2 text-sm font-semibold text-white">Drop in lecture files and notes.</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">Use PDF, DOCX, PPTX, or TXT files. Upload becomes available as soon as your first notebook exists.</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">Use PDF, DOCX, PPTX, TXT, or audio files. Upload becomes available as soon as your first notebook exists.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
               <div className="text-[10px] font-black uppercase tracking-widest text-amber-300">3. Review</div>
@@ -274,7 +275,7 @@ export default function DashboardView({
               Upload Materials & Audio Recordings
             </h2>
             <p className="text-xs text-slate-400">
-              Drag PDF, DOCX, PPTX, or TXT files directly into a notebook.
+              Drag PDF, DOCX, PPTX, TXT, or audio files directly into a notebook.
             </p>
           </div>
 
@@ -318,7 +319,7 @@ export default function DashboardView({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.docx,.pptx,.txt"
+                accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac"
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -351,7 +352,7 @@ export default function DashboardView({
                   {notebooks.length === 0 ? 'Create a notebook to unlock uploads' : 'Drag your lecture material here, or click to pick'}
                 </div>
                 <div className="text-[10px] text-slate-400">
-                  {notebooks.length === 0 ? 'Your first upload target will appear after notebook setup.' : 'Supports PDF, DOCX, PPTX, and TXT up to 100MB'}
+                  {notebooks.length === 0 ? 'Your first upload target will appear after notebook setup.' : 'Supports PDF, DOCX, PPTX, TXT, and audio up to 100MB'}
                 </div>
               </div>
             ) : uploadProgress <= 100 ? (
