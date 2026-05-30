@@ -28,7 +28,7 @@ function buildChatCompletionsUrl(baseUrl: string) {
 }
 
 export function getChatModel() {
-  return getRequiredEnv('OPENAI_MODEL');
+  return getRequiredEnv('CHAT_MODEL');
 }
 
 export async function generateChatCompletion(params: {
@@ -36,8 +36,8 @@ export async function generateChatCompletion(params: {
   question: string;
   scopeLabel: string;
 }) {
-  const apiKey = getRequiredEnv('OPENAI_API_KEY');
-  const baseUrl = process.env.OPENAI_API_BASE_URL?.trim() || 'https://api.openai.com/v1';
+  const apiKey = getRequiredEnv('CHAT_API_KEY');
+  const baseUrl = process.env.CHAT_API_BASE_URL?.trim() || 'https://api.openai.com/v1';
   const model = getChatModel();
 
   const response = await fetch(buildChatCompletionsUrl(baseUrl), {

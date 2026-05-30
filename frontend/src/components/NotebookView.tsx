@@ -8,6 +8,7 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
+  ListChecks,
   LoaderCircle,
   MonitorPlay,
   Plus,
@@ -259,6 +260,8 @@ export default function NotebookView({
   };
 
   if (!notebook) {
+    const hasNotebooks = allNotebooks.length > 0;
+
     return (
       <div className="space-y-8 text-left animate-fade-in relative z-10" id="all-notebooks-tab">
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl shadow-2xl">
@@ -269,7 +272,9 @@ export default function NotebookView({
               </span>
               <h2 className="text-2xl font-black text-white font-display">My Academic Course Notebooks</h2>
               <p className="max-w-2xl text-xs text-slate-400">
-                Upload lecture materials and open previews inline without leaving the notebook.
+                {hasNotebooks
+                  ? 'Upload lecture materials and open previews inline without leaving the notebook.'
+                  : 'Set up your first notebook to start collecting course files, previews, and study context.'}
               </p>
             </div>
             <button
@@ -284,6 +289,47 @@ export default function NotebookView({
           </div>
         </div>
 
+        {!hasNotebooks ? (
+          <div className="rounded-3xl border border-dashed border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 via-slate-950/50 to-sky-500/10 p-6 shadow-2xl">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-200">
+                  <ListChecks className="h-3.5 w-3.5 text-indigo-300" />
+                  First-Time Setup
+                </div>
+                <h3 className="text-2xl font-black text-white font-display">No notebooks available yet</h3>
+                <p className="max-w-2xl text-sm leading-relaxed text-slate-300">
+                  Lumiere organizes each course inside its own notebook. Create one first, then upload lecture slides, readings, or plain text notes to unlock previews and grounded AI study help.
+                </p>
+                <button
+                  onClick={onCreateNotebookRequested}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-400/20 bg-indigo-600 px-5 py-3 text-sm font-black text-white transition hover:bg-indigo-500"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create First Notebook
+                </button>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-[#0b101c]/70 p-5">
+                <h4 className="text-sm font-black text-white font-display">Get started in 3 steps</h4>
+                <div className="mt-4 space-y-3 text-sm text-slate-300">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-indigo-300">1. Create a course notebook</div>
+                    <div className="mt-1 text-xs leading-relaxed text-slate-400">Use a subject name and course code so your materials stay grouped cleanly.</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-emerald-300">2. Upload your first files</div>
+                    <div className="mt-1 text-xs leading-relaxed text-slate-400">Add PDFs, DOCX, PPTX, or TXT notes from lectures, tutorials, or revision packs.</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-amber-300">3. Study from one place</div>
+                    <div className="mt-1 text-xs leading-relaxed text-slate-400">Open the notebook to preview files, review summaries, and ask notebook-grounded questions.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {allNotebooks.map((entry) => {
             const entryTone = getNotebookColorTone(entry.color);
@@ -338,6 +384,7 @@ export default function NotebookView({
             );
           })}
         </div>
+        )}
       </div>
     );
   }
