@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-31
+
+### Frontend navigation
+
+- Kept the floating macOS-style dock as the active left navigation in the app shell.
+- Removed the unused legacy `frontend/src/components/Sidebar.tsx` component so the codebase matches the rendered UI.
+
+### Documentation
+
+- Updated `AGENTS.md` routing guidance to refer to the floating dock instead of a sidebar.
+- Updated `README.md` to describe the floating dock as the shell navigation entry point.
+
 ## 2026-05-30
 
 ### Frontend routing

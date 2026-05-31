@@ -37,10 +37,10 @@ Path aliases are configured with `@/*` in `frontend/tsconfig.json`, so imports m
 ## Frontend Routing Guidelines
 The frontend uses React Router plus semantic page-name navigation. The source of truth is the `pageToPath` registry in `frontend/src/App.tsx`; keep it aligned with the rendered `<Routes>` tree.
 
-- Use `setCurrentPage('PageName')` for shell-level navigation from layout, sidebar, and top-level page actions.
+- Use `setCurrentPage('PageName')` for shell-level navigation from layout, the floating dock, and top-level page actions.
 - Derive active navigation state from the current route, not independent tab state.
 - Keep query strings for contextual detail state. For example, notebook detail views use `/notebooks?notebookId=<id>` while the logical page remains `Notebooks`.
-- When adding a page, update `pageToPath`, `pathToPage` coverage through the registry, the `<Routes>` declaration, and any sidebar/search entry that should expose the page.
+- When adding a page, update `pageToPath`, `pathToPage` coverage through the registry, the `<Routes>` declaration, and any floating dock/search entry that should expose the page.
 - See `docs/frontend-routing.md` before changing routing behavior.
 
 ## Testing Guidelines

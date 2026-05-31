@@ -37,7 +37,7 @@ The frontend uses React Router for direct URL access while keeping app navigatio
 - `Revision` -> `/revision`
 - `StudyLounge` -> `/study-lounge`
 
-Sidebar and shell-level navigation should call `setCurrentPage('PageName')` instead of pushing raw URLs. Detail context can still use query parameters; notebook detail selection uses `/notebooks?notebookId=<id>`.
+The floating macOS-style dock and other shell-level navigation should call `setCurrentPage('PageName')` instead of pushing raw URLs. Detail context can still use query parameters; notebook detail selection uses `/notebooks?notebookId=<id>`.
 
 See [`docs/frontend-routing.md`](docs/frontend-routing.md) for the routing pattern and maintenance rules.
 
