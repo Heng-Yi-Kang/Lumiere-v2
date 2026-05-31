@@ -39,7 +39,7 @@ export default function FloatingDock({
 }: FloatingDockProps) {
   const [isManageGoalsOpen, setIsManageGoalsOpen] = useState(false);
   const [newGoalText, setNewGoalText] = useState('');
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [isDockHovered, setIsDockHovered] = useState(false);
 
   const menuItems = [
     { page: 'Dashboard', label: 'Dashboard', icon: Compass },
@@ -60,10 +60,24 @@ export default function FloatingDock({
     setNewGoalText('');
   };
 
+  const renderDockOverlay = (label: string, isVisible = false) => (
+    <span
+      className={`pointer-events-none absolute left-14 whitespace-nowrap rounded-xl border border-border-default bg-bg-elevated px-3 py-1.5 text-xs font-semibold text-text-primary shadow-xl transition-all duration-200 ${
+        isVisible
+          ? 'translate-x-0 opacity-100'
+          : 'translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100'
+      }`}
+    >
+      {label}
+    </span>
+  );
+
   return (
     <>
       {/* Floating Dock */}
       <nav 
+        onMouseEnter={() => setIsDockHovered(true)}
+        onMouseLeave={() => setIsDockHovered(false)}
         className="fixed left-4 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2 rounded-3xl border border-border-default bg-bg-surface/70 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
         style={{ backdropFilter: 'blur(24px) saturate(1.2)' }}
       >
@@ -76,6 +90,7 @@ export default function FloatingDock({
           aria-label="Go to Dashboard"
         >
           <Sparkles className="h-5 w-5 text-white" />
+          {renderDockOverlay('Dashboard')}
         </button>
 
         <div className="h-px w-8 bg-border-default my-1" />
@@ -84,13 +99,10 @@ export default function FloatingDock({
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.page;
-          const isHovered = hoveredItem === item.page;
           return (
             <button
               key={item.page}
               onClick={() => setCurrentPage(item.page)}
-              onMouseEnter={() => setHoveredItem(item.page)}
-              onMouseLeave={() => setHoveredItem(null)}
               title={item.label}
               aria-label={item.label}
               className={`premium-focus group relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-200 ${
@@ -100,13 +112,7 @@ export default function FloatingDock({
               }`}
             >
               <Icon className="h-[18px] w-[18px]" />
-              
-              {/* Tooltip */}
-              {(isHovered || isActive) && (
-                <span className="absolute left-14 whitespace-nowrap rounded-xl bg-bg-elevated border border-border-default px-3 py-1.5 text-xs font-semibold text-text-primary shadow-xl opacity-0 animate-in fade-in slide-in-from-left-2 duration-200 pointer-events-none">
-                  {item.label}
-                </span>
-              )}
+              {renderDockOverlay(item.label, isActive && isDockHovered)}
             </button>
           );
         })}
@@ -131,6 +137,7 @@ export default function FloatingDock({
           {progressPercent === 100 && goals.length > 0 && (
             <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-success ring-2 ring-bg-surface" />
           )}
+          {renderDockOverlay('Study Goals')}
         </button>
       </nav>
 

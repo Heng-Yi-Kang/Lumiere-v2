@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
 import { ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
@@ -93,6 +93,15 @@ export default function App() {
 
   const curNotebooksList = notebooks;
   const curGraphData = MOCK_KNOWLEDGE_GRAPH[selectedUniId] || { nodes: [], links: [] };
+  const reusableCourseCodes = useMemo(() => {
+    return Array.from(
+      new Set(
+        curNotebooksList
+          .map((notebook) => notebook.courseCode.trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    ).sort((firstCode, secondCode) => firstCode.localeCompare(secondCode));
+  }, [curNotebooksList]);
 
   const activeNotebook = curNotebooksList.find(nb => nb.id === activeNotebookId);
 
@@ -363,7 +372,7 @@ export default function App() {
             await handleAddNewNotebook(name, courseCode, color, description);
             setIsNewNotebookModalOpen(false);
           }}
-          courses={curUniversity.courses}
+          reusableCourseCodes={reusableCourseCodes}
         />
       )}
 
@@ -381,7 +390,7 @@ export default function App() {
             await handleUpdateNotebook(editingNotebook.id, name, color, description);
             setEditingNotebook(null);
           }}
-          courses={curUniversity.courses}
+          reusableCourseCodes={reusableCourseCodes}
         />
       )}
 

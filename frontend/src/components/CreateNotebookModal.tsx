@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { X, BookOpen, Edit3 } from 'lucide-react';
-import { Course } from '../types';
 import { DEFAULT_NOTEBOOK_COLOR, NOTEBOOK_COLORS } from '../lib/notebookColors';
 
 interface CreateNotebookModalProps {
   onClose: () => void;
   onSubmit: (name: string, courseCode: string, color: string, description: string) => Promise<void> | void;
-  courses: Course[];
+  reusableCourseCodes: string[];
   mode?: 'create' | 'edit';
   initialValues?: {
     name: string;
@@ -19,15 +18,15 @@ interface CreateNotebookModalProps {
 export default function CreateNotebookModal({
   onClose,
   onSubmit,
-  courses,
+  reusableCourseCodes,
   mode = 'create',
   initialValues,
 }: CreateNotebookModalProps) {
   const isEditMode = mode === 'edit';
   const [name, setName] = useState(initialValues?.name || '');
-  const [courseCode, setCourseCode] = useState(initialValues?.courseCode || courses[0]?.code || '');
+  const [courseCode, setCourseCode] = useState(initialValues?.courseCode || reusableCourseCodes[0] || '');
   const [customCourseCode, setCustomCourseCode] = useState('');
-  const [useCustomCode, setUseCustomCode] = useState(false);
+  const [useCustomCode, setUseCustomCode] = useState(reusableCourseCodes.length === 0);
   const [color, setColor] = useState(initialValues?.color || DEFAULT_NOTEBOOK_COLOR);
   const [description, setDescription] = useState(initialValues?.description || '');
   const [error, setError] = useState('');
@@ -120,15 +119,17 @@ export default function CreateNotebookModal({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="block text-[10px] font-black uppercase tracking-wider text-text-muted font-mono">
-                  Course Code mapping
+                  Course Code
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setUseCustomCode(!useCustomCode)}
-                  className="text-[10px] font-bold text-accent-hover hover:text-accent transition-colors font-mono"
-                >
-                  {useCustomCode ? 'Select predefined course' : 'Input custom code'}
-                </button>
+                {reusableCourseCodes.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setUseCustomCode(!useCustomCode)}
+                    className="text-[10px] font-bold text-accent-hover hover:text-accent transition-colors font-mono"
+                  >
+                    {useCustomCode ? 'Reuse saved code' : 'Input new code'}
+                  </button>
+                ) : null}
               </div>
 
               {useCustomCode ? (
@@ -139,7 +140,7 @@ export default function CreateNotebookModal({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. WIX1002"
+                    placeholder="e.g. CS101"
                     value={customCourseCode}
                     onChange={(e) => setCustomCourseCode(e.target.value)}
                     className="premium-focus w-full rounded-2xl border border-border-default bg-bg-elevated/80 py-2.5 pl-12 pr-4 text-xs font-bold text-text-primary outline-none placeholder:text-text-muted font-mono"
@@ -152,9 +153,9 @@ export default function CreateNotebookModal({
                     onChange={(e) => setCourseCode(e.target.value)}
                     className="premium-focus w-full cursor-pointer rounded-2xl border border-border-default bg-bg-elevated/80 p-2.5 text-xs font-bold text-text-primary outline-none font-mono"
                   >
-                    {courses.map((course) => (
-                      <option key={course.id} value={course.code} className="bg-bg-overlay text-text-primary">
-                        {course.code} - {course.name}
+                    {reusableCourseCodes.map((savedCode) => (
+                      <option key={savedCode} value={savedCode} className="bg-bg-overlay text-text-primary">
+                        {savedCode}
                       </option>
                     ))}
                   </select>
