@@ -168,6 +168,52 @@ describe('persistNotebookUpload', () => {
     );
   });
 
+  it('sends an uploaded audio transcript to chat summary generation', async () => {
+    process.env.STT_API_BASE = 'https://stt.example.test/v1';
+    process.env.STT_API_KEY = 'test-key';
+    process.env.STT_MODEL = 'qwen3-asr-1.7b';
+    process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
+    process.env.CHAT_API_KEY = 'test-chat-key';
+    process.env.CHAT_MODEL = 'study-summary-model';
+    const transcript = 'Audio transcript that should be summarized by the chat model.';
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: transcript })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: 'Summary generated from the audio transcript.',
+            },
+          },
+        ],
+      })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const upload = new File(['audio-bytes'], 'lecture.mp3', {
+      type: 'audio/mpeg',
+    });
+
+    const result = await persistNotebookUpload('nb-1', upload);
+
+    expect(result.summary).toBe('Summary generated from the audio transcript.');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://chat.example.test/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test-chat-key',
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    const summaryRequest = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(summaryRequest.messages[1].content).toContain(transcript);
+  });
+
   it('removes the stored audio file when transcription fails', async () => {
     process.env.STT_API_BASE = 'https://stt.example.test/v1';
     process.env.STT_API_KEY = 'test-key';

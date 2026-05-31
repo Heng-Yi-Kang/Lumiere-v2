@@ -31,6 +31,9 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
   const originalChatApiBaseUrl = process.env.CHAT_API_BASE_URL;
   const originalChatApiKey = process.env.CHAT_API_KEY;
   const originalChatModel = process.env.CHAT_MODEL;
+  const originalSttApiBase = process.env.STT_API_BASE;
+  const originalSttApiKey = process.env.STT_API_KEY;
+  const originalSttModel = process.env.STT_MODEL;
   let tempDir = '';
 
   beforeEach(async () => {
@@ -39,6 +42,9 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     delete process.env.CHAT_API_BASE_URL;
     delete process.env.CHAT_API_KEY;
     delete process.env.CHAT_MODEL;
+    delete process.env.STT_API_BASE;
+    delete process.env.STT_API_KEY;
+    delete process.env.STT_MODEL;
     prismaMock.notebookFile.delete.mockReset();
     prismaMock.notebook.findUnique.mockReset();
     prismaMock.notebook.update.mockReset();
@@ -61,6 +67,21 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
       delete process.env.CHAT_MODEL;
     } else {
       process.env.CHAT_MODEL = originalChatModel;
+    }
+    if (originalSttApiBase === undefined) {
+      delete process.env.STT_API_BASE;
+    } else {
+      process.env.STT_API_BASE = originalSttApiBase;
+    }
+    if (originalSttApiKey === undefined) {
+      delete process.env.STT_API_KEY;
+    } else {
+      process.env.STT_API_KEY = originalSttApiKey;
+    }
+    if (originalSttModel === undefined) {
+      delete process.env.STT_MODEL;
+    } else {
+      process.env.STT_MODEL = originalSttModel;
     }
     vi.unstubAllGlobals();
     if (tempDir) {
@@ -223,6 +244,95 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     expect(response.status).toBe(201);
     expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.summary).toBe('AI route summary for refetching.');
     expect(payload.notebook.files[0].summary).toBe('AI route summary for refetching.');
+  });
+
+  it('persists an AI-generated summary from an audio transcript', async () => {
+    process.env.STT_API_BASE = 'https://stt.example.test/v1';
+    process.env.STT_API_KEY = 'test-stt-key';
+    process.env.STT_MODEL = 'qwen3-asr-1.7b';
+    process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
+    process.env.CHAT_API_KEY = 'test-chat-key';
+    process.env.CHAT_MODEL = 'study-summary-model';
+    const transcript = 'Lecture transcript from an uploaded MP3 about graph traversal.';
+    vi.stubGlobal('fetch', vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: transcript })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: 'Graph traversal audio summary.',
+            },
+          },
+        ],
+      }))));
+
+    const returnedNotebook = {
+      id: 'nb-1',
+      name: 'Algorithms',
+      courseCode: 'CS101',
+      color: 'indigo',
+      description: 'Notes',
+      conceptCount: 4,
+      files: [],
+    };
+    prismaMock.notebook.findUnique
+      .mockResolvedValueOnce({ id: 'nb-1' })
+      .mockResolvedValueOnce({
+        ...returnedNotebook,
+        files: [
+          {
+            id: 'file-1',
+            name: 'lecture.mp3',
+            type: 'audio',
+            mimeType: 'audio/mpeg',
+            size: '11 B',
+            uploadDate: '30 May 2026',
+            status: 'ready',
+            sourcePath: 'stored-path',
+            extractedText: transcript,
+            summary: 'Graph traversal audio summary.',
+            totalPages: null,
+          },
+        ],
+      });
+    prismaMock.notebook.update.mockImplementation(async ({ data }: { data: { files: { create: Record<string, unknown> } } }) => ({
+      ...returnedNotebook,
+      files: [
+        {
+          id: 'file-1',
+          extractedText: data.files.create.extractedText,
+          name: data.files.create.name,
+          type: data.files.create.type,
+          mimeType: data.files.create.mimeType,
+          size: data.files.create.size,
+          uploadDate: data.files.create.uploadDate,
+          status: 'ready',
+          sourcePath: data.files.create.sourcePath,
+          summary: data.files.create.summary,
+          totalPages: data.files.create.totalPages,
+        },
+      ],
+    }));
+
+    const formData = new FormData();
+    formData.append('file', new File(['audio-bytes'], 'lecture.mp3', { type: 'audio/mpeg' }));
+
+    const response = await POST(new Request('http://localhost/api/notebooks/nb-1/files', {
+      method: 'POST',
+      body: formData,
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1' }),
+    });
+    const payload = await response.json();
+    const fetchMock = vi.mocked(fetch);
+    const summaryRequest = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+
+    expect(response.status).toBe(201);
+    expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.extractedText).toBe(transcript);
+    expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.summary).toBe('Graph traversal audio summary.');
+    expect(payload.notebook.files[0].summary).toBe('Graph traversal audio summary.');
+    expect(summaryRequest.messages[1].content).toContain(transcript);
   });
 
   it('removes the uploaded file row and stored file when indexing fails', async () => {

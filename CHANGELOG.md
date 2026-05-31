@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-06-01
+
+### Video uploads
+
+- Added synchronous video upload processing to the notebook backend.
+- Extracted audio from uploaded videos, transcribed the spoken track, and saved the transcript with the file record.
+- Sampled video frames, described them with a VLM, and embedded timestamped transcript-plus-visual segments in RAG.
+- Expanded notebook upload validation and preview UI to accept common video formats.
+
+### Documentation
+
+- Updated `docs/video-processing.md` to match the current backend implementation.
+- Added backend environment variables for VLM configuration and video sampling controls.
+
 ## 2026-05-31
 
 ### Frontend navigation

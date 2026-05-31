@@ -145,7 +145,12 @@ async function buildStoredSummary(params: {
       fileType: params.fileType,
       text: params.text || '',
     });
-  } catch {
+  } catch (error) {
+    logBackendProcess('warn', 'file.summary.failed', {
+      error: error instanceof Error ? error.message : 'Unknown summary generation error',
+      fileName: params.fileName,
+      fileType: params.fileType,
+    });
     return undefined;
   }
 }
