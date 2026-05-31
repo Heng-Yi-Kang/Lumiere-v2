@@ -40,15 +40,15 @@ interface NotebookViewProps {
 function getFileIcon(type: FileItem['type']) {
   switch (type) {
     case 'pdf':
-      return <FileText className="h-4.5 w-4.5 text-rose-300" />;
+      return <FileText className="h-5 w-5 text-error" />;
     case 'docx':
-      return <BookOpen className="h-4.5 w-4.5 text-sky-300" />;
+      return <BookOpen className="h-5 w-5 text-accent-hover" />;
     case 'pptx':
-      return <MonitorPlay className="h-4.5 w-4.5 text-amber-300" />;
+      return <MonitorPlay className="h-5 w-5 text-cta" />;
     case 'txt':
-      return <FileText className="h-4.5 w-4.5 text-emerald-300" />;
+      return <FileText className="h-5 w-5 text-success" />;
     case 'audio':
-      return <Volume2 className="h-4.5 w-4.5 text-violet-300" />;
+      return <Volume2 className="h-5 w-5 text-accent-hover" />;
   }
 }
 
@@ -266,15 +266,15 @@ export default function NotebookView({
     const hasNotebooks = allNotebooks.length > 0;
 
     return (
-      <div className="space-y-8 text-left animate-fade-in relative z-10" id="all-notebooks-tab">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl shadow-2xl">
+      <div className="space-y-8 text-left relative z-10" id="all-notebooks-tab">
+        <div className="surface-card rounded-3xl p-6 md:p-8">
           <div className="flex items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <span className="rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-indigo-300">
+            <div className="space-y-2">
+              <span className="rounded-full border border-accent-border bg-accent-subtle px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-accent-hover">
                 Notebook Workspace
               </span>
-              <h2 className="text-2xl font-black text-white font-display">My Academic Course Notebooks</h2>
-              <p className="max-w-2xl text-sm leading-6 text-slate-400">
+              <h2 className="text-2xl font-black text-text-primary font-display">My Academic Course Notebooks</h2>
+              <p className="max-w-2xl text-sm leading-relaxed text-text-secondary font-serif">
                 {hasNotebooks
                   ? 'Upload lecture materials and open previews inline without leaving the notebook.'
                   : 'Set up your first notebook to start collecting course files, previews, and study context.'}
@@ -282,7 +282,7 @@ export default function NotebookView({
             </div>
             <button
               onClick={onCreateNotebookRequested}
-              className="rounded-xl border border-indigo-500/20 bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-500"
+              className="rounded-xl bg-accent px-5 py-2.5 text-xs font-bold text-white transition hover:bg-accent-hover shadow-lg shadow-indigo-500/20 shrink-0"
             >
               <span className="inline-flex items-center gap-1.5">
                 <Plus className="h-4 w-4" />
@@ -293,47 +293,47 @@ export default function NotebookView({
         </div>
 
         {!hasNotebooks ? (
-          <div className="rounded-3xl border border-dashed border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 via-slate-950/50 to-sky-500/10 p-6 shadow-2xl">
+          <div className="surface-elevated rounded-3xl p-6 md:p-8">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-200">
-                  <ListChecks className="h-3.5 w-3.5 text-indigo-300" />
+                <div className="inline-flex items-center gap-2 rounded-full border border-border-default bg-bg-elevated/60 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-text-primary">
+                  <ListChecks className="h-3.5 w-3.5 text-accent-hover" />
                   First-Time Setup
                 </div>
-                <h3 className="text-2xl font-black text-white font-display">No notebooks available yet</h3>
-                <p className="max-w-2xl text-base leading-7 text-slate-300">
+                <h3 className="text-2xl font-black text-text-primary font-display">No notebooks available yet</h3>
+                <p className="max-w-2xl text-base leading-relaxed text-text-secondary font-serif">
                   Lumiere organizes each course inside its own notebook. Create one first, then upload lecture slides, readings, or plain text notes to unlock previews and grounded AI study help.
                 </p>
                 <button
                   onClick={onCreateNotebookRequested}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-400/20 bg-indigo-600 px-5 py-3 text-sm font-black text-white transition hover:bg-indigo-500"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-black text-white transition hover:bg-accent-hover shadow-lg shadow-indigo-500/20"
                 >
                   <Plus className="h-4 w-4" />
                   Create First Notebook
                 </button>
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-[#0b101c]/70 p-5">
-                <h4 className="text-sm font-black text-white font-display">Get started in 3 steps</h4>
-                <div className="mt-4 space-y-3 text-sm text-slate-300">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <div className="text-[11px] font-black uppercase tracking-[0.14em] text-indigo-300">1. Create a course notebook</div>
-                    <div className="mt-1 text-sm leading-6 text-slate-400">Use a subject name and course code so your materials stay grouped cleanly.</div>
+              <div className="rounded-3xl border border-border-default bg-bg-elevated/40 p-6">
+                <h4 className="text-sm font-black text-text-primary font-display">Get started in 3 steps</h4>
+                <div className="mt-5 space-y-3 text-sm">
+                  <div className="rounded-2xl border border-border-default bg-bg-elevated/30 p-4">
+                    <div className="text-[11px] font-black uppercase tracking-[0.14em] text-accent-hover font-mono">1. Create a course notebook</div>
+                    <div className="mt-1 text-sm leading-relaxed text-text-secondary font-serif">Use a subject name and course code so your materials stay grouped cleanly.</div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <div className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">2. Upload your first files</div>
-                    <div className="mt-1 text-sm leading-6 text-slate-400">Add PDFs, DOCX, PPTX, TXT notes, or lecture audio from classes and revision packs.</div>
+                  <div className="rounded-2xl border border-border-default bg-bg-elevated/30 p-4">
+                    <div className="text-[11px] font-black uppercase tracking-[0.14em] text-success font-mono">2. Upload your first files</div>
+                    <div className="mt-1 text-sm leading-relaxed text-text-secondary font-serif">Add PDFs, DOCX, PPTX, TXT notes, or lecture audio from classes and revision packs.</div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <div className="text-[11px] font-black uppercase tracking-[0.14em] text-amber-300">3. Study from one place</div>
-                    <div className="mt-1 text-sm leading-6 text-slate-400">Open the notebook to preview files, review summaries, and ask notebook-grounded questions.</div>
+                  <div className="rounded-2xl border border-border-default bg-bg-elevated/30 p-4">
+                    <div className="text-[11px] font-black uppercase tracking-[0.14em] text-cta font-mono">3. Study from one place</div>
+                    <div className="mt-1 text-sm leading-relaxed text-text-secondary font-serif">Open the notebook to preview files, review summaries, and ask notebook-grounded questions.</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {allNotebooks.map((entry) => {
             const entryTone = getNotebookColorTone(entry.color);
 
@@ -341,14 +341,14 @@ export default function NotebookView({
             <button
               key={entry.id}
               onClick={() => onSelectNotebook(entry.id)}
-              className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 text-left backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/[0.05] ${entryTone.borderGlow}`}
+              className={`rounded-2xl border border-border-default bg-bg-elevated/40 p-5 text-left backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-bg-elevated/60 ${entryTone.borderGlow}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest border ${entryTone.badge}`}>
+                <span className={`rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest border font-mono ${entryTone.badge}`}>
                   {entry.courseCode}
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-400">{entry.fileCount} files</span>
+                  <span className="text-sm font-bold text-text-muted">{entry.fileCount} files</span>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -356,7 +356,7 @@ export default function NotebookView({
                         event.stopPropagation();
                         onEditNotebook?.(entry);
                       }}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-border-default bg-bg-elevated/60 text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary"
                       title={`Edit ${entry.name}`}
                       aria-label={`Edit ${entry.name}`}
                     >
@@ -370,7 +370,7 @@ export default function NotebookView({
                           void onDeleteNotebook?.(entry.id);
                         }
                       }}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-200 transition hover:bg-rose-500/20"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-error/20 bg-error-subtle text-error transition hover:bg-error/20"
                       title={`Delete ${entry.name}`}
                       aria-label={`Delete ${entry.name}`}
                     >
@@ -379,8 +379,8 @@ export default function NotebookView({
                   </div>
                 </div>
               </div>
-              <h3 className="mt-4 text-base font-black text-white font-display">{entry.name}</h3>
-              <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-400">
+              <h3 className="mt-4 text-base font-black text-text-primary font-display">{entry.name}</h3>
+              <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-text-secondary font-serif">
                 {entry.description || 'No description set yet.'}
               </p>
             </button>
@@ -393,14 +393,14 @@ export default function NotebookView({
   }
 
   return (
-    <div className="space-y-6 text-left relative z-10 animate-fade-in" id={`notebook-workspace-${notebook.id}`}>
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl shadow-2xl">
+    <div className="space-y-6 text-left relative z-10" id={`notebook-workspace-${notebook.id}`}>
+      <div className="surface-card rounded-3xl p-6 md:p-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onSelectNotebook(null)}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-300 transition hover:bg-white/10"
+                className="rounded-xl border border-border-default bg-bg-elevated/60 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary"
               >
                 <span className="inline-flex items-center gap-1">
                   <ArrowLeft className="h-3.5 w-3.5" />
@@ -409,15 +409,15 @@ export default function NotebookView({
               </button>
               <button
                 onClick={onBackToDashboard}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-300 transition hover:bg-white/10"
+                className="rounded-xl border border-border-default bg-bg-elevated/60 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary"
               >
                 Dashboard
               </button>
             </div>
             <div className="space-y-1">
-              <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${colorTone?.text || 'text-indigo-300'}`}>{notebook.courseCode}</p>
-              <h1 className="text-2xl font-black text-white font-display">{notebook.name}</h1>
-              <p className="max-w-3xl text-sm leading-7 text-slate-400">
+              <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${colorTone?.text || 'text-accent-hover'}`}>{notebook.courseCode}</p>
+              <h1 className="text-2xl font-black text-text-primary font-display">{notebook.name}</h1>
+              <p className="max-w-3xl text-sm leading-relaxed text-text-secondary font-serif">
                 {notebook.description || 'No description set yet.'}
               </p>
             </div>
@@ -426,7 +426,7 @@ export default function NotebookView({
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => onEditNotebook?.(notebook)}
-              className={`rounded-2xl border px-4 py-3 text-xs font-bold transition ${colorTone?.button}`}
+              className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
             >
               <span className="inline-flex items-center gap-1.5">
                 <Edit3 className="h-4 w-4" />
@@ -435,7 +435,7 @@ export default function NotebookView({
             </button>
             <button
               onClick={() => setIsDeleteNotebookModalOpen(true)}
-              className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-bold text-rose-100 transition hover:bg-rose-500/20"
+              className="rounded-xl border border-error/20 bg-error-subtle px-4 py-2.5 text-xs font-bold text-error transition hover:bg-error/20"
             >
               <span className="inline-flex items-center gap-1.5">
                 <Trash2 className="h-4 w-4" />
@@ -452,7 +452,7 @@ export default function NotebookView({
                   },
                 )
               }
-              className={`rounded-2xl border px-4 py-3 text-xs font-bold transition ${colorTone?.button}`}
+              className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
             >
               <span className="inline-flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4" />
@@ -464,17 +464,17 @@ export default function NotebookView({
       </div>
 
       {(uploadError || previewError) && (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100">
+        <div className="rounded-2xl border border-cta/20 bg-cta-subtle px-4 py-3 text-sm font-semibold text-cta">
           {uploadError || previewError}
         </div>
       )}
 
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-6">
-          <div className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl ${colorTone?.borderGlow}`}>
+          <div className={`surface-card rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow}`}>
             <div className="space-y-2">
-              <h2 className="text-sm font-black text-white font-display">Upload Material</h2>
-              <p className="text-sm leading-6 text-slate-400">
+              <h2 className="text-sm font-black text-text-primary font-display">Upload Material</h2>
+              <p className="text-sm leading-relaxed text-text-secondary font-serif">
                 PDF, DOCX, PPTX, TXT, and audio files are saved on the backend filesystem and indexed in the notebook.
               </p>
             </div>
@@ -482,7 +482,7 @@ export default function NotebookView({
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadPhase !== 'idle'}
-              className={`mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-6 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${colorTone?.button}`}
+              className={`mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-7 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border/50 bg-accent-subtle/50 text-accent-hover hover:bg-accent-subtle'}`}
             >
               {uploadPhase !== 'idle' ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
               {uploadPhase !== 'idle' ? 'Processing upload...' : 'Select File'}
@@ -502,84 +502,84 @@ export default function NotebookView({
             />
 
             {uploadPhase !== 'idle' && (
-              <div className={`mt-4 rounded-2xl border bg-slate-950/30 p-4 ${colorTone?.subtleBlock}`}>
+              <div className={`mt-5 rounded-2xl border bg-bg-elevated/50 p-4 ${colorTone?.subtleBlock || 'border-border-default'}`}>
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate font-bold text-slate-100">{uploadFileName}</span>
-                  <span className={`font-black ${colorTone?.text}`}>{uploadProgressValue}%</span>
+                  <span className="truncate font-bold text-text-primary">{uploadFileName}</span>
+                  <span className={`font-black ${colorTone?.text || 'text-accent-hover'}`}>{uploadProgressValue}%</span>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/5">
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-bg-elevated">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 transition-all duration-200"
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-200"
                     style={{ width: `${uploadProgressValue}%` }}
                   />
                 </div>
-                <p className="mt-3 text-sm text-slate-400">{uploadStatusLabel}</p>
+                <p className="mt-3 text-sm text-text-secondary">{uploadStatusLabel}</p>
               </div>
             )}
 
-            <div className={`mt-4 rounded-2xl border bg-slate-950/25 p-4 text-sm leading-6 text-slate-400 ${colorTone?.subtleBlock}`}>
+            <div className={`mt-4 rounded-2xl border bg-bg-elevated/30 p-4 text-sm leading-relaxed text-text-secondary font-serif ${colorTone?.subtleBlock || 'border-border-default'}`}>
               <p>Limit: 100MB per file.</p>
               <p>Stored under the backend app for preview and download.</p>
               <p>Delete removes both the database record and the stored file immediately.</p>
             </div>
           </div>
 
-          <div className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl ${colorTone?.borderGlow}`}>
-            <div className="space-y-2">
-              <h2 className="text-sm font-black text-white font-display">Notebook Snapshot</h2>
-              <p className="text-xs text-slate-400">Quick counts for the current notebook.</p>
+          <div className={`surface-card rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow}`}>
+            <div className="space-y-1">
+              <h2 className="text-sm font-black text-text-primary font-display">Notebook Snapshot</h2>
+              <p className="text-xs text-text-muted">Quick counts for the current notebook.</p>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className={`rounded-2xl border bg-white/[0.03] p-4 ${colorTone?.subtleBlock}`}>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Files</div>
-                <div className="mt-2 text-2xl font-black text-white">{notebook.fileCount}</div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className={`rounded-2xl border bg-bg-elevated/40 p-4 ${colorTone?.subtleBlock || 'border-border-default'}`}>
+                <div className="text-[10px] font-black uppercase tracking-widest text-text-muted font-mono">Files</div>
+                <div className="mt-2 text-2xl font-black text-text-primary">{notebook.fileCount}</div>
               </div>
-              <div className={`rounded-2xl border bg-white/[0.03] p-4 ${colorTone?.subtleBlock}`}>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Concepts</div>
-                <div className="mt-2 text-2xl font-black text-white">{notebook.conceptCount}</div>
+              <div className={`rounded-2xl border bg-bg-elevated/40 p-4 ${colorTone?.subtleBlock || 'border-border-default'}`}>
+                <div className="text-[10px] font-black uppercase tracking-widest text-text-muted font-mono">Concepts</div>
+                <div className="mt-2 text-2xl font-black text-text-primary">{notebook.conceptCount}</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className={`rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-2xl ${colorTone?.borderGlow}`}>
-          <div className="flex flex-col gap-3 border-b border-white/5 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`surface-card rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow}`}>
+          <div className="flex flex-col gap-3 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-sm font-black text-white font-display">Materials Directory</h2>
-              <p className="text-[11px] text-slate-400">Open inline previews or delete files directly from this notebook.</p>
+              <h2 className="text-sm font-black text-text-primary font-display">Materials Directory</h2>
+              <p className="text-[11px] text-text-muted">Open inline previews or delete files directly from this notebook.</p>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
               <input
                 type="text"
                 value={materialSearchText}
                 onChange={(event) => setMaterialSearchText(event.target.value)}
                 placeholder="Search files..."
-                className={`w-full rounded-xl border border-white/10 bg-slate-950/50 py-2 pl-8 pr-3 text-xs text-slate-100 outline-none transition sm:w-56 ${colorTone?.borderGlow}`}
+                className={`w-full rounded-xl border border-border-default bg-bg-elevated/60 py-2 pl-8 pr-3 text-xs text-text-primary outline-none transition sm:w-56 focus:border-accent ${colorTone?.borderGlow || ''}`}
               />
             </div>
           </div>
 
           <div className="mt-4 space-y-3">
             {filteredFiles.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 px-4 py-12 text-center text-sm text-slate-500">
-                <FolderOpen className="mx-auto mb-3 h-8 w-8 text-slate-600" />
+              <div className="rounded-2xl border border-dashed border-border-default px-4 py-12 text-center text-sm text-text-muted">
+                <FolderOpen className="mx-auto mb-3 h-8 w-8 text-text-muted" />
                 No files matched this notebook filter.
               </div>
             ) : (
               filteredFiles.map((file) => (
                 <div
                   key={file.id}
-                  className={`flex flex-col gap-3 rounded-2xl border border-white/5 bg-slate-950/25 p-4 transition hover:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between ${colorTone?.borderGlow}`}
+                  className={`flex flex-col gap-3 rounded-2xl border border-border-subtle bg-bg-elevated/30 p-4 transition hover:bg-bg-elevated/50 sm:flex-row sm:items-center sm:justify-between ${colorTone?.borderGlow || ''}`}
                 >
                   <button
                     onClick={() => setSelectedMaterial(file)}
                     className="flex min-w-0 items-center gap-3 text-left"
                   >
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">{getFileIcon(file.type)}</div>
+                    <div className="rounded-xl border border-border-default bg-bg-elevated/60 p-2.5 shrink-0">{getFileIcon(file.type)}</div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-bold text-white">{file.name}</div>
-                      <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      <div className="truncate text-sm font-bold text-text-primary">{file.name}</div>
+                      <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-medium uppercase tracking-widest text-text-muted">
                         <span>{file.type}</span>
                         <span>{file.size}</span>
                         <span>{file.uploadDate}</span>
@@ -588,10 +588,10 @@ export default function NotebookView({
                     </div>
                   </button>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => setSelectedMaterial(file)}
-                      className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${colorTone?.button}`}
+                      className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <Eye className="h-4 w-4" />
@@ -601,7 +601,7 @@ export default function NotebookView({
                     <button
                       onClick={() => setPendingDeleteFile(file)}
                       disabled={isDeleting}
-                      className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl border border-error/20 bg-error-subtle px-3 py-2 text-xs font-bold text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <Trash2 className="h-4 w-4" />
@@ -618,45 +618,45 @@ export default function NotebookView({
 
       {selectedMaterial && (
         <div
-          className="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center bg-[#03060b]/85 p-4 backdrop-blur-md md:left-64"
+          className="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md md:left-24"
           onClick={() => setSelectedMaterial(null)}
         >
           <div
-            className="relative flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b101c] shadow-2xl xl:flex-row"
+            className="relative flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-border-default bg-bg-overlay shadow-2xl xl:flex-row"
             onClick={(event) => event.stopPropagation()}
           >
             <button
               onClick={() => setSelectedMaterial(null)}
-              className="absolute right-4 top-4 z-10 rounded-full border border-white/10 bg-white/5 p-2 text-slate-300 transition hover:bg-white/10"
+              className="absolute right-4 top-4 z-10 rounded-full border border-border-default bg-bg-elevated/80 p-2 text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <div className="w-full border-b border-white/10 bg-[#0e1627] p-5 xl:w-[58%] xl:border-b-0 xl:border-r">
-              <div className="space-y-2 border-b border-white/5 pb-4">
+            <div className="w-full border-b border-border-default bg-bg-elevated/50 p-5 xl:w-[58%] xl:border-b-0 xl:border-r">
+              <div className="space-y-2 border-b border-border-subtle pb-4">
                 <div className="flex items-center gap-2.5">
-                  <div className={`rounded-lg border p-2 ${colorTone?.subtleBlock}`}>
+                  <div className={`rounded-lg border p-2 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated'}`}>
                     {getFileIcon(selectedMaterial.type)}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="truncate text-sm font-extrabold text-white font-display">{selectedMaterial.name}</h3>
-                    <p className="text-[10px] text-slate-400">
+                    <h3 className="truncate text-sm font-extrabold text-text-primary font-display">{selectedMaterial.name}</h3>
+                    <p className="text-[10px] text-text-muted">
                       {selectedMaterial.size} - Uploaded {selectedMaterial.uploadDate}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 min-h-[420px] overflow-auto rounded-2xl border border-white/5 bg-slate-950/40 p-4">
+              <div className="mt-4 min-h-[420px] overflow-auto rounded-2xl border border-border-subtle bg-bg-base/60 p-4">
                 {previewLoading && !activePreview ? (
-                  <div className="flex h-[380px] items-center justify-center gap-2 text-sm text-slate-400">
+                  <div className="flex h-[380px] items-center justify-center gap-2 text-sm text-text-muted">
                     <LoaderCircle className="h-5 w-5 animate-spin" />
                     Loading inline preview...
                   </div>
                 ) : null}
 
                 {!previewLoading && !activePreview && !previewError ? (
-                  <div className="flex h-[380px] items-center justify-center text-sm text-slate-500">
+                  <div className="flex h-[380px] items-center justify-center text-sm text-text-muted">
                     Preview is not available for this file.
                   </div>
                 ) : null}
@@ -665,7 +665,7 @@ export default function NotebookView({
                   <iframe
                     title={activePreview.name}
                     src={viewerUrl}
-                    className="h-[70vh] min-h-[380px] w-full rounded-xl border border-white/5 bg-white"
+                    className="h-[70vh] min-h-[380px] w-full rounded-xl border border-border-subtle bg-bg-base"
                   />
                 ) : null}
 
@@ -677,7 +677,7 @@ export default function NotebookView({
                 ) : null}
 
                 {activePreview?.previewFormat === 'text' ? (
-                  <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-200">
+                  <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-text-primary font-serif">
                     {activePreview.previewContent || ''}
                   </pre>
                 ) : null}
@@ -686,33 +686,33 @@ export default function NotebookView({
 
             <div className="flex w-full flex-col justify-between p-5 xl:w-[42%]">
               <div className="space-y-4">
-                <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock}`}>
-                  <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text}`}>
+                <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
+                  <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
                     <Sparkles className="h-4 w-4" />
                     Extracted Summary
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-slate-100/90">
+                  <p className="mt-3 text-sm leading-relaxed text-text-primary font-serif">
                     {activePreview?.summary || selectedMaterial.summary || 'No summary was generated for this file.'}
                   </p>
                 </div>
 
-                <div className={`rounded-2xl border bg-white/[0.03] p-4 text-sm text-slate-300 ${colorTone?.subtleBlock}`}>
-                  <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">File Details</div>
+                <div className={`rounded-2xl border bg-bg-elevated/30 p-4 text-sm text-text-secondary font-serif ${colorTone?.subtleBlock || 'border-border-default'}`}>
+                  <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">File Details</div>
                   <div className="mt-2">Inline preview and download are generated from notebook storage on demand.</div>
                   {activePreview?.totalPages ? (
-                    <div className="mt-3 text-xs text-slate-400">{activePreview.totalPages} pages detected</div>
+                    <div className="mt-3 text-xs text-text-muted">{activePreview.totalPages} pages detected</div>
                   ) : null}
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-wrap gap-2.5 border-t border-white/5 pt-4">
+              <div className="mt-5 flex flex-wrap gap-2.5 border-t border-border-subtle pt-4">
                 {selectedViewerUrl ? (
                   <>
                     <a
                       href={selectedViewerUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button}`}
+                      className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <ExternalLink className="h-4 w-4" />
@@ -722,7 +722,7 @@ export default function NotebookView({
                     <a
                       href={selectedViewerUrl}
                       download={selectedMaterial.name}
-                      className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button}`}
+                      className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <Download className="h-4 w-4" />
@@ -743,14 +743,14 @@ export default function NotebookView({
                       },
                     )
                   }
-                  className={`flex-1 rounded-xl border py-2.5 text-xs font-bold transition ${colorTone?.button}`}
+                  className={`flex-1 rounded-xl border py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
                 >
                   Ask AI About Material
                 </button>
                 <button
                   onClick={() => setPendingDeleteFile(selectedMaterial)}
                   disabled={isDeleting}
-                  className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl border border-error/20 bg-error-subtle px-4 py-2.5 text-xs font-bold text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Delete
                 </button>
@@ -762,28 +762,28 @@ export default function NotebookView({
 
       {pendingDeleteFile && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#02050b]/80 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setPendingDeleteFile(null)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b101c] p-6 shadow-2xl"
+            className="surface-glass w-full max-w-md rounded-3xl p-6"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 className="text-lg font-black text-white font-display">Delete material?</h3>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              This removes <span className="font-semibold text-slate-200">{pendingDeleteFile.name}</span> from the notebook and deletes the stored file immediately.
+            <h3 className="text-lg font-black text-text-primary font-display">Delete material?</h3>
+            <p className="mt-3 text-sm leading-relaxed text-text-secondary font-serif">
+              This removes <span className="font-semibold text-text-primary">{pendingDeleteFile.name}</span> from the notebook and deletes the stored file immediately.
             </p>
             <div className="mt-6 flex justify-end gap-2.5">
               <button
                 onClick={() => setPendingDeleteFile(null)}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+                className="rounded-xl border border-border-default bg-bg-elevated/60 px-4 py-2 text-xs font-bold text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void handleDelete(pendingDeleteFile)}
                 disabled={isDeleting}
-                className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-error/20 bg-error-subtle px-4 py-2 text-xs font-bold text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isDeleting ? 'Deleting...' : 'Delete file'}
               </button>
@@ -794,28 +794,28 @@ export default function NotebookView({
 
       {isDeleteNotebookModalOpen && notebook && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#02050b]/80 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setIsDeleteNotebookModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b101c] p-6 shadow-2xl"
+            className="surface-glass w-full max-w-md rounded-3xl p-6"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 className="text-lg font-black text-white font-display">Delete notebook?</h3>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              This removes <span className="font-semibold text-slate-200">{notebook.name}</span>, all notebook records, and all stored files immediately.
+            <h3 className="text-lg font-black text-text-primary font-display">Delete notebook?</h3>
+            <p className="mt-3 text-sm leading-relaxed text-text-secondary font-serif">
+              This removes <span className="font-semibold text-text-primary">{notebook.name}</span>, all notebook records, and all stored files immediately.
             </p>
             <div className="mt-6 flex justify-end gap-2.5">
               <button
                 onClick={() => setIsDeleteNotebookModalOpen(false)}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+                className="rounded-xl border border-border-default bg-bg-elevated/60 px-4 py-2 text-xs font-bold text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void handleDeleteCurrentNotebook()}
                 disabled={isDeletingNotebook}
-                className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-error/20 bg-error-subtle px-4 py-2 text-xs font-bold text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isDeletingNotebook ? 'Deleting...' : 'Delete notebook'}
               </button>

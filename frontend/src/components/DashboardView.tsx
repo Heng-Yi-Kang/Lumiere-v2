@@ -159,106 +159,106 @@ export default function DashboardView({
           : '';
 
   return (
-      <div className="space-y-6 text-left">
+    <div className="space-y-8 text-left">
       {notebookError && (
-        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200">
+        <div className="rounded-2xl border border-error/20 bg-error-subtle px-4 py-3 text-sm font-semibold text-error">
           Notebook API error: {notebookError}
         </div>
       )}
       {uploadError && (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100">
+        <div className="rounded-2xl border border-cta/20 bg-cta-subtle px-4 py-3 text-sm font-semibold text-cta">
           {uploadError}
         </div>
       )}
 
       {/* Welcome Greetings Bar - Premium Frosted Design */}
-      <div className="rounded-3xl bg-white/[0.03] backdrop-blur-xl border border-white/10 p-6 text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 opacity-15 blur-2xl pointer-events-none">
-          <div className="h-64 w-64 rounded-full bg-indigo-500"></div>
+      <div className="surface-card rounded-3xl p-6 md:p-8 text-text-primary relative overflow-hidden">
+        <div className="absolute right-0 top-0 opacity-20 blur-3xl pointer-events-none">
+          <div className="h-72 w-72 rounded-full bg-accent"></div>
         </div>
         
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full border border-indigo-500/30 bg-indigo-500/20 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-indigo-300">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5">
+              <span className="rounded-full border border-accent-border bg-accent-subtle px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-accent-hover">
                 Lumiere Workspace
               </span>
-              <span className="text-sm font-bold text-slate-300">Sem 2 Semester Student Portal</span>
+              <span className="text-sm font-semibold text-text-secondary">Sem 2 Semester Student Portal</span>
             </div>
-            <h1 className="text-2xl font-black tracking-tight font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
+            <h1 className="text-3xl font-black tracking-tight font-display text-gradient">
               Welcome, Yi Kang
             </h1>
-            <p className="max-w-xl text-sm font-medium leading-7 text-slate-400">
+            <p className="max-w-xl text-base font-normal leading-relaxed text-text-secondary font-serif">
               {notebooks.length === 0 ? (
                 <>Start by creating your first notebook, then upload lecture materials so Lumiere can build summaries and study aids.</>
               ) : (
-                <>Your materials are linked. You have <span className="text-indigo-300 font-extrabold">{notebooks.length} notebooks</span> ready across your active course library. Ready to score that 4.00 flat?</>
+                <>Your materials are linked. You have <span className="text-accent-hover font-bold">{notebooks.length} notebooks</span> ready across your active course library. Ready to score that 4.00 flat?</>
               )}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col leading-none shadow-xs">
-              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 font-mono">Materials</span>
-              <span className="text-lg font-black text-white mt-1">14 Files</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-2xl border border-border-default bg-bg-elevated/60 p-3.5 flex flex-col leading-none">
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted font-mono">Materials</span>
+              <span className="text-lg font-black text-text-primary mt-1.5">14 Files</span>
             </div>
-            <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col leading-none shadow-xs">
-              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 font-mono">Concept Splits</span>
-              <span className="text-lg font-black text-emerald-400 mt-1 text-glow-emerald">26 Linked</span>
+            <div className="rounded-2xl border border-border-default bg-bg-elevated/60 p-3.5 flex flex-col leading-none">
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted font-mono">Concept Splits</span>
+              <span className="text-lg font-black text-success mt-1.5">26 Linked</span>
             </div>
-            <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col leading-none shadow-xs">
-              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 font-mono">Studied Today</span>
-              <span className="text-lg font-black text-indigo-300 mt-1 text-glow-indigo">45 mins</span>
+            <div className="rounded-2xl border border-border-default bg-bg-elevated/60 p-3.5 flex flex-col leading-none">
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted font-mono">Studied Today</span>
+              <span className="text-lg font-black text-accent-hover mt-1.5">45 mins</span>
             </div>
           </div>
         </div>
       </div>
 
       {notebooks.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 via-slate-950/50 to-emerald-500/10 p-6 shadow-2xl">
+        <div className="surface-elevated rounded-3xl p-6 md:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl space-y-3">
-              <span className="inline-flex rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-indigo-200">
+              <span className="inline-flex rounded-full border border-accent-border bg-accent-subtle px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-accent-hover">
                 Get Started
               </span>
-              <h2 className="text-2xl font-black text-white font-display">No notebooks yet</h2>
-              <p className="text-base leading-7 text-slate-300">
+              <h2 className="text-2xl font-black text-text-primary font-display">No notebooks yet</h2>
+              <p className="text-base leading-relaxed text-text-secondary font-serif">
                 Create a course notebook first. After that, you can drop in PDFs, slides, notes, and transcripts so Lumiere can organize previews, concepts, and grounded AI help.
               </p>
             </div>
 
             <button
               onClick={onCreateNotebookRequested}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-indigo-400/20 bg-indigo-600 px-5 py-3 text-sm font-black text-white transition hover:bg-indigo-500"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-accent-hover shadow-lg shadow-indigo-500/20 shrink-0"
             >
               <Plus className="h-4 w-4" />
               Create First Notebook
             </button>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-indigo-300">1. Create</div>
-              <p className="mt-2 text-sm font-semibold text-white">Add a notebook for one subject or course.</p>
-              <p className="mt-1 text-sm leading-6 text-slate-400">Name it clearly and pick the matching course code so you can find it fast later.</p>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-border-default bg-bg-elevated/40 p-5">
+              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-accent-hover font-mono">1. Create</div>
+              <p className="mt-2 text-sm font-semibold text-text-primary">Add a notebook for one subject or course.</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">Name it clearly and pick the matching course code so you can find it fast later.</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">2. Upload</div>
-              <p className="mt-2 text-sm font-semibold text-white">Drop in lecture files and notes.</p>
-              <p className="mt-1 text-sm leading-6 text-slate-400">Use PDF, DOCX, PPTX, TXT, or audio files. Upload becomes available as soon as your first notebook exists.</p>
+            <div className="rounded-2xl border border-border-default bg-bg-elevated/40 p-5">
+              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-success font-mono">2. Upload</div>
+              <p className="mt-2 text-sm font-semibold text-text-primary">Drop in lecture files and notes.</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">Use PDF, DOCX, PPTX, TXT, or audio files. Upload becomes available as soon as your first notebook exists.</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-amber-300">3. Review</div>
-              <p className="mt-2 text-sm font-semibold text-white">Open the notebook and study from there.</p>
-              <p className="mt-1 text-sm leading-6 text-slate-400">You’ll get inline previews, extracted summaries, and notebook-grounded AI prompts once materials are indexed.</p>
+            <div className="rounded-2xl border border-border-default bg-bg-elevated/40 p-5">
+              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-cta font-mono">3. Review</div>
+              <p className="mt-2 text-sm font-semibold text-text-primary">Open the notebook and study from there.</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">You&apos;ll get inline previews, extracted summaries, and notebook-grounded AI prompts once materials are indexed.</p>
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm leading-6 text-slate-300">
+          <div className="mt-6 rounded-2xl border border-border-default bg-bg-elevated/30 px-4 py-3.5 text-sm leading-relaxed text-text-secondary font-serif">
             Upload controls are disabled until at least one notebook exists.
             <button
               onClick={onCreateNotebookRequested}
-              className="ml-2 inline-flex items-center gap-1 font-bold text-indigo-300 transition hover:text-indigo-200"
+              className="ml-2 inline-flex items-center gap-1 font-bold text-accent-hover transition hover:text-accent"
             >
               Open notebook setup
               <ArrowUpRight className="h-3.5 w-3.5" />
@@ -270,20 +270,20 @@ export default function DashboardView({
       {/* Main Grid: Upload Center + Dynamic Stats */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         {/* Multimodal Drag & Drop Area */}
-        <div className="lg:col-span-2 rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl flex flex-col justify-between">
-          <div className="space-y-1 pb-4">
-            <h2 className="text-sm font-extrabold text-slate-100 flex items-center gap-1.5 font-display">
-              <UploadCloud className="h-4.5 w-4.5 text-indigo-400" />
+        <div className="lg:col-span-2 surface-card rounded-3xl p-6 md:p-8 flex flex-col justify-between">
+          <div className="space-y-1 pb-5">
+            <h2 className="text-sm font-extrabold text-text-primary flex items-center gap-2 font-display">
+              <UploadCloud className="h-5 w-5 text-accent-hover" />
               Upload Materials & Audio Recordings
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-text-secondary">
               Drag PDF, DOCX, PPTX, TXT, or audio files directly into a notebook.
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3 pb-4">
+          <div className="grid gap-4 md:grid-cols-3 pb-5">
             <div className="md:col-span-2">
-              <label htmlFor="upload-nb-select" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">
+              <label htmlFor="upload-nb-select" className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1.5 font-mono">
                 Pin upload into active Notebook:
               </label>
               <select
@@ -291,31 +291,31 @@ export default function DashboardView({
                 value={selectedNotebookId}
                 onChange={(e) => setSelectedNotebookId(e.target.value)}
                 disabled={notebooks.length === 0}
-                className="w-full rounded-lg border border-white/10 bg-slate-950/40 p-2 text-xs font-bold text-slate-200 outline-none focus:border-indigo-400 focus:bg-slate-900/80 cursor-pointer"
+                className="w-full rounded-xl border border-border-default bg-bg-elevated/70 p-2.5 text-xs font-bold text-text-primary outline-none focus:border-accent cursor-pointer transition-colors"
               >
                 {notebooks.length === 0 ? (
-                  <option value="" className="bg-[#0f172a] text-slate-100">
+                  <option value="" className="bg-bg-overlay text-text-primary">
                     Create a notebook first
                   </option>
                 ) : null}
                 {notebooks.map(nb => (
-                  <option key={nb.id} value={nb.id} className="bg-[#0f172a] text-slate-100">
+                  <option key={nb.id} value={nb.id} className="bg-bg-overlay text-text-primary">
                     ({nb.courseCode}) {nb.name}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="simulate-file-btn" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">
+              <label htmlFor="simulate-file-btn" className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1.5 font-mono">
                 Virtual Device:
               </label>
               <button
                 id="simulate-file-btn"
                 onClick={triggerUploadClick}
                 disabled={uploadPhase !== 'idle' || notebooks.length === 0}
-                className="w-full rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 p-2 text-xs font-extrabold text-white transition-all disabled:opacity-50 flex items-center justify-center gap-1 cursor-pointer"
+                className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
               >
-                <Plus className="h-3.5 w-3.5 text-indigo-400" />
+                <Plus className="h-3.5 w-3.5 text-accent-hover" />
                 Select File
               </button>
               <input
@@ -341,89 +341,89 @@ export default function DashboardView({
             onDrop={handleDrop}
             className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-all ${
               dragActive 
-                ? 'border-indigo-500 bg-indigo-500/10' 
-                : 'border-white/10 bg-white/[0.01] hover:bg-white/[0.03]'
+                ? 'border-accent bg-accent-subtle' 
+                : 'border-border-default bg-bg-base/40 hover:bg-bg-elevated/30'
             }`}
           >
             {uploadProgress === -1 ? (
-              <div className="text-center space-y-2">
-                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border border-white/10 shadow-md">
-                  <UploadCloud className="h-5 w-5 text-indigo-400" />
+              <div className="text-center space-y-2.5">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-bg-elevated border border-border-default shadow-md">
+                  <UploadCloud className="h-5 w-5 text-accent-hover" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200">
+                <div className="text-xs font-semibold text-text-primary">
                   {notebooks.length === 0 ? 'Create a notebook to unlock uploads' : 'Drag your lecture material here, or click to pick'}
                 </div>
-                <div className="text-[10px] text-slate-400">
+                <div className="text-[10px] text-text-muted">
                   {notebooks.length === 0 ? 'Your first upload target will appear after notebook setup.' : 'Supports PDF, DOCX, PPTX, TXT, and audio up to 100MB'}
                 </div>
               </div>
             ) : uploadProgress <= 100 ? (
               <div className="w-full max-w-sm space-y-3 col-span-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-2 font-black text-slate-200">
+                  <span className="flex items-center gap-2 font-bold text-text-primary">
                     {selectedFileType === 'pdf' ? (
-                      <FileText className="h-4 w-4 text-rose-400 animate-bounce" />
+                      <FileText className="h-4 w-4 text-error" />
                     ) : (
-                      <BookMarked className="h-4 w-4 text-blue-400 animate-bounce" />
+                      <BookMarked className="h-4 w-4 text-accent-hover" />
                     )}
                     <span className="truncate max-w-[200px]">{selectedFileName}</span>
                   </span>
-                  <span className="font-extrabold text-[#34d399] text-glow-emerald">
+                  <span className="font-extrabold text-success font-mono">
                     {uploadProgress < 100 ? `${uploadProgress}%` : 'Ready'}
                   </span>
                 </div>
                 
                 {/* Progress Bar Container */}
-                <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                <div className="h-2 w-full rounded-full bg-bg-elevated overflow-hidden">
                   <div 
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-[#34d399] transition-all duration-150"
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-150"
                     style={{ width: `${uploadProgress}%` }}
                   ></div>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 justify-center">
-                  <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />
+                <div className="flex items-center gap-1.5 text-[10px] text-text-muted justify-center">
+                  <Sparkles className="h-3 w-3 text-cta" />
                   <span>{uploadStatus}</span>
                 </div>
               </div>
             ) : (
               <div className="text-center space-y-2 flex flex-col items-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 animate-pulse border border-emerald-500/30">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success-subtle text-success border border-success/20">
                   <Check className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-black text-emerald-400 text-glow-emerald">Processed & Indexed!</span>
-                <span className="text-[10px] text-slate-400">Concept linkages, summaries and flashcards populated successfully.</span>
+                <span className="text-xs font-bold text-success">Processed & Indexed!</span>
+                <span className="text-[10px] text-text-muted">Concept linkages, summaries and flashcards populated successfully.</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Bento Stats Side Column - Glass Cards with Streak Details */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl flex flex-col justify-between space-y-4">
+        <div className="surface-card rounded-3xl p-6 md:p-8 flex flex-col justify-between space-y-5">
           <div className="space-y-1">
-            <h3 className="text-xs font-black tracking-wider text-slate-400 uppercase font-mono">Student Statistics</h3>
-            <h2 className="text-sm font-extrabold text-slate-200 font-display">Learning Productivity & Streaks</h2>
+            <h3 className="text-xs font-black tracking-wider text-text-muted uppercase font-mono">Student Statistics</h3>
+            <h2 className="text-sm font-extrabold text-text-primary font-display">Learning Productivity & Streaks</h2>
           </div>
 
           {/* Core Study Streak Counter Widget */}
-          <div className="rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-rose-500/10 border border-orange-500/20 p-4 space-y-3">
+          <div className="rounded-2xl bg-gradient-to-r from-cta/10 via-cta/5 to-error/10 border border-cta/20 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 p-1 px-2 rounded-lg bg-orange-500/25 border border-orange-400/30 text-orange-400 font-extrabold animate-bounce font-mono text-xs">
-                  <Flame className="h-3.5 w-3.5 fill-orange-500 text-orange-500" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cta/20 border border-cta/30 text-cta font-extrabold font-mono text-xs">
+                  <Flame className="h-3.5 w-3.5 fill-cta" />
                   {streak?.currentStreak || 12} Days
                 </span>
-                <span className="text-[9px] font-bold text-slate-200 uppercase font-mono tracking-wider">
+                <span className="text-[10px] font-bold text-text-secondary uppercase font-mono tracking-wider">
                   Streak Active!
                 </span>
               </div>
-              <span className="text-[9px] font-black tracking-wider text-amber-500 uppercase font-mono">
+              <span className="text-[10px] font-black tracking-wider text-cta uppercase font-mono">
                 {streak?.malaysianTier || "Dean's Runner"}
               </span>
             </div>
 
             {/* 7-Day progress calendar status bubble */}
-            <div className="flex justify-between gap-1 pb-1">
+            <div className="flex justify-between gap-1.5 pb-1">
               {(streak?.weeklyProgress || [
                 { day: 'Mon', active: true, minutes: 45 },
                 { day: 'Tue', active: true, minutes: 30 },
@@ -434,12 +434,12 @@ export default function DashboardView({
                 { day: 'Sun', active: true, minutes: 15 }
               ]).map((dayProgress, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1 flex-1">
-                  <span className="text-[8px] text-slate-500 font-bold font-mono uppercase">{dayProgress.day}</span>
+                  <span className="text-[9px] text-text-muted font-bold font-mono uppercase">{dayProgress.day}</span>
                   <div 
-                    className={`h-6 w-full rounded-md flex items-center justify-center text-[9px] font-black transition-all ${
+                    className={`h-7 w-full rounded-lg flex items-center justify-center text-[9px] font-bold transition-all ${
                       dayProgress.active 
-                        ? 'bg-orange-600/35 border border-orange-500/50 text-orange-200 scale-105 shadow-xs shadow-orange-500/10' 
-                        : 'bg-white/5 border border-white/5 text-slate-600'
+                        ? 'bg-cta/25 border border-cta/40 text-cta shadow-sm' 
+                        : 'bg-bg-elevated border border-border-subtle text-text-muted'
                     }`} 
                     title={dayProgress.active ? `${dayProgress.minutes} mins study duration` : 'Inactive'}
                   >
@@ -449,62 +449,62 @@ export default function DashboardView({
               ))}
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/5 pt-2 text-[8px] text-slate-400">
-              <span>Personal Peak: <strong className="text-slate-200">{streak?.bestStreak || 24} Days</strong></span>
-              <span>Last active: <strong className="text-orange-400 font-mono">Today</strong></span>
+            <div className="flex items-center justify-between border-t border-border-subtle pt-3 text-[10px] text-text-muted">
+              <span>Personal Peak: <strong className="text-text-primary">{streak?.bestStreak || 24} Days</strong></span>
+              <span>Last active: <strong className="text-cta font-mono">Today</strong></span>
             </div>
           </div>
 
           {/* Mini secondary stats metrics row */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="rounded-xl bg-white/[0.02] border border-white/5 p-2.5 text-left">
-              <Clock className="h-4 w-4 text-emerald-400 mb-0.5" />
-              <div className="text-[9px] text-slate-400 font-semibold uppercase leading-none">Focus duration</div>
-              <div className="text-sm font-black text-white mt-1">470 min</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border-subtle bg-bg-elevated/30 p-3 text-left">
+              <Clock className="h-4 w-4 text-success mb-1" />
+              <div className="text-[10px] text-text-muted font-semibold uppercase leading-none">Focus duration</div>
+              <div className="text-sm font-black text-text-primary mt-1">470 min</div>
             </div>
 
-            <div className="rounded-xl bg-white/[0.02] border border-white/5 p-2.5 text-left">
-              <FolderLock className="h-4 w-4 text-fuchsia-400 mb-0.5" />
-              <div className="text-[9px] text-slate-400 font-semibold uppercase leading-none">CGPA target</div>
-              <div className="text-sm font-black text-white mt-1">3.91 A-</div>
+            <div className="rounded-xl border border-border-subtle bg-bg-elevated/30 p-3 text-left">
+              <FolderLock className="h-4 w-4 text-accent-hover mb-1" />
+              <div className="text-[10px] text-text-muted font-semibold uppercase leading-none">CGPA target</div>
+              <div className="text-sm font-black text-text-primary mt-1">3.91 A-</div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/5 bg-white/[0.01] px-3 py-2 text-[10px] leading-relaxed text-slate-400">
-            <Lightbulb className="mr-1 inline h-3.5 w-3.5 text-amber-500" />
-            <span className="font-extrabold text-slate-200">Lumiere Study Tip:</span> Your conceptual check between <span className="font-semibold text-indigo-300">Discrete Math</span> and <span className="font-semibold text-[#818cf8]">Database Systems</span> displays active progress. Revise Set Theory quizzes tonight.
+          <div className="rounded-xl border border-border-subtle bg-bg-elevated/20 px-4 py-3 text-sm leading-relaxed text-text-secondary font-serif">
+            <Lightbulb className="mr-1.5 inline h-4 w-4 text-cta shrink-0" />
+            <span className="font-bold text-text-primary">Lumiere Study Tip:</span> Your conceptual check between <span className="font-semibold text-accent-hover">Discrete Math</span> and <span className="font-semibold text-accent-hover">Database Systems</span> displays active progress. Revise Set Theory quizzes tonight.
           </div>
         </div>
       </div>
 
       {/* Grid of Course Notebooks */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-2 font-display">
+      <div className="space-y-5">
+        <div className="flex items-center justify-between border-b border-border-default pb-3 font-display">
           <div className="space-y-1">
-            <h2 className="text-base font-black text-slate-100">Personal Course Notebooks</h2>
-            <p className="text-xs text-slate-400">Each notebook links lecture videos, transcript files, and OCR-extracted summaries.</p>
+            <h2 className="text-lg font-black text-text-primary">Personal Course Notebooks</h2>
+            <p className="text-xs text-text-secondary">Each notebook links lecture videos, transcript files, and OCR-extracted summaries.</p>
           </div>
           <button 
             id="add-notebook"
             onClick={onCreateNotebookRequested}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 transition-all flex items-center gap-1 cursor-pointer shadow-lg shadow-indigo-600/25 border border-indigo-400/20"
+            className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white hover:bg-accent-hover transition-all flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 border border-accent-border shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             New Notebook
           </button>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {notebooks.length === 0 ? (
-            <div className="sm:col-span-2 lg:col-span-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-12 text-center">
-              <BookMarked className="mx-auto h-10 w-10 text-slate-500" />
-              <h3 className="mt-4 text-lg font-black text-white font-display">Your notebook shelf is empty</h3>
-              <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+            <div className="sm:col-span-2 lg:col-span-3 rounded-2xl border border-dashed border-border-default bg-bg-elevated/20 px-6 py-14 text-center">
+              <BookMarked className="mx-auto h-10 w-10 text-text-muted" />
+              <h3 className="mt-4 text-lg font-black text-text-primary font-display">Your notebook shelf is empty</h3>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-text-secondary font-serif">
                 Create your first notebook to organize one course at a time, then upload lecture files so this section starts filling with study material.
               </p>
               <button
                 onClick={onCreateNotebookRequested}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl border border-indigo-400/20 bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-500"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-accent-hover shadow-lg shadow-indigo-500/20"
               >
                 <Plus className="h-4 w-4" />
                 Create First Notebook
@@ -517,15 +517,15 @@ export default function DashboardView({
               <div
                 key={nb.id}
                 onClick={() => onOpenNotebook(nb.id)}
-                className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 cursor-pointer shadow-md transition-all duration-300 hover:bg-white/[0.06] hover:-translate-y-0.5 before:absolute before:left-0 before:top-0 before:h-full before:w-1 ${colorTone.borderGlow} ${colorTone.strip}`}
+                className={`relative overflow-hidden rounded-2xl border border-border-default bg-bg-elevated/40 backdrop-blur-xl p-5 cursor-pointer shadow-sm transition-all duration-200 hover:bg-bg-elevated/60 hover:-translate-y-0.5 before:absolute before:left-0 before:top-0 before:h-full before:w-1 ${colorTone.borderGlow} ${colorTone.strip}`}
               >
                 <div className="flex items-start justify-between">
-                  <div className={`rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wider border font-mono ${colorTone.badge}`}>
+                  <div className={`rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border font-mono ${colorTone.badge}`}>
                     {nb.courseCode}
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                      <span className="font-extrabold text-slate-200 font-mono">{nb.fileCount}</span> files
+                    <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                      <span className="font-extrabold text-text-primary font-mono">{nb.fileCount}</span> files
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -534,7 +534,7 @@ export default function DashboardView({
                           event.stopPropagation();
                           onEditNotebook?.(nb);
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border-default bg-bg-elevated/60 text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary"
                         title={`Edit ${nb.name}`}
                         aria-label={`Edit ${nb.name}`}
                       >
@@ -548,7 +548,7 @@ export default function DashboardView({
                             void onDeleteNotebook?.(nb.id);
                           }
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-200 transition hover:bg-rose-500/20"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-error/20 bg-error-subtle text-error transition hover:bg-error/20"
                         title={`Delete ${nb.name}`}
                         aria-label={`Delete ${nb.name}`}
                       >
@@ -558,17 +558,17 @@ export default function DashboardView({
                   </div>
                 </div>
 
-                <h3 className="text-sm font-bold text-slate-100 mt-3 truncate font-display">{nb.name}</h3>
-                <p className="text-xs text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
+                <h3 className="text-sm font-bold text-text-primary mt-3 truncate font-display">{nb.name}</h3>
+                <p className="text-xs text-text-secondary mt-1.5 line-clamp-2 leading-relaxed font-serif">
                   {nb.description || "No description set yet. Click to view files."}
                 </p>
 
-                <div className="flex items-center justify-between mt-4 border-t border-white/5 pt-3">
-                  <div className={`flex items-center gap-1.5 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border font-mono ${colorTone.subtleBlock}`}>
+                <div className="flex items-center justify-between mt-5 border-t border-border-subtle pt-3">
+                  <div className={`flex items-center gap-1.5 text-[10px] font-extrabold px-2.5 py-1 rounded-full border font-mono ${colorTone.subtleBlock}`}>
                     <Sparkles className="h-3 w-3" />
                     <span>{nb.conceptCount} Semantic Concepts</span>
                   </div>
-                  <div className="flex items-center text-xs font-extrabold text-slate-200 hover:text-indigo-400 gap-0.5 transition-colors">
+                  <div className="flex items-center text-xs font-bold text-text-secondary hover:text-accent-hover gap-0.5 transition-colors">
                     <span>Enter</span>
                     <ArrowRight className="h-3 w-3" />
                   </div>

@@ -37,8 +37,8 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
 
   // Quiz state
   const currentQuizzes = quizzes[activeCourseCode] || [];
-  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({}); // questionId -> chosenOptionIndex
-  const [quizSubmitted, setQuizSubmitted] = useState<Record<string, boolean>>({}); // questionId -> submitted state
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState<Record<string, boolean>>({});
 
   const activeFC = currentFlashcards[fcIndex];
 
@@ -71,16 +71,15 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
   const handleConfidenceRating = (id: string, rating: 'weak' | 'moderate' | 'strong') => {
     setFcConfidenceHistory(prev => ({ ...prev, [id]: rating }));
     setFcFlipped(false);
-    // Auto advance card index
     if (fcIndex < currentFlashcards.length - 1) {
       setFcIndex(prev => prev + 1);
     } else {
-      setFcIndex(0); // loop
+      setFcIndex(0);
     }
   };
 
   const handleSelectOption = (qId: string, optIndex: number) => {
-    if (quizSubmitted[qId]) return; // locked
+    if (quizSubmitted[qId]) return;
     setQuizAnswers(prev => ({ ...prev, [qId]: optIndex }));
   };
 
@@ -97,20 +96,20 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
   return (
     <div className="space-y-6 text-left relative z-10">
       {/* Revision Engine Header */}
-      <div className="border-b border-white/10 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="border-b border-border-default pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 font-display">
-            <CheckSquare className="h-5.5 w-5.5 text-indigo-400" />
+          <h1 className="text-xl font-extrabold text-text-primary flex items-center gap-2 font-display">
+            <CheckSquare className="h-5 w-5 text-accent-hover" />
             Smart Revision Engine & Active Quizzes
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-text-secondary mt-1 font-serif">
             Validate retention of syllabus concepts using active recall flashcards and diagnostic examinations.
           </p>
         </div>
 
         {/* Dynamic selector for active course modules */}
         <div className="flex items-center gap-2">
-          <label htmlFor="course-select-revision" className="text-[11px] font-bold tracking-wider text-slate-400 uppercase font-mono">
+          <label htmlFor="course-select-revision" className="text-[11px] font-bold tracking-wider text-text-muted uppercase font-mono">
             Active Module:
           </label>
           <select
@@ -121,10 +120,10 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
               setFcIndex(0);
               setFcFlipped(false);
             }}
-            className="rounded-lg border border-white/10 bg-slate-950/50 py-1.5 pr-8 pl-3 text-xs font-semibold text-slate-250 focus:border-indigo-400 outline-none cursor-pointer"
+            className="rounded-lg border border-border-default bg-bg-elevated/70 py-1.5 pr-8 pl-3 text-xs font-semibold text-text-primary focus:border-accent outline-none cursor-pointer transition-colors"
           >
             {courses.map((c) => (
-              <option key={c.id} value={c.id} className="bg-[#0f172a] text-slate-200">
+              <option key={c.id} value={c.id} className="bg-bg-overlay text-text-primary">
                 ({c.code}) {c.name}
               </option>
             ))}
@@ -135,17 +134,17 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
       {/* Grid of tools: left interactive flashcard, right quizzes */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Flashcard Component Deck */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl flex flex-col justify-between">
-          <div className="border-b border-white/5 pb-2 mb-4 flex items-center justify-between">
+        <div className="surface-card rounded-3xl p-6 md:p-8 flex flex-col justify-between">
+          <div className="border-b border-border-subtle pb-3 mb-4 flex items-center justify-between">
             <div className="space-y-0.5">
-              <h2 className="text-xs font-black text-indigo-300 uppercase tracking-widest flex items-center gap-1 font-mono">
-                <BookMarked className="h-4 w-4 text-indigo-400" />
+              <h2 className="text-xs font-black text-accent-hover uppercase tracking-widest flex items-center gap-1.5 font-mono">
+                <BookMarked className="h-4 w-4 text-accent-hover" />
                 Spaced Repetition Flashcards
               </h2>
-              <p className="text-[10px] text-slate-500 font-mono">Flip card to test memory recall confidence.</p>
+              <p className="text-[10px] text-text-muted font-mono">Flip card to test memory recall confidence.</p>
             </div>
             
-            <span className="text-xs font-bold text-slate-400 font-mono">
+            <span className="text-xs font-bold text-text-muted font-mono">
               {currentFlashcards.length > 0 ? `${fcIndex + 1} / ${currentFlashcards.length}` : '0 / 0'} cards
             </span>
           </div>
@@ -155,35 +154,33 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
               {/* Actual Flippable Flashcard Canvas */}
               <div 
                 onClick={() => setFcFlipped(!fcFlipped)}
-                className={`min-h-[220px] rounded-2xl border p-6 flex flex-col justify-between transition-all duration-300 cursor-pointer text-center relative overflow-hidden select-none ${
+                className={`min-h-[220px] rounded-2xl border p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer text-center relative overflow-hidden select-none ${
                   fcFlipped 
-                    ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/5' 
-                    : 'border-white/10 bg-white/5 hover:bg-white/[0.08] hover:shadow-2xl'
+                    ? 'border-accent bg-accent-subtle shadow-lg shadow-indigo-500/10' 
+                    : 'border-border-default bg-bg-elevated/30 hover:bg-bg-elevated/50'
                 }`}
               >
                 {/* Visual Watermark indicator depending on state */}
-                <div className="absolute top-3 left-4 text-[8.5px] font-black tracking-widest text-slate-400 uppercase font-mono">
+                <div className="absolute top-3 left-4 text-[8.5px] font-black tracking-widest text-text-muted uppercase font-mono">
                   {fcFlipped ? 'RECALL ANSWER' : 'Recall Query'}
                 </div>
 
                 {/* Question Front or Answer Back */}
                 <div className="my-auto py-4 space-y-4">
                   {!fcFlipped ? (
-                    <p className="text-sm font-extrabold text-white leading-relaxed font-display">
+                    <p className="text-sm font-extrabold text-text-primary leading-relaxed font-display">
                       {activeFC.front}
                     </p>
                   ) : (
                     <div className="space-y-4">
-                      {/* Technical Back answer */}
-                      <p className="text-xs font-semibold text-slate-200 leading-relaxed whitespace-pre-wrap">
+                      <p className="text-xs font-semibold text-text-secondary leading-relaxed whitespace-pre-wrap font-serif">
                         {activeFC.back}
                       </p>
 
-                      {/* Relatable Local Malaysian translated study Tip! */}
                       {activeFC.translatedBack && (
-                        <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-[10.5px] leading-relaxed text-amber-200 text-left font-medium">
-                          <Lightbulb className="mr-1 inline h-3.5 w-3.5 text-amber-400" />
-                          <span className="font-extrabold text-amber-300">Local Study Tip:</span> {activeFC.translatedBack}
+                        <div className="rounded-xl bg-cta-subtle border border-cta/20 p-3 text-[10.5px] leading-relaxed text-cta text-left font-medium">
+                          <Lightbulb className="mr-1 inline h-3.5 w-3.5 text-cta" />
+                          <span className="font-extrabold text-cta">Local Study Tip:</span> {activeFC.translatedBack}
                         </div>
                       )}
                     </div>
@@ -191,74 +188,74 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
                 </div>
 
                 {/* Flip callout reminder inside footer */}
-                <div className="text-[10px] text-slate-500 font-bold flex items-center justify-center gap-1.5 pt-2 border-t border-white/5 font-mono">
-                  <RefreshCcw className="h-3.5 w-3.5 text-indigo-400" />
+                <div className="text-[10px] text-text-muted font-bold flex items-center justify-center gap-1.5 pt-2 border-t border-border-subtle font-mono">
+                  <RefreshCcw className="h-3.5 w-3.5 text-accent-hover" />
                   <span>Click to Flip Card</span>
                 </div>
               </div>
 
-              {/* Confidence rating tools buttons - directly affects Box progression */}
+              {/* Confidence rating tools buttons */}
               <div className="space-y-3">
-                <span className="block text-center text-[10.5px] font-extrabold text-slate-405 uppercase font-mono">
+                <span className="block text-center text-[10.5px] font-extrabold text-text-muted uppercase font-mono">
                   RATE YOUR MEMORY CONFIDENCE (Spaced Rep):
                 </span>
                 
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => handleConfidenceRating(activeFC.id, 'weak')}
-                    className="rounded-xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 p-2.5 text-xs font-bold text-red-300 transition-colors flex flex-col items-center justify-center cursor-pointer"
+                    className="rounded-xl border border-error/20 bg-error-subtle hover:bg-error/20 p-2.5 text-xs font-bold text-error transition-colors flex flex-col items-center justify-center"
                   >
                     <span>Again (Weak)</span>
-                    <span className="text-[9px] font-normal text-red-400 font-mono mt-0.5">Review tonight</span>
+                    <span className="text-[9px] font-normal text-error/80 font-mono mt-0.5">Review tonight</span>
                   </button>
 
                   <button
                     onClick={() => handleConfidenceRating(activeFC.id, 'moderate')}
-                    className="rounded-xl border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 p-2.5 text-xs font-bold text-amber-350 transition-colors flex flex-col items-center justify-center cursor-pointer"
+                    className="rounded-xl border border-cta/20 bg-cta-subtle hover:bg-cta/20 p-2.5 text-xs font-bold text-cta transition-colors flex flex-col items-center justify-center"
                   >
                     <span>Moderate</span>
-                    <span className="text-[9px] font-normal text-amber-400 font-mono mt-0.5">Review 3 days</span>
+                    <span className="text-[9px] font-normal text-cta/80 font-mono mt-0.5">Review 3 days</span>
                   </button>
 
                   <button
                     onClick={() => handleConfidenceRating(activeFC.id, 'strong')}
-                    className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 p-2.5 text-xs font-bold text-emerald-300 transition-colors flex flex-col items-center justify-center cursor-pointer"
+                    className="rounded-xl border border-success/20 bg-success-subtle hover:bg-success/20 p-2.5 text-xs font-bold text-success transition-colors flex flex-col items-center justify-center"
                   >
                     <span>Mastered</span>
-                    <span className="text-[9px] font-normal text-emerald-400 font-mono mt-0.5">Box 5 Lock</span>
+                    <span className="text-[9px] font-normal text-success/80 font-mono mt-0.5">Box 5 Lock</span>
                   </button>
                 </div>
 
                 {/* Confidence tracking bar */}
-                <div className="flex items-center justify-between text-[10px] text-slate-400 px-1 pt-2">
+                <div className="flex items-center justify-between text-[10px] text-text-muted px-1 pt-2">
                   <span>Current Card Status:</span>
-                  <span className="font-extrabold text-[#10b981] block bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/15 font-mono">
+                  <span className="font-extrabold text-success block bg-success-subtle px-2 py-0.5 rounded-md border border-success/15 font-mono">
                     {fcConfidenceHistory[activeFC.id] ? `Level: ${fcConfidenceHistory[activeFC.id].toUpperCase()}` : 'NEW (UNREVIEWED)'}
                   </span>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center text-xs text-slate-500 font-mono">
+            <div className="rounded-2xl border border-dashed border-border-default p-12 text-center text-xs text-text-muted font-mono">
               No flashcards uploaded for this course code. Drop syllabus files to auto-compile memory sets!
             </div>
           )}
         </div>
 
         {/* Quizzing exam deck terminal */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl flex flex-col justify-between space-y-4">
-          <div className="border-b border-white/5 pb-2 mb-2 flex items-center justify-between">
+        <div className="surface-card rounded-3xl p-6 md:p-8 flex flex-col justify-between space-y-4">
+          <div className="border-b border-border-subtle pb-3 mb-2 flex items-center justify-between">
             <div className="space-y-0.5">
-              <h2 className="text-xs font-black text-indigo-300 uppercase tracking-widest flex items-center gap-1 font-mono">
-                <Award className="h-4.5 w-4.5 text-indigo-400" />
+              <h2 className="text-xs font-black text-accent-hover uppercase tracking-widest flex items-center gap-1.5 font-mono">
+                <Award className="h-4 w-4 text-accent-hover" />
                 Adaptive Syllabus Examination
               </h2>
-              <p className="text-[10px] text-slate-500 font-mono">Multiple choice queries with custom grading algorithms.</p>
+              <p className="text-[10px] text-text-muted font-mono">Multiple choice queries with custom grading algorithms.</p>
             </div>
 
             <button
               onClick={handleResetQuiz}
-              className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer font-mono"
+              className="text-[10px] font-bold text-accent-hover hover:text-accent transition-colors font-mono"
             >
               Reset Quiz Paper
             </button>
@@ -272,12 +269,12 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
                 const selectedOpt = quizAnswers[q.id];
 
                 return (
-                  <div key={q.id} className="rounded-2xl border border-white/5 p-4 space-y-3 relative text-left bg-slate-950/20 backdrop-blur-sm shadow-sm">
-                    <span className="absolute top-3 right-4 text-[9px] font-black text-slate-500 uppercase font-mono">
+                  <div key={q.id} className="rounded-2xl border border-border-subtle p-4 space-y-3 relative text-left bg-bg-elevated/20 backdrop-blur-sm shadow-sm">
+                    <span className="absolute top-3 right-4 text-[9px] font-black text-text-muted uppercase font-mono">
                       Question {qIndex + 1}
                     </span>
 
-                    <h3 className="text-xs font-extrabold text-white max-w-[85%] leading-relaxed font-display">
+                    <h3 className="text-xs font-extrabold text-text-primary max-w-[85%] leading-relaxed font-display">
                       {q.question}
                     </h3>
 
@@ -287,16 +284,16 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
                         const isSelected = selectedOpt === oIdx;
                         const isCorrect = q.correctAnswer === oIdx;
 
-                        let pillBorder = 'border-white/10 bg-[#0f172a]/20 hover:bg-[#0f172a]/40 text-slate-300';
-                        if (isSelected) pillBorder = 'border-indigo-400 bg-indigo-500/20 text-indigo-200 font-bold';
+                        let pillBorder = 'border-border-default bg-bg-elevated/30 hover:bg-bg-elevated/50 text-text-secondary';
+                        if (isSelected) pillBorder = 'border-accent bg-accent-subtle text-accent-hover font-bold';
                         
                         if (isSub) {
                           if (isCorrect) {
-                            pillBorder = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-extrabold';
+                            pillBorder = 'border-success/40 bg-success-subtle text-success font-extrabold';
                           } else if (isSelected) {
-                            pillBorder = 'border-red-500/40 bg-red-500/10 text-red-300';
+                            pillBorder = 'border-error/40 bg-error-subtle text-error';
                           } else {
-                            pillBorder = 'border-white/5 bg-slate-950/40 text-slate-600 opacity-40';
+                            pillBorder = 'border-border-subtle bg-bg-base/40 text-text-muted opacity-40';
                           }
                         }
 
@@ -305,11 +302,11 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
                             key={oIdx}
                             onClick={() => handleSelectOption(q.id, oIdx)}
                             disabled={isSub}
-                            className={`flex w-full items-center justify-between rounded-lg border p-2.5 text-xs text-left transition-all cursor-pointer ${pillBorder}`}
+                            className={`flex w-full items-center justify-between rounded-lg border p-2.5 text-xs text-left transition-all ${pillBorder}`}
                           >
                             <span>{opt}</span>
-                            {isSub && isCorrect && <CheckCircle className="h-4 w-4 text-emerald-450 shrink-0" />}
-                            {isSub && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-450 shrink-0" />}
+                            {isSub && isCorrect && <CheckCircle className="h-4 w-4 text-success shrink-0" />}
+                            {isSub && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-error shrink-0" />}
                           </button>
                         );
                       })}
@@ -320,26 +317,25 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
                       <button
                         onClick={() => handleSubmitQuestion(q.id)}
                         disabled={!isAnsChosen}
-                        className="rounded-xl bg-indigo-600 px-3 py-2 text-[10px] font-black text-white hover:bg-indigo-500 transition-all disabled:opacity-30 uppercase tracking-widest flex items-center gap-1 cursor-pointer border border-indigo-400/20 shadow-md shadow-indigo-600/10 font-mono"
+                        className="rounded-xl bg-accent px-3 py-2 text-[10px] font-black text-white hover:bg-accent-hover transition-all disabled:opacity-30 uppercase tracking-widest flex items-center gap-1 border border-accent-border shadow-md shadow-indigo-500/10 font-mono"
                       >
                         <span>Verify Answer</span>
                         <ArrowRight className="h-3 w-3" />
                       </button>
                     ) : (
-                      /* Highlight Explanation and Local Analogy! */
-                      <div className="mt-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 p-4 space-y-3 text-[11px] leading-relaxed text-slate-300 shadow-inner">
+                      <div className="mt-3 rounded-2xl bg-accent-subtle border border-accent-border p-4 space-y-3 text-[11px] leading-relaxed text-text-secondary shadow-inner">
                         <div>
-                          <span className="font-extrabold text-indigo-300 block uppercase text-[9.5px] font-mono">Syllabus Explanation:</span>
-                          <p className="text-slate-200 mt-0.5">{q.explanation}</p>
+                          <span className="font-extrabold text-accent-hover block uppercase text-[9.5px] font-mono">Syllabus Explanation:</span>
+                          <p className="text-text-primary mt-1 font-serif">{q.explanation}</p>
                         </div>
 
                         {q.malaysianAnalogy && (
-                          <div className="border-t border-indigo-500/20 pt-3 mt-3">
-                            <span className="font-extrabold text-emerald-400 block uppercase text-[9.5px] flex items-center gap-1 font-mono">
-                              <Sparkles className="h-3.5 w-3.5 text-emerald-400 text-glow-emerald" />
+                          <div className="border-t border-accent-border/50 pt-3 mt-3">
+                            <span className="font-extrabold text-success block uppercase text-[9.5px] flex items-center gap-1 font-mono">
+                              <Sparkles className="h-3.5 w-3.5 text-success" />
                               Local Analogy:
                             </span>
-                            <p className="text-emerald-300 font-semibold mt-0.5">{q.malaysianAnalogy}</p>
+                            <p className="text-success font-semibold mt-1">{q.malaysianAnalogy}</p>
                           </div>
                         )}
                       </div>
@@ -349,35 +345,35 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
               })}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center text-xs text-slate-500 font-mono">
+            <div className="rounded-2xl border border-dashed border-border-default p-12 text-center text-xs text-text-muted font-mono">
               No quiz questions parsed. Upload course notes slides inside Dashboard to populate diagnostic papers!
             </div>
           )}
 
           {/* Smart Revision Diagnostic Card Analytics */}
           {currentQuizzes.length > 0 && (
-            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-550/10 p-4 space-y-3 backdrop-blur-md">
+            <div className="rounded-2xl border border-success/25 bg-success-subtle p-4 space-y-3 backdrop-blur-md">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <GraduationCap className="h-4.5 w-4.5 text-emerald-400" />
-                  <span className="text-xs font-extrabold text-white font-display">Your Diagnostic Grade Projection:</span>
+                  <GraduationCap className="h-4 w-4 text-success" />
+                  <span className="text-xs font-extrabold text-text-primary font-display">Your Diagnostic Grade Projection:</span>
                 </div>
-                <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-400 border border-emerald-500/20 uppercase animate-pulse font-mono tracking-wide">
+                <span className="rounded-lg bg-success-subtle px-2.5 py-1 text-xs font-black text-success border border-success/20 uppercase font-mono tracking-wide">
                   {scorecard.grade}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] leading-none text-slate-400 font-bold font-mono">
-                <span>Result Assessment: <span className="text-emerald-300 font-semibold">{scorecard.rating}</span></span>
-                <span className="text-emerald-300">Accuracy: {Math.round(scorecard.score)}%</span>
+              <div className="flex items-center justify-between text-[11px] leading-none text-text-muted font-bold font-mono">
+                <span>Result Assessment: <span className="text-success font-semibold">{scorecard.rating}</span></span>
+                <span className="text-success">Accuracy: {Math.round(scorecard.score)}%</span>
               </div>
 
               {scorecard.score < 55 && scorecard.grade !== 'Idle' && (
                 <button
                   onClick={() => onAskInChat(`I scored a ${scorecard.score}% on the adaptive quiz for course ${activeCourseCode.toUpperCase()}. Can you explain where my knowledge gaps are and curate a step-by-step study guide?`)}
-                  className="w-full rounded-xl bg-indigo-600 border border-indigo-500/30 text-white hover:bg-indigo-500 py-2.5 text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2 shadow-lg shadow-indigo-600/15"
+                  className="w-full rounded-xl bg-accent border border-accent-border text-white hover:bg-accent-hover py-2.5 text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 mt-2 shadow-lg shadow-indigo-500/15"
                 >
-                  <Sparkles className="h-4 w-4 text-indigo-200 text-glow-indigo" />
+                  <Sparkles className="h-4 w-4 text-white" />
                   <span>Curate Remedial Study Plan with AI</span>
                 </button>
               )}

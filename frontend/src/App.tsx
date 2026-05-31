@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
 import { ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
-import Sidebar from './components/Sidebar';
+import FloatingDock from './components/FloatingDock';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
 import NotebookView from './components/NotebookView';
@@ -39,7 +39,6 @@ export default function App() {
   const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
   const [chatGroundingScope, setChatGroundingScope] = useState<ChatGroundingScope | undefined>(undefined);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
   // Loaded mock data based on university selector state
   const curUniversity = UNIVERSITIES.find(u => u.id === selectedUniId) || UNIVERSITIES[0];
@@ -268,28 +267,21 @@ export default function App() {
   };
 
   return (
-    <div className="premium-light min-h-screen flex font-sans relative overflow-hidden">
+    <div className="premium-dark min-h-screen flex font-sans relative overflow-hidden">
 
-      {/* Floating/Standard Left Navigation sidebar with interactive goals */}
-      <Sidebar 
+      {/* Floating Left Navigation Dock */}
+      <FloatingDock 
         currentPage={currentPage} 
         setCurrentPage={setCurrentPage} 
-        selectedUniShort={curUniversity.shortName}
         goals={goals}
         onAddGoal={handleAddGoal}
         onToggleGoal={handleToggleGoal}
         onSetPriorityGoal={handleSetPriorityGoal}
         onDeleteGoal={handleDeleteGoal}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapsed={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
       {/* Main Layout Area */}
-      <div
-        className={`flex-1 flex flex-col min-h-screen relative z-10 bg-transparent transition-[padding] duration-300 ${
-          isSidebarCollapsed ? 'pl-20' : 'pl-20 md:pl-64'
-        }`}
-      >
+      <div className="flex-1 flex flex-col min-h-screen relative z-10 bg-transparent pl-20 md:pl-24">
         {/* Top Header bar with Picker & Streak ranks */}
         <Header 
           selectedUniId={selectedUniId} 

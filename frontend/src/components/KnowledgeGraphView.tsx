@@ -29,7 +29,6 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || nodes[0];
 
   // Geometrical positions for the SVG Node-Link rendering
-  // We distribute them beautifully in a circular/bento constellation layout
   const nodePositions: Record<string, { x: number; y: number }> = {
     // UM positions
     'node-prop-calc': { x: 150, y: 110 },
@@ -56,7 +55,6 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
   // Safe fallback position generator
   const getNodePos = (id: string, index: number) => {
     if (nodePositions[id]) return nodePositions[id];
-    // Spread circularly if position vector missing
     const angle = (index / nodes.length) * 2 * Math.PI;
     return {
       x: 300 + Math.cos(angle) * 160,
@@ -75,22 +73,22 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
     switch (status) {
       case 'mastered':
         return (
-          <span className="flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 animate-pulse">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="flex items-center gap-1 rounded-lg bg-success-subtle px-2.5 py-1 text-[10px] font-extrabold text-success">
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             Fully Mastered
           </span>
         );
       case 'weak':
         return (
-          <span className="flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700">
-            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+          <span className="flex items-center gap-1 rounded-lg bg-cta-subtle px-2.5 py-1 text-[10px] font-extrabold text-cta">
+            <AlertTriangle className="h-3.5 w-3.5 text-cta" />
             Needs Review (Weak)
           </span>
         );
       default:
         return (
-          <span className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-700">
-            <HelpCircle className="h-3.5 w-3.5 text-blue-500" />
+          <span className="flex items-center gap-1 rounded-lg bg-accent-subtle px-2.5 py-1 text-[10px] font-extrabold text-accent-hover">
+            <HelpCircle className="h-3.5 w-3.5 text-accent-hover" />
             Unexplored
           </span>
         );
@@ -100,66 +98,66 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
   return (
     <div className="space-y-6 text-left relative z-10">
       {/* Visual map introduction banner */}
-      <div className="border-b border-white/10 pb-4">
-        <h1 className="text-xl font-extrabold text-white flex items-center gap-2 font-display">
-          <Network className="h-5.5 w-5.5 text-indigo-400" />
-          Semantik Knowledge Graph & Prerequisites
+      <div className="border-b border-border-default pb-4">
+        <h1 className="text-xl font-extrabold text-text-primary flex items-center gap-2 font-display">
+          <Network className="h-5 w-5 text-accent-hover" />
+          Semantic Knowledge Graph & Prerequisites
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-text-secondary mt-1 font-serif">
           Lumiere automatically maps and links overlapping logic concepts across different courses in your {university.shortName} syllabus.
         </p>
       </div>
 
       {/* Filter and control systems row */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white/[0.03] p-4 rounded-2xl border border-white/10 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-4 surface-soft p-4 rounded-2xl backdrop-blur-md">
         <div className="flex flex-wrap items-center gap-3">
           {/* Module Filter selector */}
           <div>
-            <label htmlFor="course-filter" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">
+            <label htmlFor="course-filter" className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1 font-mono">
               Filter by Academic Module:
             </label>
             <select
               id="course-filter"
               value={filterCourse}
               onChange={(e) => setFilterCourse(e.target.value)}
-              className="rounded-lg border border-white/10 bg-slate-950/50 py-1 pl-2 pr-6 text-xs font-semibold text-slate-200 focus:border-indigo-400 outline-none cursor-pointer"
+              className="rounded-lg border border-border-default bg-bg-elevated/70 py-1.5 pl-2.5 pr-6 text-xs font-semibold text-text-primary focus:border-accent outline-none cursor-pointer transition-colors"
             >
-              <option value="all" className="bg-[#0f172a] text-slate-200">All Courses</option>
+              <option value="all" className="bg-bg-overlay text-text-primary">All Courses</option>
               {university.courses.map(c => (
-                <option key={c.code} value={c.code} className="bg-[#0f172a] text-slate-200">({c.code}) {c.name}</option>
+                <option key={c.code} value={c.code} className="bg-bg-overlay text-text-primary">({c.code}) {c.name}</option>
               ))}
             </select>
           </div>
 
           {/* Status filter */}
           <div>
-            <label htmlFor="status-filter" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono font-mono">
+            <label htmlFor="status-filter" className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1 font-mono">
               Filter by Mastery Level:
             </label>
             <select
               id="status-filter"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="rounded-lg border border-white/10 bg-slate-950/50 py-1 pl-2 pr-6 text-xs font-semibold text-slate-200 focus:border-indigo-400 outline-none cursor-pointer"
+              className="rounded-lg border border-border-default bg-bg-elevated/70 py-1.5 pl-2.5 pr-6 text-xs font-semibold text-text-primary focus:border-accent outline-none cursor-pointer transition-colors"
             >
-              <option value="all" className="bg-[#0f172a] text-slate-200">All Statuses</option>
-              <option value="mastered" className="bg-[#0f172a] text-slate-200">Mastered</option>
-              <option value="weak" className="bg-[#0f172a] text-slate-200">Weaker Nodes</option>
-              <option value="unexplored" className="bg-[#0f172a] text-slate-200">Unexplored</option>
+              <option value="all" className="bg-bg-overlay text-text-primary">All Statuses</option>
+              <option value="mastered" className="bg-bg-overlay text-text-primary">Mastered</option>
+              <option value="weak" className="bg-bg-overlay text-text-primary">Weaker Nodes</option>
+              <option value="unexplored" className="bg-bg-overlay text-text-primary">Unexplored</option>
             </select>
           </div>
         </div>
 
         {/* Graph Legends */}
-        <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 font-mono">
+        <div className="flex items-center gap-3 text-[10px] font-bold text-text-muted font-mono">
           <span className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span> Mastered
+            <span className="h-2.5 w-2.5 rounded-full bg-success"></span> Mastered
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-400"></span> Weaker Spot
+            <span className="h-2.5 w-2.5 rounded-full bg-cta"></span> Weaker Spot
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-blue-400 animate-pulse"></span> Unexplored
+            <span className="h-2.5 w-2.5 rounded-full bg-accent-hover"></span> Unexplored
           </span>
         </div>
       </div>
@@ -167,10 +165,10 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
       {/* Main split: SVG constellation canvas + Concept metadata panel */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         {/* SVG Constellation interactive web canvas wrapper */}
-        <div className="lg:col-span-2 rounded-3xl border border-white/10 bg-slate-950/60 p-4 relative h-[380px] overflow-hidden flex flex-col justify-between shadow-2xl backdrop-blur-xl">
+        <div className="lg:col-span-2 rounded-3xl border border-border-default bg-bg-elevated/40 p-4 relative h-[380px] overflow-hidden flex flex-col justify-between shadow-xl backdrop-blur-xl">
           {/* Watermark indicators */}
-          <div className="absolute top-4 left-4 text-[9.5px] font-bold text-slate-300 tracking-wider flex items-center gap-1 p-1.5 rounded-lg bg-white/5 border border-white/10 uppercase font-mono shadow-md">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse text-glow-indigo" />
+          <div className="absolute top-4 left-4 text-[9.5px] font-bold text-text-secondary tracking-wider flex items-center gap-1.5 p-1.5 rounded-lg bg-bg-elevated/60 border border-border-default uppercase font-mono shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-accent-hover" />
             Interactive Concept Nebula
           </div>
 
@@ -189,9 +187,7 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
               const startPos = getNodePos(link.source, srcIdx);
               const endPos = getNodePos(link.target, tgtIdx);
 
-              // Differentiate line colors
               const isPrereq = link.type === 'prerequisite';
-              // Check filter states
               const isVisible = filteredNodes.some(n => n.id === link.source) && filteredNodes.some(n => n.id === link.target);
 
               return (
@@ -214,13 +210,12 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
               const pos = getNodePos(node.id, index);
               const isSelected = selectedNodeId === node.id;
               
-              // Colors for statuses
               const statusColorMap = {
-                mastered: 'fill-emerald-400 stroke-emerald-500/50',
-                weak: 'fill-amber-400 stroke-amber-500/50',
-                unexplored: 'fill-blue-400 stroke-blue-500/50'
+                mastered: 'fill-success stroke-success/50',
+                weak: 'fill-cta stroke-cta/50',
+                unexplored: 'fill-accent-hover stroke-accent/50'
               };
-              const nodeColors = statusColorMap[node.status] || 'fill-gray-450 stroke-gray-500/50';
+              const nodeColors = statusColorMap[node.status] || 'fill-text-muted stroke-text-muted/50';
               const isVisible = filteredNodes.some(n => n.id === node.id);
 
               return (
@@ -229,13 +224,14 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
                   className={`cursor-pointer transition-all ${isVisible ? 'opacity-100 scale-100' : 'opacity-10 scale-90'}`}
                   onClick={() => setSelectedNodeId(node.id)}
                 >
-                  {/* Outer pulsing glow indicator if selected */}
+                  {/* Outer glow indicator if selected */}
                   {isSelected && (
                     <circle
                       cx={pos.x}
                       cy={pos.y}
                       r={24}
-                      className="fill-none stroke-indigo-400 stroke-1 stroke-dashed animate-ping opacity-60"
+                      className="fill-none stroke-accent stroke-1 opacity-40"
+                      style={{ strokeDasharray: '4,4' }}
                     />
                   )}
 
@@ -252,7 +248,7 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
                     x={pos.x}
                     y={pos.y - 18}
                     textAnchor="middle"
-                    className="fill-white text-[10.5px] font-extrabold select-none pointer-events-none drop-shadow-md font-display"
+                    className="fill-text-primary text-[10.5px] font-extrabold select-none pointer-events-none drop-shadow-md font-display"
                   >
                     {node.label}
                   </text>
@@ -262,7 +258,7 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
                     x={pos.x}
                     y={pos.y + 24}
                     textAnchor="middle"
-                    className="fill-slate-500 text-[8px] font-black select-none pointer-events-none font-mono"
+                    className="fill-text-muted text-[8px] font-black select-none pointer-events-none font-mono"
                   >
                     {node.courseCode}
                   </text>
@@ -272,7 +268,7 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
           </svg>
 
           {/* Bottom helper tip */}
-          <div className="absolute bottom-4 left-4 right-4 flex justify-between text-[10px] text-slate-500 font-mono">
+          <div className="absolute bottom-4 left-4 right-4 flex justify-between text-[10px] text-text-muted font-mono">
             <span className="inline-flex items-center gap-1">
               <Info className="h-3.5 w-3.5" />
               Click nodes to inspect syllabus linkage
@@ -283,13 +279,13 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
 
         {/* Side panel displaying specific Concept Metadata */}
         {selectedNode ? (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl flex flex-col justify-between text-slate-100">
+          <div className="surface-card rounded-3xl p-6 flex flex-col justify-between text-text-primary">
             <div className="space-y-4">
-              <div className="border-b border-white/5 pb-3">
-                <span className="rounded-md bg-white/5 border border-white/5 px-2 py-0.5 text-[9px] font-black text-slate-400 uppercase font-mono">
+              <div className="border-b border-border-subtle pb-3">
+                <span className="rounded-md bg-bg-elevated/60 border border-border-default px-2 py-0.5 text-[9px] font-black text-text-muted uppercase font-mono">
                   {selectedNode.courseCode}
                 </span>
-                <h2 className="text-md font-extrabold text-white mt-2 leading-tight font-display">
+                <h2 className="text-base font-extrabold text-text-primary mt-2 leading-tight font-display">
                   {selectedNode.label}
                 </h2>
                 <div className="mt-2.5">{getStatusBadge(selectedNode.status)}</div>
@@ -298,28 +294,28 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
               {/* Node description */}
               <div className="space-y-3 text-xs leading-relaxed">
                 <div>
-                  <h4 className="font-extrabold text-slate-500 uppercase text-[9px] tracking-wider font-mono">Concept Summary:</h4>
-                  <p className="text-slate-300 mt-1 font-semibold leading-relaxed">
+                  <h4 className="font-extrabold text-text-muted uppercase text-[9px] tracking-wider font-mono">Concept Summary:</h4>
+                  <p className="text-text-secondary mt-1.5 font-medium leading-relaxed font-serif">
                     {selectedNode.description}
                   </p>
                 </div>
 
                 {/* Tags list */}
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {selectedNode.tags.map((tg, i) => (
-                    <span key={i} className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-400 border border-white/5 font-mono">
+                    <span key={i} className="rounded-md bg-bg-elevated/60 px-2 py-0.5 text-[10px] font-bold text-text-muted border border-border-subtle font-mono">
                       #{tg}
                     </span>
                   ))}
                 </div>
 
                 {/* Suggested remedial references link */}
-                <div className="rounded-2xl bg-indigo-500/10 border border-indigo-500/20 p-4 text-left">
-                  <div className="flex items-center gap-1 text-[10px] font-extrabold text-indigo-300 uppercase font-mono">
-                    <BookOpen className="h-4 w-4 text-indigo-400" />
+                <div className="rounded-2xl bg-accent-subtle border border-accent-border p-4 text-left">
+                  <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-accent-hover uppercase font-mono">
+                    <BookOpen className="h-4 w-4 text-accent-hover" />
                     Recommended Revision Order
                   </div>
-                  <ul className="mt-2 space-y-1.5 text-[11px] font-medium text-indigo-200">
+                  <ul className="mt-2.5 space-y-1.5 text-[11px] font-medium text-text-secondary">
                     {selectedNode.resources.length > 0 ? (
                       selectedNode.resources.map((res, i) => (
                         <li 
@@ -331,14 +327,14 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
                               onAskInChat(`Explain the resource named "${res.name}" which links to concept "${selectedNode.label}"`);
                             }
                           }}
-                          className="flex items-center gap-1 hover:text-indigo-400 hover:underline cursor-pointer"
+                          className="flex items-center gap-1.5 hover:text-accent-hover hover:underline cursor-pointer transition-colors"
                         >
-                          <PlayCircle className="h-4 w-4 text-indigo-400 shrink-0" />
+                          <PlayCircle className="h-4 w-4 text-accent-hover shrink-0" />
                           <span className="truncate">{res.name} ({res.type.toUpperCase()})</span>
                         </li>
                       ))
                     ) : (
-                      <li className="text-[10px] text-slate-500 font-mono">Review slide details inside class notebook.</li>
+                      <li className="text-[10px] text-text-muted font-mono">Review slide details inside class notebook.</li>
                     )}
                   </ul>
                 </div>
@@ -346,26 +342,26 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
             </div>
 
             {/* Quick action buttons row in card footer */}
-            <div className="border-t border-white/5 pt-4 mt-4 space-y-2">
+            <div className="border-t border-border-subtle pt-4 mt-4 space-y-2">
               <button
                 onClick={() => onAskInChat(`Ask AI: please explain the concept of "${selectedNode.label}" inside the course "${selectedNode.courseCode}" simply. Explain its prerequisites and how it connects to other courses.`)}
-                className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/20 border border-indigo-400/20"
+                className="w-full rounded-xl bg-accent py-2.5 text-xs font-bold text-white hover:bg-accent-hover transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-500/20 border border-accent-border"
               >
-                <Sparkles className="h-4 w-4 text-indigo-200 text-glow-indigo" />
+                <Sparkles className="h-4 w-4 text-white" />
                 <span>Explain Concept inside AI Chat</span>
               </button>
               
               <button
                 onClick={() => onOpenNotebookByCode(selectedNode.courseCode)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-bold text-slate-200 hover:bg-white/10 transition-colors flex items-center justify-center gap-1 cursor-pointer font-mono"
+                className="w-full rounded-xl border border-border-default bg-bg-elevated/60 py-2.5 text-xs font-bold text-text-secondary hover:bg-bg-overlay hover:text-text-primary transition-colors flex items-center justify-center gap-1 font-mono"
               >
                 <span>Open ({selectedNode.courseCode}) Notebook</span>
-                <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+                <ExternalLink className="h-3.5 w-3.5 text-text-muted" />
               </button>
             </div>
           </div>
         ) : (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl text-xs text-slate-500 text-center">
+          <div className="surface-card rounded-3xl p-6 text-xs text-text-muted text-center">
             Click on any concept node to explore prerequisites and syllabus references.
           </div>
         )}
