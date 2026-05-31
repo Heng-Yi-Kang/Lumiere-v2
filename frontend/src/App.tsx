@@ -268,7 +268,7 @@ export default function App() {
   };
 
   return (
-    <div className="premium-light min-h-screen flex text-slate-100 font-sans relative overflow-hidden">
+    <div className="premium-light min-h-screen flex font-sans relative overflow-hidden">
 
       {/* Floating/Standard Left Navigation sidebar with interactive goals */}
       <Sidebar 
@@ -287,7 +287,7 @@ export default function App() {
       {/* Main Layout Area */}
       <div
         className={`flex-1 flex flex-col min-h-screen relative z-10 bg-transparent transition-[padding] duration-300 ${
-          isSidebarCollapsed ? 'pl-20' : 'pl-64'
+          isSidebarCollapsed ? 'pl-20' : 'pl-20 md:pl-64'
         }`}
       >
         {/* Top Header bar with Picker & Streak ranks */}
@@ -299,7 +299,7 @@ export default function App() {
         />
 
         {/* Dynamic Context Canvas */}
-        <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full pb-16 relative z-10">
+        <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full pb-16 relative z-10">
           <Routes>
             <Route path="/" element={<Navigate to={pageToPath.Dashboard} replace />} />
             <Route

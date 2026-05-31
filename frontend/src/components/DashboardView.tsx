@@ -161,12 +161,12 @@ export default function DashboardView({
   return (
       <div className="space-y-6 text-left">
       {notebookError && (
-        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-semibold text-rose-200">
+        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200">
           Notebook API error: {notebookError}
         </div>
       )}
       {uploadError && (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs font-semibold text-amber-100">
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100">
           {uploadError}
         </div>
       )}
@@ -180,15 +180,15 @@ export default function DashboardView({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-indigo-500/20 border border-indigo-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-indigo-300">
+              <span className="rounded-full border border-indigo-500/30 bg-indigo-500/20 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-indigo-300">
                 Lumiere Workspace
               </span>
-              <span className="text-xs text-slate-300 font-bold">Sem 2 Semester Student Portal</span>
+              <span className="text-sm font-bold text-slate-300">Sem 2 Semester Student Portal</span>
             </div>
             <h1 className="text-2xl font-black tracking-tight font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
               Welcome, Yi Kang
             </h1>
-            <p className="max-w-xl text-xs font-medium text-slate-400 leading-relaxed">
+            <p className="max-w-xl text-sm font-medium leading-7 text-slate-400">
               {notebooks.length === 0 ? (
                 <>Start by creating your first notebook, then upload lecture materials so Lumiere can build summaries and study aids.</>
               ) : (
@@ -199,15 +199,15 @@ export default function DashboardView({
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col leading-none shadow-xs">
-              <span className="text-[9px] text-slate-400 font-extrabold tracking-wide uppercase font-mono">MATERIALS</span>
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 font-mono">Materials</span>
               <span className="text-lg font-black text-white mt-1">14 Files</span>
             </div>
             <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col leading-none shadow-xs">
-              <span className="text-[9px] text-slate-400 font-extrabold tracking-wide uppercase font-mono">CONCEPT SPLITS</span>
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 font-mono">Concept Splits</span>
               <span className="text-lg font-black text-emerald-400 mt-1 text-glow-emerald">26 Linked</span>
             </div>
             <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col leading-none shadow-xs">
-              <span className="text-[9px] text-slate-400 font-extrabold tracking-wide uppercase font-mono">STUDIED TODAY</span>
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 font-mono">Studied Today</span>
               <span className="text-lg font-black text-indigo-300 mt-1 text-glow-indigo">45 mins</span>
             </div>
           </div>
@@ -218,11 +218,11 @@ export default function DashboardView({
         <div className="rounded-3xl border border-dashed border-indigo-400/20 bg-gradient-to-br from-indigo-500/10 via-slate-950/50 to-emerald-500/10 p-6 shadow-2xl">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl space-y-3">
-              <span className="inline-flex rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-200">
+              <span className="inline-flex rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-indigo-200">
                 Get Started
               </span>
               <h2 className="text-2xl font-black text-white font-display">No notebooks yet</h2>
-              <p className="text-sm leading-relaxed text-slate-300">
+              <p className="text-base leading-7 text-slate-300">
                 Create a course notebook first. After that, you can drop in PDFs, slides, notes, and transcripts so Lumiere can organize previews, concepts, and grounded AI help.
               </p>
             </div>
@@ -238,23 +238,23 @@ export default function DashboardView({
 
           <div className="mt-6 grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-[10px] font-black uppercase tracking-widest text-indigo-300">1. Create</div>
+              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-indigo-300">1. Create</div>
               <p className="mt-2 text-sm font-semibold text-white">Add a notebook for one subject or course.</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">Name it clearly and pick the matching course code so you can find it fast later.</p>
+              <p className="mt-1 text-sm leading-6 text-slate-400">Name it clearly and pick the matching course code so you can find it fast later.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-[10px] font-black uppercase tracking-widest text-emerald-300">2. Upload</div>
+              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">2. Upload</div>
               <p className="mt-2 text-sm font-semibold text-white">Drop in lecture files and notes.</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">Use PDF, DOCX, PPTX, TXT, or audio files. Upload becomes available as soon as your first notebook exists.</p>
+              <p className="mt-1 text-sm leading-6 text-slate-400">Use PDF, DOCX, PPTX, TXT, or audio files. Upload becomes available as soon as your first notebook exists.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-[10px] font-black uppercase tracking-widest text-amber-300">3. Review</div>
+              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-amber-300">3. Review</div>
               <p className="mt-2 text-sm font-semibold text-white">Open the notebook and study from there.</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">You’ll get inline previews, extracted summaries, and notebook-grounded AI prompts once materials are indexed.</p>
+              <p className="mt-1 text-sm leading-6 text-slate-400">You’ll get inline previews, extracted summaries, and notebook-grounded AI prompts once materials are indexed.</p>
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-xs leading-relaxed text-slate-300">
+          <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm leading-6 text-slate-300">
             Upload controls are disabled until at least one notebook exists.
             <button
               onClick={onCreateNotebookRequested}

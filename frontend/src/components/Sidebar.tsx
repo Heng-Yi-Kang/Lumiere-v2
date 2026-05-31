@@ -67,32 +67,32 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-white/10 bg-slate-950/45 backdrop-blur-xl text-slate-300 shadow-2xl transition-[width] duration-300 ${
-        isCollapsed ? 'w-20' : 'w-64'
+      className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-black/10 bg-white/75 text-ink-650 shadow-[16px_0_55px_rgba(42,33,18,0.08)] backdrop-blur-2xl transition-[width] duration-300 ${
+        isCollapsed ? 'w-20' : 'w-20 md:w-64'
       }`}
     >
       {/* Platform Branding */}
       <button
         type="button"
         onClick={onToggleCollapsed}
-        className={`flex h-16 w-full items-center gap-2 border-b border-white/10 text-left transition-colors hover:bg-white/[0.03] ${
+        className={`premium-focus flex h-20 w-full items-center gap-3 border-b border-black/10 text-left transition-colors hover:bg-black/[0.03] ${
           isCollapsed ? 'justify-center px-4' : 'px-6'
         }`}
         title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 to-fuchsia-500 shadow-lg shadow-indigo-500/20">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-ink-950 shadow-lg shadow-black/10">
           <span className="text-white font-bold text-lg font-display">L</span>
         </div>
         {!isCollapsed && (
-          <div className="min-w-0 flex flex-col">
+          <div className="hidden min-w-0 flex-col md:flex">
             <div className="flex items-center gap-1.5 leading-none">
-              <span className="text-base font-black tracking-tight text-white uppercase font-display bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Lumiere</span>
-              <span className="rounded-full bg-indigo-500/20 px-1.5 py-0.5 text-[8.5px] font-black tracking-widest text-[#a5b4fc] uppercase">
+              <span className="text-xl font-black tracking-tight text-ink-950 font-display">Lumiere</span>
+              <span className="rounded-full border border-gold/25 bg-gold/10 px-1.5 py-0.5 text-[10px] font-black tracking-[0.14em] text-gold-strong uppercase">
                 STUDENT
               </span>
             </div>
-            <span className="text-[9px] font-extrabold tracking-widest text-slate-400 uppercase mt-0.5 font-mono">
+            <span className="mt-1 text-[11px] font-bold tracking-[0.12em] text-ink-500 uppercase font-mono">
               Student OS v1.2
             </span>
           </div>
@@ -100,9 +100,9 @@ export default function Sidebar({
       </button>
 
       {/* Main Navigation Menu */}
-      <nav className={`flex-1 space-y-1.5 py-6 overflow-y-auto ${isCollapsed ? 'px-3' : 'px-4'}`}>
+      <nav className={`flex-1 space-y-2 overflow-y-auto py-6 ${isCollapsed ? 'px-3' : 'px-3 md:px-4'}`}>
         {!isCollapsed && (
-          <span className="block px-3 text-[10px] font-black tracking-wider text-slate-400 uppercase pb-1 font-mono">
+          <span className="hidden px-3 pb-2 text-[11px] font-bold tracking-[0.14em] text-ink-500 uppercase font-mono md:block">
             Study Workspaces
           </span>
         )}
@@ -114,18 +114,18 @@ export default function Sidebar({
               key={item.page}
               onClick={() => setCurrentPage(item.page)}
               title={item.label}
-              className={`group flex w-full items-center rounded-xl text-xs font-semibold tracking-normal transition-all duration-200 cursor-pointer ${
+              className={`premium-focus group flex w-full items-center rounded-2xl text-sm font-semibold tracking-normal transition-colors duration-200 ${
                 isActive
-                  ? 'bg-white/10 text-white border-l-2 border-indigo-400 font-bold backdrop-blur-md shadow-xs'
-                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
-              } ${isCollapsed ? 'justify-center px-0 py-3' : 'justify-between px-3 py-2.5'}`}
+                  ? 'bg-ink-950 text-white font-bold shadow-sm'
+                  : 'text-ink-650 hover:bg-black/5 hover:text-ink-950'
+              } ${isCollapsed ? 'justify-center px-0 py-3' : 'justify-center px-0 py-3 md:justify-between md:px-3 md:py-2.5'}`}
             >
-              <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+              <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-center md:justify-start md:gap-3'}`}>
                 <Icon className={`h-4.5 w-4.5 transition-colors ${
-                  isActive ? 'text-indigo-400' : 'text-slate-350 group-hover:text-white'
+                  isActive ? 'text-white' : 'text-ink-500 group-hover:text-ink-950'
                 }`} />
                 {!isCollapsed && (
-                  <span className={isActive ? 'text-white' : 'text-slate-200'}>{item.label}</span>
+                  <span className={`hidden md:inline ${isActive ? 'text-white' : 'text-ink-800'}`}>{item.label}</span>
                 )}
               </div>
             </button>
@@ -134,12 +134,12 @@ export default function Sidebar({
       </nav>
 
       {/* Target Slogan & Fun Study Progress (Replaced UM Campus Target with Goals list) */}
-      <div className={`border border-white/10 rounded-xl bg-white/[0.03] backdrop-blur-md text-left ${isCollapsed ? 'mx-3 mb-4 p-2.5' : 'm-4 p-4 space-y-3'}`}>
+      <div className={`rounded-3xl border border-black/10 bg-white/60 text-left shadow-sm backdrop-blur-xl ${isCollapsed ? 'mx-3 mb-4 p-2.5' : 'mx-3 mb-4 p-2.5 md:m-4 md:p-4 md:space-y-3'}`}>
         {isCollapsed ? (
           <div className="flex flex-col items-center gap-2">
             <button
               onClick={() => setIsManageGoalsOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-300 transition-colors hover:bg-indigo-500/20 hover:text-white"
+              className="premium-focus flex h-10 w-10 items-center justify-center rounded-2xl bg-gold/10 text-gold-strong transition-colors hover:bg-gold/15"
               id="manage-goals-btn"
               title="Manage goals"
               aria-label="Manage goals"
@@ -147,22 +147,22 @@ export default function Sidebar({
               <Target className="h-4.5 w-4.5" />
             </button>
             <div className="text-center">
-              <div className="text-[11px] font-black text-white">{progressPercent}%</div>
-              <div className="text-[8px] font-mono uppercase tracking-widest text-slate-500">Goals</div>
+              <div className="text-sm font-black text-ink-950">{progressPercent}%</div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500">Goals</div>
             </div>
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between">
+            <div className="hidden items-center justify-between md:flex">
               <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-indigo-400" />
-                <span className="text-[10px] font-extrabold tracking-wider text-slate-300 uppercase font-mono">
+                <Target className="h-4 w-4 text-gold-strong" />
+                <span className="text-[11px] font-bold tracking-[0.12em] text-ink-650 uppercase font-mono">
                   Top Study Goal
                 </span>
               </div>
               <button
                 onClick={() => setIsManageGoalsOpen(true)}
-                className="text-[9px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 font-mono cursor-pointer"
+                className="premium-focus flex items-center gap-0.5 text-[11px] font-bold text-gold-strong hover:text-ink-950 font-mono"
                 id="manage-goals-btn"
               >
                 <Settings className="h-3 w-3" />
@@ -171,36 +171,36 @@ export default function Sidebar({
             </div>
 
             {priorityGoal ? (
-              <div className="space-y-2">
-                <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-2.5 space-y-1">
+              <div className="hidden space-y-2 md:block">
+                <div className="rounded-2xl bg-white/70 border border-black/10 p-3 space-y-1">
                   <div className="flex items-center gap-1">
                     <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 font-mono">TOP PRIORITY</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-400 font-mono">TOP PRIORITY</span>
                   </div>
-                  <p className={`text-xs font-semibold leading-tight text-white ${priorityGoal.completed ? 'line-through text-slate-400' : ''}`}>
+                  <p className={`text-sm font-semibold leading-6 text-ink-950 ${priorityGoal.completed ? 'line-through text-ink-500' : ''}`}>
                     {priorityGoal.text}
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[8px] text-slate-400">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
                     <span>Completed goals</span>
                     <span>{completedCount} / {goals.length} ({progressPercent}%)</span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                  <div className="h-1.5 w-full rounded-full bg-black/10 overflow-hidden">
                     <div 
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-[#34d399] transition-all duration-500"
+                      className="h-full rounded-full bg-ink-950 transition-all duration-300"
                       style={{ width: `${progressPercent}%` }}
                     ></div>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-2">
-                <p className="text-[11px] text-slate-400 italic">No goals added yet.</p>
+              <div className="hidden text-center py-2 md:block">
+                <p className="text-sm text-slate-400 italic">No goals added yet.</p>
                 <button 
                   onClick={() => setIsManageGoalsOpen(true)}
-                  className="mt-1.5 text-[10px] bg-indigo-600 px-2 py-0.5 rounded text-white font-bold"
+                  className="mt-1.5 rounded bg-indigo-600 px-2 py-1 text-xs font-bold text-white"
                 >
                   Add first goal
                 </button>
@@ -210,33 +210,33 @@ export default function Sidebar({
         )}
       </div>
 
-      <div className={`flex h-12 items-center border-t border-white/5 text-[10px] text-slate-400 font-mono ${isCollapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
+      <div className={`flex h-12 items-center border-t border-black/10 text-[11px] text-ink-500 font-mono ${isCollapsed ? 'justify-center px-2' : 'justify-center px-2 md:justify-between md:px-6'}`}>
         {isCollapsed ? (
           <span title={selectedUniShort}>MY</span>
         ) : (
-          <>
+          <div className="hidden w-full justify-between md:flex">
             <span>Kuala Lumpur, MY</span>
             <span>Student OS</span>
-          </>
+          </div>
         )}
       </div>
 
       {/* Local floating Goals Manager popover dialog overlay */}
       {isManageGoalsOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={() => setIsManageGoalsOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm" onClick={() => setIsManageGoalsOpen(false)}>
           <div 
-            className="bg-[#0b101c] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4 text-left relative"
+            className="surface-glass relative w-full max-w-sm space-y-4 rounded-3xl p-5 text-left"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <div className="flex items-center justify-between border-b border-black/10 pb-3">
               <div className="flex items-center gap-1.5">
                 <Trophy className="h-4.5 w-4.5 text-amber-400" />
-                <h3 className="text-xs font-black text-white uppercase tracking-wider font-mono">Manage Study Goals</h3>
+                <h3 className="text-sm font-black text-ink-950 uppercase tracking-[0.12em] font-mono">Manage Study Goals</h3>
               </div>
               <button 
                 onClick={() => setIsManageGoalsOpen(false)}
-                className="h-6 w-6 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="premium-focus flex h-7 w-7 items-center justify-center rounded-full text-ink-500 transition-colors hover:bg-black/5 hover:text-ink-950"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -251,11 +251,11 @@ export default function Sidebar({
                 placeholder="e.g. Ace the WIX1001 Midterm exam"
                 value={newGoalText}
                 onChange={(e) => setNewGoalText(e.target.value)}
-                className="flex-1 rounded-lg border border-white/10 bg-slate-950/40 px-3 py-1.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-indigo-500"
+                className="premium-focus flex-1 rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-ink-950 placeholder:text-ink-500 outline-none"
               />
               <button 
                 type="submit"
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 transition-all flex items-center justify-center cursor-pointer"
+                className="premium-focus flex items-center justify-center rounded-2xl bg-ink-950 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-ink-800"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
@@ -270,7 +270,7 @@ export default function Sidebar({
                     className={`flex items-center justify-between rounded-lg border p-2 text-xs transition-all ${
                       g.isPriority 
                         ? 'border-indigo-500/40 bg-indigo-500/5' 
-                        : 'border-white/5 bg-slate-950/20'
+                        : 'border-black/10 bg-white/55'
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -285,7 +285,7 @@ export default function Sidebar({
                           <Square className="h-4.5 w-4.5" />
                         )}
                       </button>
-                      <span className={`truncate font-semibold text-slate-200 ${g.completed ? 'line-through text-slate-500 font-normal' : ''}`}>
+                      <span className={`truncate font-semibold text-ink-800 ${g.completed ? 'line-through text-ink-500 font-normal' : ''}`}>
                         {g.text}
                       </span>
                     </div>
@@ -316,11 +316,11 @@ export default function Sidebar({
               )}
             </div>
 
-            <div className="pt-2 border-t border-white/5 flex justify-end">
+            <div className="flex justify-end border-t border-black/10 pt-2">
               <button 
                 type="button"
                 onClick={() => setIsManageGoalsOpen(false)}
-                className="rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 text-[10.5px] font-bold text-slate-300 font-mono transition-colors"
+                className="premium-focus rounded-2xl border border-black/10 bg-white/60 px-3 py-1.5 text-[10.5px] font-bold text-ink-650 font-mono transition-colors hover:bg-black/5 hover:text-ink-950"
               >
                 Done
               </button>
