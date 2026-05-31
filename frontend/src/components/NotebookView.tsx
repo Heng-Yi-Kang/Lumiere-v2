@@ -52,6 +52,10 @@ function getFileIcon(type: FileItem['type']) {
       return <FileText className="h-5 w-5 text-success" />;
     case 'audio':
       return <Volume2 className="h-5 w-5 text-accent-hover" />;
+    case 'video':
+      return <MonitorPlay className="h-5 w-5 text-cta" />;
+    default:
+      return <FileText className="h-5 w-5 text-text-muted" />;
   }
 }
 
@@ -207,6 +211,7 @@ export default function NotebookView({
   const viewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const isAudioPreview = selectedMaterial?.type === 'audio';
+  const isVideoPreview = selectedMaterial?.type === 'video';
   const summaryText = activePreview?.summary || selectedMaterial?.summary;
   const uploadProgressValue = uploadPhase === 'validating'
     ? 10
@@ -601,7 +606,7 @@ export default function NotebookView({
             <div className="space-y-2">
               <h2 className="text-sm font-black text-text-primary font-display">Upload Material</h2>
               <p className="text-sm leading-relaxed text-text-secondary font-serif">
-                PDF, DOCX, PPTX, TXT, and audio files are saved on the backend filesystem and indexed in the notebook.
+                PDF, DOCX, PPTX, TXT, audio, and video files are saved on the backend filesystem and indexed in the notebook.
               </p>
             </div>
 
@@ -617,7 +622,7 @@ export default function NotebookView({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac"
+              accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.mov,.m4v,.webm"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -803,6 +808,23 @@ export default function NotebookView({
 
                 {activePreview?.previewFormat === 'text' ? (
                   <div className="space-y-4">
+                    {isVideoPreview && selectedViewerUrl ? (
+                      <div className="rounded-xl border border-border-subtle bg-bg-elevated/70 p-4">
+                        <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
+                          <MonitorPlay className="h-4 w-4" />
+                          Video Player
+                        </div>
+                        <video
+                          controls
+                          preload="metadata"
+                          src={selectedViewerUrl}
+                          className="max-h-[360px] w-full rounded-lg bg-black"
+                        >
+                          <a href={selectedViewerUrl}>Download video</a>
+                        </video>
+                      </div>
+                    ) : null}
+
                     {isAudioPreview && selectedViewerUrl ? (
                       <div className="rounded-xl border border-border-subtle bg-bg-elevated/70 p-4">
                         <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
@@ -820,9 +842,9 @@ export default function NotebookView({
                       </div>
                     ) : null}
 
-                    {isAudioPreview ? (
+                    {isAudioPreview || isVideoPreview ? (
                       <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
-                        Transcript
+                        {isVideoPreview ? 'Transcript and visual timeline' : 'Transcript'}
                       </div>
                     ) : null}
 

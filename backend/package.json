@@ -11,6 +11,7 @@
     "test:llm": "node scripts/test-llm-connections.mjs",
     "test:llm:chat": "node scripts/test-llm-connections.mjs --chat-only",
     "test:llm:embeddings": "node scripts/test-llm-connections.mjs --embeddings-only",
+    "test:vlm": "vitest run tests/vlm-connectivity.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "prisma:generate": "prisma generate",

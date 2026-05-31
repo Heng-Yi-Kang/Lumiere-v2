@@ -98,7 +98,7 @@ export default function DashboardView({
       return;
     }
     if (!extension || !isSupportedNotebookExtension(extension)) {
-      setUploadError('Only PDF, DOCX, PPTX, TXT, and common audio files are supported.');
+      setUploadError('Only PDF, DOCX, PPTX, TXT, common audio files, and common video files are supported.');
       return;
     }
 
@@ -245,7 +245,7 @@ export default function DashboardView({
             <div className="rounded-2xl border border-border-default bg-bg-elevated/40 p-5">
               <div className="text-[11px] font-black uppercase tracking-[0.14em] text-success font-mono">2. Upload</div>
               <p className="mt-2 text-sm font-semibold text-text-primary">Drop in lecture files and notes.</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">Use PDF, DOCX, PPTX, TXT, or audio files. Upload becomes available as soon as your first notebook exists.</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">Use PDF, DOCX, PPTX, TXT, audio, or video files. Upload becomes available as soon as your first notebook exists.</p>
             </div>
             <div className="rounded-2xl border border-border-default bg-bg-elevated/40 p-5">
               <div className="text-[11px] font-black uppercase tracking-[0.14em] text-cta font-mono">3. Review</div>
@@ -277,7 +277,7 @@ export default function DashboardView({
               Upload Materials & Audio Recordings
             </h2>
             <p className="text-xs text-text-secondary">
-              Drag PDF, DOCX, PPTX, TXT, or audio files directly into a notebook.
+              Drag PDF, DOCX, PPTX, TXT, audio, or video files directly into a notebook.
             </p>
           </div>
 
@@ -321,7 +321,7 @@ export default function DashboardView({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac"
+                accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.mov,.m4v,.webm"
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -354,7 +354,7 @@ export default function DashboardView({
                   {notebooks.length === 0 ? 'Create a notebook to unlock uploads' : 'Drag your lecture material here, or click to pick'}
                 </div>
                 <div className="text-[10px] text-text-muted">
-                  {notebooks.length === 0 ? 'Your first upload target will appear after notebook setup.' : 'Supports PDF, DOCX, PPTX, TXT, and audio up to 100MB'}
+                  {notebooks.length === 0 ? 'Your first upload target will appear after notebook setup.' : 'Supports PDF, DOCX, PPTX, TXT, audio, and video up to 100MB'}
                 </div>
               </div>
             ) : uploadProgress <= 100 ? (

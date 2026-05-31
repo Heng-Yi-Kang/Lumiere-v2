@@ -109,6 +109,7 @@ export async function POST(
 
   try {
     const indexedChunkCount = await indexNotebookFileForRag({
+      chunks: uploadData.ragChunks,
       extractedText: createdFile.extractedText,
       fileId: createdFile.id,
       fileName: createdFile.name,

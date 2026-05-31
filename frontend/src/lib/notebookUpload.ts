@@ -1,5 +1,5 @@
 export const NOTEBOOK_MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
-export const NOTEBOOK_ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'pptx', 'txt', 'mp3', 'wav', 'm4a', 'ogg', 'flac', 'aac'] as const;
+export const NOTEBOOK_ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'pptx', 'txt', 'mp3', 'wav', 'm4a', 'ogg', 'flac', 'aac', 'mp4', 'mov', 'm4v', 'webm'] as const;
 
 export type SupportedNotebookExtension = (typeof NOTEBOOK_ACCEPTED_EXTENSIONS)[number];
 
@@ -17,7 +17,7 @@ export function validateNotebookUpload(file: File) {
   const extension = getFileExtension(file.name);
 
   if (!extension || !isSupportedNotebookExtension(extension)) {
-    return 'Only PDF, DOCX, PPTX, TXT, and common audio files are supported.';
+    return 'Only PDF, DOCX, PPTX, TXT, common audio files, and common video files are supported.';
   }
 
   if (file.size <= 0) {

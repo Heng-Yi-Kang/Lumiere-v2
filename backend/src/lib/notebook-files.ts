@@ -7,10 +7,11 @@ import sanitizeHtml from 'sanitize-html';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { generateNotebookFileSummary } from '@/lib/file-summary';
 import { transcribeAudioFile } from '@/lib/stt';
+import { processVideoFile, type VideoRagSegment } from '@/lib/video-processing';
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
-type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio';
+type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video';
 type PreviewFormat = 'pdf' | 'html' | 'text';
 
 const MIME_TYPE_MAP: Record<SupportedNotebookFileType, string[]> = {
@@ -29,11 +30,17 @@ const MIME_TYPE_MAP: Record<SupportedNotebookFileType, string[]> = {
     'audio/wav',
     'audio/x-m4a',
     'audio/x-wav',
+  ],
+  video: [
     'video/mp4',
+    'video/quicktime',
+    'video/webm',
+    'video/x-m4v',
   ],
 };
 
-const AUDIO_EXTENSIONS = new Set(['aac', 'flac', 'm4a', 'mp3', 'mp4', 'ogg', 'wav']);
+const AUDIO_EXTENSIONS = new Set(['aac', 'flac', 'm4a', 'mp3', 'ogg', 'wav']);
+const VIDEO_EXTENSIONS = new Set(['m4v', 'mov', 'mp4', 'webm']);
 
 type UploadResult = {
   extractedText?: string;
@@ -41,6 +48,7 @@ type UploadResult = {
   name: string;
   previewContent?: string;
   previewFormat?: PreviewFormat;
+  ragChunks?: VideoRagSegment[];
   size: string;
   sourcePath: string;
   summary?: string;
@@ -81,6 +89,10 @@ function getFileExtension(fileName: string) {
 }
 
 function getNotebookFileType(value: string): SupportedNotebookFileType | undefined {
+  if (VIDEO_EXTENSIONS.has(value)) {
+    return 'video';
+  }
+
   if (AUDIO_EXTENSIONS.has(value)) {
     return 'audio';
   }
@@ -237,8 +249,22 @@ async function buildAudioPreview(filePath: string, fileName: string, mimeType: s
   } satisfies DerivedPreview;
 }
 
+async function buildVideoPreview(filePath: string, fileName: string): Promise<DerivedPreview & { ragChunks: VideoRagSegment[] }> {
+  const result = await processVideoFile({
+    fileName,
+    filePath,
+  });
+
+  return {
+    extractedText: result.transcript,
+    previewContent: result.previewContent,
+    previewFormat: 'text' as const,
+    ragChunks: result.ragSegments,
+  };
+}
+
 async function buildDerivedPreview(
-  type: Exclude<SupportedNotebookFileType, 'audio'>,
+  type: Exclude<SupportedNotebookFileType, 'audio' | 'video'>,
   filePath: string,
 ): Promise<DerivedPreview> {
   switch (type) {
@@ -273,7 +299,7 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       fileName: file.name,
       reason: 'unsupported_extension',
     });
-    throw new NotebookFileValidationError('Only pdf, docx, pptx, txt, and common audio files are supported.');
+    throw new NotebookFileValidationError('Only pdf, docx, pptx, txt, common audio files, and common video files are supported.');
   }
 
   if (file.size <= 0) {
@@ -333,7 +359,9 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
 
     const preview = fileType === 'audio'
       ? await buildAudioPreview(storedPath, file.name, file.type || allowedMimeTypes[0])
-      : await buildDerivedPreview(fileType, storedPath);
+      : fileType === 'video'
+        ? await buildVideoPreview(storedPath, file.name)
+        : await buildDerivedPreview(fileType, storedPath);
 
     logBackendProcess('info', 'file.extraction.completed', {
       elapsedMs: getElapsedMs(extractionStartedAt),
@@ -374,12 +402,15 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       notebookId,
     });
 
+    const ragChunks = (preview as { ragChunks?: VideoRagSegment[] }).ragChunks;
+
     return {
       extractedText: preview.extractedText,
       mimeType: file.type || allowedMimeTypes[0],
       name: file.name,
       previewContent: preview.previewContent,
       previewFormat: preview.previewFormat,
+      ragChunks,
       size: formatBytes(file.size),
       sourcePath: storedPath,
       summary,

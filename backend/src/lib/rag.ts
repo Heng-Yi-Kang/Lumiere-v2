@@ -25,6 +25,11 @@ export type RagSearchResult = {
   score: number;
 };
 
+export type RagIndexChunk = {
+  content: string;
+  metadata?: Record<string, unknown>;
+};
+
 function cleanText(text: string) {
   return text.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -100,10 +105,13 @@ export async function indexNotebookFileForRag(params: {
   fileId: string;
   fileName: string;
   fileType: string;
+  chunks?: RagIndexChunk[];
   notebookId: string;
 }) {
   const indexingStartedAt = performance.now();
-  const chunks = splitIntoChunks(params.extractedText || '');
+  const chunks: RagIndexChunk[] = params.chunks?.length
+    ? params.chunks
+    : splitIntoChunks(params.extractedText || '').map((content) => ({ content }));
 
   logBackendProcess('info', 'rag.index.started', {
     chunkCount: chunks.length,
@@ -127,8 +135,9 @@ export async function indexNotebookFileForRag(params: {
 
   const embeddingModel = getEmbeddingModel();
 
-  for (const [chunkIndex, content] of chunks.entries()) {
+  for (const [chunkIndex, chunk] of chunks.entries()) {
     const chunkStartedAt = performance.now();
+    const content = chunk.content;
     logBackendProcess('info', 'rag.embedding.started', {
       chunkIndex,
       chunkTextChars: content.length,
@@ -170,7 +179,7 @@ export async function indexNotebookFileForRag(params: {
         ${chunkIndex},
         ${content},
         ${estimateTokenCount(content)},
-        ${JSON.stringify({ fileName: params.fileName, fileType: params.fileType })}::jsonb,
+        ${JSON.stringify({ fileName: params.fileName, fileType: params.fileType, ...(chunk.metadata || {}) })}::jsonb,
         ${toVectorLiteral(embedding)}::vector,
         ${embeddingModel},
         ${embedding.length},

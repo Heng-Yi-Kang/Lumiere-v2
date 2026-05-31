@@ -21,7 +21,7 @@ export interface FileItem {
 export interface NotebookFilePreview {
   id: string;
   name: string;
-  type: 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio';
+  type: 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video';
   mimeType?: string;
   sourceUrl?: string;
   previewFormat?: 'pdf' | 'html' | 'text';
