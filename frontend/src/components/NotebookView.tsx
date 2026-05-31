@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BookOpen,
   Bot,
+  ChevronDown,
   Download,
   Edit3,
   ExternalLink,
@@ -105,6 +106,7 @@ export default function NotebookView({
   const [fileChatMessagesById, setFileChatMessagesById] = useState<Record<string, ChatMessage[]>>({});
   const [fileChatInput, setFileChatInput] = useState('');
   const [isFileChatTyping, setIsFileChatTyping] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -745,7 +747,7 @@ export default function NotebookView({
           onClick={() => setSelectedMaterial(null)}
         >
           <div
-            className="relative flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-border-default bg-bg-overlay shadow-2xl xl:flex-row"
+            className="relative flex max-h-[90vh] w-full max-w-[92vw] flex-col overflow-hidden rounded-3xl border border-border-default bg-bg-overlay shadow-2xl xl:flex-row"
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -755,7 +757,7 @@ export default function NotebookView({
               <X className="h-4 w-4" />
             </button>
 
-            <div className="w-full border-b border-border-default bg-bg-elevated/50 p-5 xl:w-[58%] xl:border-b-0 xl:border-r">
+            <div className="flex w-full flex-col border-b border-border-default bg-bg-elevated/50 p-5 xl:w-[45%] xl:border-b-0 xl:border-r">
               <div className="space-y-2 border-b border-border-subtle pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className={`rounded-lg border p-2 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated'}`}>
@@ -770,16 +772,16 @@ export default function NotebookView({
                 </div>
               </div>
 
-              <div className="mt-4 min-h-[420px] overflow-auto rounded-2xl border border-border-subtle bg-bg-base/60 p-4">
+              <div className="mt-4 flex-1 min-h-0 overflow-auto rounded-2xl border border-border-subtle bg-bg-base/60 p-4">
                 {previewLoading && !activePreview ? (
-                  <div className="flex h-[380px] items-center justify-center gap-2 text-sm text-text-muted">
+                  <div className="flex h-full min-h-[320px] items-center justify-center gap-2 text-sm text-text-muted">
                     <LoaderCircle className="h-5 w-5 animate-spin" />
                     Loading inline preview...
                   </div>
                 ) : null}
 
                 {!previewLoading && !activePreview && !previewError ? (
-                  <div className="flex h-[380px] items-center justify-center text-sm text-text-muted">
+                  <div className="flex h-full min-h-[320px] items-center justify-center text-sm text-text-muted">
                     Preview is not available for this file.
                   </div>
                 ) : null}
@@ -788,7 +790,7 @@ export default function NotebookView({
                   <iframe
                     title={activePreview.name}
                     src={viewerUrl}
-                    className="h-[70vh] min-h-[380px] w-full rounded-xl border border-border-subtle bg-bg-base"
+                    className="h-full min-h-[320px] w-full rounded-xl border border-border-subtle bg-bg-base"
                   />
                 ) : null}
 
@@ -832,28 +834,42 @@ export default function NotebookView({
               </div>
             </div>
 
-            <div className="flex min-h-0 w-full flex-col p-5 xl:w-[42%]">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
-                <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
-                  <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
-                    <Sparkles className="h-4 w-4" />
-                    Chat LLM Summary
+            <div className="flex min-h-0 w-full flex-col p-5 xl:w-[55%]">
+              <button
+                type="button"
+                onClick={() => setIsSummaryOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between rounded-2xl border border-border-default bg-bg-elevated/40 px-4 py-2.5 text-left transition hover:bg-bg-elevated/60"
+              >
+                <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-secondary font-mono">
+                  <Sparkles className="h-4 w-4 text-accent-hover" />
+                  Summary & Details
+                </span>
+                <ChevronDown className={`h-4 w-4 text-text-muted transition-transform ${isSummaryOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isSummaryOpen && (
+                <div className="grid gap-3 pt-3 md:grid-cols-2 xl:grid-cols-1">
+                  <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
+                    <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
+                      <Sparkles className="h-4 w-4" />
+                      Chat LLM Summary
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-text-primary font-serif">
+                      {summaryText || 'No chat-generated summary is available for this file.'}
+                    </p>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-text-primary font-serif">
-                    {summaryText || 'No chat-generated summary is available for this file.'}
-                  </p>
-                </div>
 
-                <div className={`rounded-2xl border bg-bg-elevated/30 p-4 text-sm text-text-secondary font-serif ${colorTone?.subtleBlock || 'border-border-default'}`}>
-                  <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">File Details</div>
-                  <div className="mt-2">Inline preview and download are generated from notebook storage on demand.</div>
-                  {activePreview?.totalPages ? (
-                    <div className="mt-3 text-xs text-text-muted">{activePreview.totalPages} pages detected</div>
-                  ) : null}
+                  <div className={`rounded-2xl border bg-bg-elevated/30 p-4 text-sm text-text-secondary font-serif ${colorTone?.subtleBlock || 'border-border-default'}`}>
+                    <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">File Details</div>
+                    <div className="mt-2">Inline preview and download are generated from notebook storage on demand.</div>
+                    {activePreview?.totalPages ? (
+                      <div className="mt-3 text-xs text-text-muted">{activePreview.totalPages} pages detected</div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="mt-4 flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-base/35">
+              <div className="mt-4 flex flex-1 flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-base/35">
                 <div className="flex items-center justify-between gap-3 border-b border-border-subtle bg-bg-elevated/40 px-4 py-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-primary font-mono">
