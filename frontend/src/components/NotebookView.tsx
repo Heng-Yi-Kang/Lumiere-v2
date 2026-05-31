@@ -747,7 +747,7 @@ export default function NotebookView({
           onClick={() => setSelectedMaterial(null)}
         >
           <div
-            className="relative flex max-h-[90vh] w-full max-w-[92vw] flex-col overflow-hidden rounded-3xl border border-border-default bg-bg-overlay shadow-2xl xl:flex-row"
+            className="relative flex h-[90vh] w-full max-w-[92vw] flex-col overflow-hidden rounded-3xl border border-border-default bg-bg-overlay shadow-2xl xl:flex-row"
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -847,27 +847,31 @@ export default function NotebookView({
                 <ChevronDown className={`h-4 w-4 text-text-muted transition-transform ${isSummaryOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {isSummaryOpen && (
-                <div className="grid gap-3 pt-3 md:grid-cols-2 xl:grid-cols-1">
-                  <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
-                    <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
-                      <Sparkles className="h-4 w-4" />
-                      Chat LLM Summary
+              <div
+                className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isSummaryOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+              >
+                <div className="overflow-hidden">
+                  <div className="grid gap-3 pt-3 md:grid-cols-2 xl:grid-cols-1">
+                    <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
+                      <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
+                        <Sparkles className="h-4 w-4" />
+                        Chat LLM Summary
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-text-primary font-serif">
+                        {summaryText || 'No chat-generated summary is available for this file.'}
+                      </p>
                     </div>
-                    <p className="mt-3 text-sm leading-relaxed text-text-primary font-serif">
-                      {summaryText || 'No chat-generated summary is available for this file.'}
-                    </p>
-                  </div>
 
-                  <div className={`rounded-2xl border bg-bg-elevated/30 p-4 text-sm text-text-secondary font-serif ${colorTone?.subtleBlock || 'border-border-default'}`}>
-                    <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">File Details</div>
-                    <div className="mt-2">Inline preview and download are generated from notebook storage on demand.</div>
-                    {activePreview?.totalPages ? (
-                      <div className="mt-3 text-xs text-text-muted">{activePreview.totalPages} pages detected</div>
-                    ) : null}
+                    <div className={`rounded-2xl border bg-bg-elevated/30 p-4 text-sm text-text-secondary font-serif ${colorTone?.subtleBlock || 'border-border-default'}`}>
+                      <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">File Details</div>
+                      <div className="mt-2">Inline preview and download are generated from notebook storage on demand.</div>
+                      {activePreview?.totalPages ? (
+                        <div className="mt-3 text-xs text-text-muted">{activePreview.totalPages} pages detected</div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
 
               <div className="mt-4 flex flex-1 flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-base/35">
                 <div className="flex items-center justify-between gap-3 border-b border-border-subtle bg-bg-elevated/40 px-4 py-3">
@@ -994,52 +998,51 @@ export default function NotebookView({
               <div className="mt-5 flex flex-wrap gap-2.5 border-t border-border-subtle pt-4">
                 {selectedViewerUrl ? (
                   <>
-                    <a
-                      href={selectedViewerUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
+                    <div className="group relative">
+                      <a
+                        href={selectedViewerUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="Open file"
+                        title="Open file"
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl border transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+                      >
                         <ExternalLink className="h-4 w-4" />
-                        Open
-                      </span>
-                    </a>
-                    <a
-                      href={selectedViewerUrl}
-                      download={selectedMaterial.name}
-                      className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
+                      </a>
+                      <div className="pointer-events-none absolute left-1/2 bottom-full z-10 mb-2 -translate-x-1/2 rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                        Open file
+                      </div>
+                    </div>
+                    <div className="group relative">
+                      <a
+                        href={selectedViewerUrl}
+                        download={selectedMaterial.name}
+                        aria-label="Download file"
+                        title="Download file"
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl border transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+                      >
                         <Download className="h-4 w-4" />
-                        Download
-                      </span>
-                    </a>
+                      </a>
+                      <div className="pointer-events-none absolute left-1/2 bottom-full z-10 mb-2 -translate-x-1/2 rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                        Download file
+                      </div>
+                    </div>
                   </>
                 ) : null}
-                <button
-                  onClick={() =>
-                    onAskInChat(
-                      `I'm reviewing "${selectedMaterial.name}" from notebook "${notebook.name}". Summarize the important concepts and likely exam angles.`,
-                      {
-                        fileId: selectedMaterial.id,
-                        fileName: selectedMaterial.name,
-                        notebookId: notebook.id,
-                        notebookName: notebook.name,
-                      },
-                    )
-                  }
-                  className={`flex-1 rounded-xl border py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-                >
-                  Ask AI About Material
-                </button>
-                <button
-                  onClick={() => setPendingDeleteFile(selectedMaterial)}
-                  disabled={isDeleting}
-                  className="rounded-xl border border-error/20 bg-error-subtle px-4 py-2.5 text-xs font-bold text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Delete
-                </button>
+                <div className="group relative">
+                  <button
+                    onClick={() => setPendingDeleteFile(selectedMaterial)}
+                    disabled={isDeleting}
+                    aria-label="Delete file"
+                    title="Delete file"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-error/20 bg-error-subtle text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 bottom-full z-10 mb-2 -translate-x-1/2 rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                    Delete file
+                  </div>
+                </div>
               </div>
             </div>
           </div>
