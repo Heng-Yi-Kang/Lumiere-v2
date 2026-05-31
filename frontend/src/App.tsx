@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { UNIVERSITIES, MOCK_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
+import { DEFAULT_COURSES, DEFAULT_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
 import { ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
 import FloatingDock from './components/FloatingDock';
 import Header from './components/Header';
@@ -33,16 +33,12 @@ export default function App() {
   const activeNotebookId = currentPage === 'Notebooks' ? searchParams.get('notebookId') : null;
 
   // Active states
-  const [selectedUniId, setSelectedUniId] = useState<string>('um');
   const [preFilledRequest, setPreFilledRequest] = useState<GroundedChatRequest | null>(null);
   const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState<boolean>(false);
   const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
   const [chatGroundingScope, setChatGroundingScope] = useState<ChatGroundingScope | undefined>(undefined);
 
-  // Loaded mock data based on university selector state
-  const curUniversity = UNIVERSITIES.find(u => u.id === selectedUniId) || UNIVERSITIES[0];
-  
   // Notebook data is persisted in the backend database and shared across the workspace.
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [notebookLoadError, setNotebookLoadError] = useState<string>('');
@@ -92,7 +88,7 @@ export default function App() {
   }, []);
 
   const curNotebooksList = notebooks;
-  const curGraphData = MOCK_KNOWLEDGE_GRAPH[selectedUniId] || { nodes: [], links: [] };
+  const curGraphData = DEFAULT_KNOWLEDGE_GRAPH;
   const reusableCourseCodes = useMemo(() => {
     return Array.from(
       new Set(
@@ -117,12 +113,6 @@ export default function App() {
 
     navigate(`${pageToPath.Notebooks}?notebookId=${encodeURIComponent(notebookId)}`);
   }, [navigate]);
-
-  // Trigger from Header or Selectors
-  const handleSelectUni = (id: string) => {
-    setSelectedUniId(id);
-    setCurrentPage('Dashboard');
-  };
 
   const handleAddNewNotebook = async (name: string, courseCode: string, color: string, description: string) => {
     notebookLoadRequestIdRef.current += 1;
@@ -293,8 +283,6 @@ export default function App() {
       <div className="flex-1 flex flex-col min-h-screen relative z-10 bg-transparent pl-20 md:pl-24">
         {/* Top Header bar with Picker & Streak ranks */}
         <Header 
-          selectedUniId={selectedUniId} 
-          onSelectUni={handleSelectUni} 
           streak={MOCK_STREAK}
           activeTab={currentPage}
         />
@@ -341,7 +329,7 @@ export default function App() {
                 <KnowledgeGraphView
                   nodes={curGraphData.nodes}
                   links={curGraphData.links}
-                  university={curUniversity}
+                  courses={DEFAULT_COURSES}
                   onAskInChat={handleAskInChat}
                   onOpenNotebookByCode={handleOpenNotebookByCode}
                 />
@@ -353,7 +341,7 @@ export default function App() {
                 <RevisionView
                   flashcards={MOCK_FLASHCARDS}
                   quizzes={MOCK_QUIZZES}
-                  courses={curUniversity.courses}
+                  courses={DEFAULT_COURSES}
                   onAskInChat={handleAskInChat}
                 />
               )}

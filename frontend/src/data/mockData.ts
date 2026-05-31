@@ -1,6 +1,18 @@
-import { University, Notebook, ConceptNode, ConceptLink, Flashcard, QuizQuestion, StudyStreak } from '../types';
+import { Course, Notebook, ConceptNode, ConceptLink, Flashcard, QuizQuestion, StudyStreak } from '../types';
 
-export const UNIVERSITIES: University[] = [
+interface StudyCatalog {
+  id: string;
+  name: string;
+  nativeName: string;
+  shortName: string;
+  primaryColor: string;
+  accentColor: string;
+  bgColor: string;
+  logoEmoji: string;
+  courses: Course[];
+}
+
+export const STUDY_CATALOGS: StudyCatalog[] = [
   {
     id: 'um',
     name: 'University of Malaya',
@@ -127,7 +139,7 @@ export const MOCK_NOTEBOOKS: Record<string, Notebook[]> = {
           uploadDate: '27 May 2026',
           status: 'ready',
           totalPages: 6,
-          summary: 'Step-by-step tutorial on solving mathematical recurrence relationships. Includes standard university marking schemes.'
+          summary: 'Step-by-step tutorial on solving mathematical recurrence relationships. Includes standard course marking schemes.'
         }
       ]
     },
@@ -528,6 +540,9 @@ export const MOCK_KNOWLEDGE_GRAPH: Record<string, { nodes: ConceptNode[], links:
     links: []
   }
 };
+
+export const DEFAULT_COURSES = STUDY_CATALOGS[0].courses;
+export const DEFAULT_KNOWLEDGE_GRAPH = MOCK_KNOWLEDGE_GRAPH.um;
 
 // FLASHCARDS DATABASE
 export const MOCK_FLASHCARDS: Record<string, Flashcard[]> = {

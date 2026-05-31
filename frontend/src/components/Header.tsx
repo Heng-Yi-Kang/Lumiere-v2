@@ -1,27 +1,22 @@
 import React from 'react';
 import { StudyStreak } from '../types';
-import { UNIVERSITIES } from '../data/mockData';
 import { Search, Flame, GraduationCap, Award, Bell } from 'lucide-react';
 
 interface HeaderProps {
-  selectedUniId: string;
-  onSelectUni: (id: string) => void;
   streak: StudyStreak;
   activeTab: string;
 }
 
-export default function Header({ selectedUniId, onSelectUni, streak, activeTab }: HeaderProps) {
-  const selectedUni = UNIVERSITIES.find(u => u.id === selectedUniId) || UNIVERSITIES[0];
-
+export default function Header({ streak, activeTab }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 mx-4 mt-4 flex h-[4.5rem] items-center justify-between rounded-2xl border border-border-default bg-bg-surface/60 px-5 text-text-primary shadow-[0_18px_50px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
       {/* Search and Context Indicators */}
       <div className="flex flex-1 items-center gap-5">
         <div className="hidden min-w-0 md:block">
           <div className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted font-mono">
-            {selectedUni.shortName} / {activeTab}
+            Workspace / {activeTab}
           </div>
-          <div className="truncate text-sm font-bold text-text-primary">{selectedUni.name}</div>
+          <div className="truncate text-sm font-bold text-text-primary">Lumiere study workspace</div>
         </div>
         <div className="relative w-full max-w-sm">
           <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-text-muted" />
@@ -34,22 +29,8 @@ export default function Header({ selectedUniId, onSelectUni, streak, activeTab }
         </div>
       </div>
 
-      {/* University Picker and Streak Metrics */}
+      {/* Streak Metrics */}
       <div className="flex items-center gap-3 md:gap-4">
-        <label htmlFor="university-picker" className="sr-only">Select university</label>
-        <select
-          id="university-picker"
-          value={selectedUniId}
-          onChange={(event) => onSelectUni(event.target.value)}
-          className="premium-focus hidden max-w-[150px] rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2 text-xs font-bold text-text-primary outline-none md:block cursor-pointer hover:bg-bg-elevated transition-colors"
-        >
-          {UNIVERSITIES.map((university) => (
-            <option key={university.id} value={university.id}>
-              {university.shortName}
-            </option>
-          ))}
-        </select>
-        
         {/* Streak Counter */}
         <div
           className="group relative hidden cursor-help items-center gap-2 rounded-xl border border-cta/20 bg-cta-subtle px-3 py-2 text-cta shadow-sm transition-colors hover:bg-cta/15 sm:flex"

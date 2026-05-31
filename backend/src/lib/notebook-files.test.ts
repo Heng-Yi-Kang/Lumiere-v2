@@ -21,11 +21,17 @@ describe('persistNotebookUpload', () => {
   const originalSttApiBase = process.env.STT_API_BASE;
   const originalSttApiKey = process.env.STT_API_KEY;
   const originalSttModel = process.env.STT_MODEL;
+  const originalChatApiBaseUrl = process.env.CHAT_API_BASE_URL;
+  const originalChatApiKey = process.env.CHAT_API_KEY;
+  const originalChatModel = process.env.CHAT_MODEL;
   let tempDir = '';
 
   beforeEach(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), 'notebook-upload-test-'));
     process.env.NOTEBOOK_UPLOAD_ROOT = tempDir;
+    delete process.env.CHAT_API_BASE_URL;
+    delete process.env.CHAT_API_KEY;
+    delete process.env.CHAT_MODEL;
   });
 
   afterEach(async () => {
@@ -33,6 +39,9 @@ describe('persistNotebookUpload', () => {
     restoreEnv('STT_API_BASE', originalSttApiBase);
     restoreEnv('STT_API_KEY', originalSttApiKey);
     restoreEnv('STT_MODEL', originalSttModel);
+    restoreEnv('CHAT_API_BASE_URL', originalChatApiBaseUrl);
+    restoreEnv('CHAT_API_KEY', originalChatApiKey);
+    restoreEnv('CHAT_MODEL', originalChatModel);
     vi.unstubAllGlobals();
     if (tempDir) {
       await rm(tempDir, { recursive: true, force: true });
@@ -53,6 +62,55 @@ describe('persistNotebookUpload', () => {
 
     const storedFile = await stat(result.sourcePath);
     expect(storedFile.isFile()).toBe(true);
+  });
+
+  it('generates and stores an AI summary when chat configuration is available', async () => {
+    process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
+    process.env.CHAT_API_KEY = 'test-chat-key';
+    process.env.CHAT_MODEL = 'study-summary-model';
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [
+        {
+          message: {
+            content: 'AI summary of the uploaded course file.',
+          },
+        },
+      ],
+    })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const upload = new File(['Propositional logic notes with truth tables and De Morgan laws.'], 'logic.txt', {
+      type: 'text/plain',
+    });
+
+    const result = await persistNotebookUpload('nb-1', upload);
+
+    expect(result.summary).toBe('AI summary of the uploaded course file.');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://chat.example.test/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test-chat-key',
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+  });
+
+  it('falls back to extracted text summary when AI summary generation fails', async () => {
+    process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
+    process.env.CHAT_API_KEY = 'test-chat-key';
+    process.env.CHAT_MODEL = 'study-summary-model';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('bad request', { status: 500 })));
+
+    const upload = new File(['Fallback summary content from the uploaded file.'], 'fallback.txt', {
+      type: 'text/plain',
+    });
+
+    const result = await persistNotebookUpload('nb-1', upload);
+
+    expect(result.summary).toBe('Fallback summary content from the uploaded file.');
   });
 
   it('rejects unsupported file extensions', async () => {

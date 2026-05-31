@@ -216,7 +216,7 @@ export default function SlangLounge() {
 
           <div className="rounded-2xl bg-cta-subtle border border-cta/30 p-4 text-[10.5px] text-cta font-semibold leading-relaxed">
             <BookOpenCheck className="mr-1.5 inline h-3.5 w-3.5 text-cta" />
-            <span className="font-extrabold text-cta">Core Course Tip:</span> Facing mandatory general university papers? Drop raw lecture notes into the Lumiere notebook dashboard, choose <b>Exam-focused</b> style, and let AI outline historical legal timelines instantly.
+            <span className="font-extrabold text-cta">Core Course Tip:</span> Facing mandatory general studies papers? Drop raw lecture notes into the Lumiere notebook dashboard, choose <b>Exam-focused</b> style, and let AI outline historical legal timelines instantly.
           </div>
         </div>
       </div>

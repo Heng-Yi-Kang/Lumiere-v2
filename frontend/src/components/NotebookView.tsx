@@ -4,7 +4,6 @@ import {
   BookOpen,
   Download,
   Edit3,
-  Eye,
   ExternalLink,
   FileText,
   FolderOpen,
@@ -423,25 +422,35 @@ export default function NotebookView({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => onEditNotebook?.(notebook)}
-              className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-            >
-              <span className="inline-flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="group relative">
+              <button
+                type="button"
+                onClick={() => onEditNotebook?.(notebook)}
+                title={`Edit ${notebook.name}`}
+                aria-label={`Edit ${notebook.name}`}
+                className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+              >
                 <Edit3 className="h-4 w-4" />
-                Edit Notebook
-              </span>
-            </button>
-            <button
-              onClick={() => setIsDeleteNotebookModalOpen(true)}
-              className="rounded-xl border border-error/20 bg-error-subtle px-4 py-2.5 text-xs font-bold text-error transition hover:bg-error/20"
-            >
-              <span className="inline-flex items-center gap-1.5">
+              </button>
+              <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                Edit notebook
+              </div>
+            </div>
+            <div className="group relative">
+              <button
+                type="button"
+                onClick={() => setIsDeleteNotebookModalOpen(true)}
+                title={`Delete ${notebook.name}`}
+                aria-label={`Delete ${notebook.name}`}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-error/20 bg-error-subtle text-error transition hover:bg-error/20"
+              >
                 <Trash2 className="h-4 w-4" />
-                Delete Notebook
-              </span>
-            </button>
+              </button>
+              <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                Delete notebook
+              </div>
+            </div>
             <button
               onClick={() =>
                 onAskInChat(
@@ -570,12 +579,18 @@ export default function NotebookView({
               filteredFiles.map((file) => (
                 <div
                   key={file.id}
-                  className={`flex flex-col gap-3 rounded-2xl border border-border-subtle bg-bg-elevated/30 p-4 transition hover:bg-bg-elevated/50 sm:flex-row sm:items-center sm:justify-between ${colorTone?.borderGlow || ''}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedMaterial(file)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelectedMaterial(file);
+                    }
+                  }}
+                  className={`flex cursor-pointer flex-col gap-3 rounded-2xl border border-border-subtle bg-bg-elevated/30 p-4 text-left transition hover:bg-bg-elevated/50 focus:outline-none focus:ring-2 focus:ring-accent/40 sm:flex-row sm:items-center sm:justify-between ${colorTone?.borderGlow || ''}`}
                 >
-                  <button
-                    onClick={() => setSelectedMaterial(file)}
-                    className="flex min-w-0 items-center gap-3 text-left"
-                  >
+                  <div className="flex min-w-0 items-center gap-3">
                     <div className="rounded-xl border border-border-default bg-bg-elevated/60 p-2.5 shrink-0">{getFileIcon(file.type)}</div>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-bold text-text-primary">{file.name}</div>
@@ -586,27 +601,20 @@ export default function NotebookView({
                         {file.totalPages ? <span>{file.totalPages} pages</span> : null}
                       </div>
                     </div>
-                  </button>
+                  </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => setSelectedMaterial(file)}
-                      className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <Eye className="h-4 w-4" />
-                        View
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => setPendingDeleteFile(file)}
+                      type="button"
+                      aria-label={`Delete ${file.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPendingDeleteFile(file);
+                      }}
                       disabled={isDeleting}
-                      className="rounded-xl border border-error/20 bg-error-subtle px-3 py-2 text-xs font-bold text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-xl border border-error/20 bg-error-subtle p-2.5 text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      <span className="inline-flex items-center gap-1.5">
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </span>
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>

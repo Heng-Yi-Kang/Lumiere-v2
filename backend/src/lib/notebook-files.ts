@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import mammoth from 'mammoth';
 import sanitizeHtml from 'sanitize-html';
+import { generateNotebookFileSummary } from '@/lib/file-summary';
 import { transcribeAudioFile } from '@/lib/stt';
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
@@ -127,6 +128,24 @@ function buildSummary(text: string | undefined, fileName: string) {
   }
 
   return cleaned.length > 280 ? `${cleaned.slice(0, 277)}...` : cleaned;
+}
+
+async function buildStoredSummary(params: {
+  fileName: string;
+  fileType: SupportedNotebookFileType;
+  text: string | undefined;
+}) {
+  const fallbackSummary = buildSummary(params.text, params.fileName);
+
+  try {
+    return await generateNotebookFileSummary({
+      fileName: params.fileName,
+      fileType: params.fileType,
+      text: params.text || '',
+    }) || fallbackSummary;
+  } catch {
+    return fallbackSummary;
+  }
 }
 
 function sanitizePreviewHtml(html: string) {
@@ -282,6 +301,12 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       ? await buildAudioPreview(storedPath, file.name, file.type || allowedMimeTypes[0])
       : await buildDerivedPreview(fileType, storedPath);
 
+    const summary = await buildStoredSummary({
+      fileName: file.name,
+      fileType,
+      text: preview.extractedText,
+    });
+
     return {
       extractedText: preview.extractedText,
       mimeType: file.type || allowedMimeTypes[0],
@@ -290,7 +315,7 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       previewFormat: preview.previewFormat,
       size: formatBytes(file.size),
       sourcePath: storedPath,
-      summary: buildSummary(preview.extractedText, file.name),
+      summary,
       totalPages: preview.totalPages,
       type: fileType,
       uploadDate: formatUploadDate(new Date()),

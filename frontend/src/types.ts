@@ -1,15 +1,3 @@
-export interface University {
-  id: string;
-  name: string;
-  nativeName: string;
-  shortName: string;
-  primaryColor: string; // Tailwind color class e.g., 'blue-600'
-  accentColor: string;  // e.g., 'emerald-500'
-  bgColor: string;      // e.g., 'bg-blue-50/50'
-  logoEmoji: string;
-  courses: Course[];
-}
-
 export interface Course {
   id: string;
   code: string;
@@ -153,4 +141,3 @@ export interface Goal {
   completed: boolean;
   isPriority: boolean;
 }
-

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ConceptNode, ConceptLink, University } from '../types';
+import { ConceptNode, ConceptLink, Course } from '../types';
 import { 
   Network, 
   Sparkles, 
@@ -16,12 +16,12 @@ import {
 interface KnowledgeGraphViewProps {
   nodes: ConceptNode[];
   links: ConceptLink[];
-  university: University;
+  courses: Course[];
   onAskInChat: (question: string) => void;
   onOpenNotebookByCode: (code: string) => void;
 }
 
-export default function KnowledgeGraphView({ nodes, links, university, onAskInChat, onOpenNotebookByCode }: KnowledgeGraphViewProps) {
+export default function KnowledgeGraphView({ nodes, links, courses, onAskInChat, onOpenNotebookByCode }: KnowledgeGraphViewProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string>(nodes[0]?.id || '');
   const [filterCourse, setFilterCourse] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -104,7 +104,7 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
           Semantic Knowledge Graph & Prerequisites
         </h1>
         <p className="text-xs text-text-secondary mt-1 font-serif">
-          Lumiere automatically maps and links overlapping logic concepts across different courses in your {university.shortName} syllabus.
+          Lumiere maps overlapping concepts across your active course set so prerequisite gaps stay visible while you study.
         </p>
       </div>
 
@@ -123,7 +123,7 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
               className="rounded-lg border border-border-default bg-bg-elevated/70 py-1.5 pl-2.5 pr-6 text-xs font-semibold text-text-primary focus:border-accent outline-none cursor-pointer transition-colors"
             >
               <option value="all" className="bg-bg-overlay text-text-primary">All Courses</option>
-              {university.courses.map(c => (
+              {courses.map(c => (
                 <option key={c.code} value={c.code} className="bg-bg-overlay text-text-primary">({c.code}) {c.name}</option>
               ))}
             </select>
