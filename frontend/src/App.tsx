@@ -58,7 +58,7 @@ export default function App() {
       } catch (_) {}
     }
     return [
-      { id: 'goal-1', text: 'Score 4.00 CGPA Flat this Semester 🎯', completed: false, isPriority: true },
+      { id: 'goal-1', text: 'Score 4.00 CGPA Flat this Semester', completed: false, isPriority: true },
       { id: 'goal-2', text: 'Master Discrete Math Logic proofs with active recall', completed: false, isPriority: false },
       { id: 'goal-3', text: 'Complete Java normalisation database assignment on time', completed: true, isPriority: false }
     ];
@@ -268,13 +268,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b13] flex text-slate-100 font-sans relative overflow-hidden">
-      {/* Dynamic Ambient Blur Glows matching Design HTML */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/15 rounded-full blur-[120px] animate-glow-slow-1"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-fuchsia-600/10 rounded-full blur-[150px] animate-glow-slow-2"></div>
-        <div className="absolute top-[20%] right-[15%] w-[35%] h-[35%] bg-emerald-500/10 rounded-full blur-[100px] animate-glow-slow-3"></div>
-      </div>
+    <div className="premium-light min-h-screen flex text-slate-100 font-sans relative overflow-hidden">
 
       {/* Floating/Standard Left Navigation sidebar with interactive goals */}
       <Sidebar 

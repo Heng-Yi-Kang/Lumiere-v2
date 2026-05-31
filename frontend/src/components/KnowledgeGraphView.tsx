@@ -273,7 +273,10 @@ export default function KnowledgeGraphView({ nodes, links, university, onAskInCh
 
           {/* Bottom helper tip */}
           <div className="absolute bottom-4 left-4 right-4 flex justify-between text-[10px] text-slate-500 font-mono">
-            <span>💡 Click nodes to inspect syllabus linkage</span>
+            <span className="inline-flex items-center gap-1">
+              <Info className="h-3.5 w-3.5" />
+              Click nodes to inspect syllabus linkage
+            </span>
             <span>Solid Line: Prerequisite | Dashed Line: Course Cross-Link</span>
           </div>
         </div>

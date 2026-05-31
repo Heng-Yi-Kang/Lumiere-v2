@@ -12,7 +12,9 @@ import {
   FileText,
   Check,
   Edit3,
-  Trash2
+  Trash2,
+  Flame,
+  Lightbulb
 } from 'lucide-react';
 
 import { StudyStreak } from '../types';
@@ -184,7 +186,7 @@ export default function DashboardView({
               <span className="text-xs text-slate-300 font-bold">Sem 2 Semester Student Portal</span>
             </div>
             <h1 className="text-2xl font-black tracking-tight font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
-              Welcome, Yi Kang! 👋
+              Welcome, Yi Kang
             </h1>
             <p className="max-w-xl text-xs font-medium text-slate-400 leading-relaxed">
               {notebooks.length === 0 ? (
@@ -407,8 +409,9 @@ export default function DashboardView({
           <div className="rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-rose-500/10 border border-orange-500/20 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="p-1 px-2 rounded-lg bg-orange-500/25 border border-orange-400/30 text-orange-400 font-extrabold animate-bounce font-mono text-xs">
-                  🔥 {streak?.currentStreak || 12} Days
+                <span className="inline-flex items-center gap-1 p-1 px-2 rounded-lg bg-orange-500/25 border border-orange-400/30 text-orange-400 font-extrabold animate-bounce font-mono text-xs">
+                  <Flame className="h-3.5 w-3.5 fill-orange-500 text-orange-500" />
+                  {streak?.currentStreak || 12} Days
                 </span>
                 <span className="text-[9px] font-bold text-slate-200 uppercase font-mono tracking-wider">
                   Streak Active!
@@ -440,7 +443,7 @@ export default function DashboardView({
                     }`} 
                     title={dayProgress.active ? `${dayProgress.minutes} mins study duration` : 'Inactive'}
                   >
-                    {dayProgress.active ? '✓' : '•'}
+                    {dayProgress.active ? <Check className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
                   </div>
                 </div>
               ))}
@@ -468,7 +471,8 @@ export default function DashboardView({
           </div>
 
           <div className="rounded-xl border border-white/5 bg-white/[0.01] px-3 py-2 text-[10px] leading-relaxed text-slate-400">
-            💡 <span className="font-extrabold text-slate-200">Lumiere Study Tip:</span> Your conceptual check between <span className="font-semibold text-indigo-300">Discrete Math</span> and <span className="font-semibold text-[#818cf8]">Database Systems</span> displays active progress. Revise Set Theory quizzes tonight!
+            <Lightbulb className="mr-1 inline h-3.5 w-3.5 text-amber-500" />
+            <span className="font-extrabold text-slate-200">Lumiere Study Tip:</span> Your conceptual check between <span className="font-semibold text-indigo-300">Discrete Math</span> and <span className="font-semibold text-[#818cf8]">Database Systems</span> displays active progress. Revise Set Theory quizzes tonight.
           </div>
         </div>
       </div>

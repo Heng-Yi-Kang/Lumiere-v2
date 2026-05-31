@@ -641,7 +641,7 @@ export default function NotebookView({
                   <div className="min-w-0">
                     <h3 className="truncate text-sm font-extrabold text-white font-display">{selectedMaterial.name}</h3>
                     <p className="text-[10px] text-slate-400">
-                      {selectedMaterial.size} • Uploaded {selectedMaterial.uploadDate}
+                      {selectedMaterial.size} - Uploaded {selectedMaterial.uploadDate}
                     </p>
                   </div>
                 </div>

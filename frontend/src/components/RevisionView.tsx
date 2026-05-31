@@ -14,7 +14,8 @@ import {
   ArrowRight,
   ThumbsUp,
   HelpCircle,
-  GraduationCap
+  GraduationCap,
+  Lightbulb
 } from 'lucide-react';
 
 interface RevisionViewProps {
@@ -181,7 +182,8 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
                       {/* Relatable Local Malaysian translated study Tip! */}
                       {activeFC.translatedBack && (
                         <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-[10.5px] leading-relaxed text-amber-200 text-left font-medium">
-                          💡 <span className="font-extrabold text-amber-300">Local Study Tip:</span> {activeFC.translatedBack}
+                          <Lightbulb className="mr-1 inline h-3.5 w-3.5 text-amber-400" />
+                          <span className="font-extrabold text-amber-300">Local Study Tip:</span> {activeFC.translatedBack}
                         </div>
                       )}
                     </div>
@@ -222,7 +224,7 @@ export default function RevisionView({ flashcards, quizzes, courses, onAskInChat
                     onClick={() => handleConfidenceRating(activeFC.id, 'strong')}
                     className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 p-2.5 text-xs font-bold text-emerald-300 transition-colors flex flex-col items-center justify-center cursor-pointer"
                   >
-                    <span>Mastered! ✓</span>
+                    <span>Mastered</span>
                     <span className="text-[9px] font-normal text-emerald-400 font-mono mt-0.5">Box 5 Lock</span>
                   </button>
                 </div>
