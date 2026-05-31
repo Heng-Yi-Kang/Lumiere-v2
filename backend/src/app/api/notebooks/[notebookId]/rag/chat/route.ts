@@ -1,3 +1,4 @@
+import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { jsonResponse, optionsResponse } from '@/lib/http';
 import { generateChatCompletion } from '@/lib/openai-chat';
 import { prisma } from '@/lib/prisma';
@@ -50,6 +51,7 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ notebookId: string }> },
 ) {
+  const requestStartedAt = performance.now();
   const { notebookId } = await context.params;
   const body = await request.json().catch(() => null) as {
     fileId?: string;
@@ -59,8 +61,18 @@ export async function POST(
   const question = body?.question?.trim();
 
   if (!question) {
+    logBackendProcess('warn', 'rag.api.chat.rejected', {
+      notebookId,
+      reason: 'missing_question',
+    });
     return jsonResponse({ error: 'question is required' }, { status: 400 });
   }
+
+  logBackendProcess('info', 'rag.api.chat.started', {
+    fileId: body?.fileId,
+    notebookId,
+    questionChars: question.length,
+  });
 
   const notebook = await prisma.notebook.findUnique({
     where: { id: notebookId },
@@ -78,6 +90,10 @@ export async function POST(
   });
 
   if (!notebook) {
+    logBackendProcess('warn', 'rag.api.chat.rejected', {
+      notebookId,
+      reason: 'notebook_not_found',
+    });
     return jsonResponse({ error: 'notebook not found' }, { status: 404 });
   }
 
@@ -86,10 +102,21 @@ export async function POST(
     : null;
 
   if (body?.fileId && !scopedFile) {
+    logBackendProcess('warn', 'rag.api.chat.rejected', {
+      fileId: body.fileId,
+      notebookId,
+      reason: 'file_not_found_in_notebook',
+    });
     return jsonResponse({ error: 'file not found in notebook' }, { status: 404 });
   }
 
   if (!notebook.files.length) {
+    logBackendProcess('info', 'rag.api.chat.no_context', {
+      elapsedMs: getElapsedMs(requestStartedAt),
+      fileId: scopedFile?.id,
+      notebookId: notebook.id,
+      reason: 'no_files',
+    });
     return jsonResponse({
       answer: NO_GROUNDED_CONTEXT_MESSAGE,
       citations: [],
@@ -103,19 +130,44 @@ export async function POST(
     });
   }
 
-  const results = await retrieveNotebookRagContext({
-    fileId: scopedFile?.id,
-    limit: 6,
-    notebookId,
-    query: question,
-  });
+  let results;
+  try {
+    results = await retrieveNotebookRagContext({
+      fileId: scopedFile?.id,
+      limit: 6,
+      notebookId,
+      query: question,
+    });
+  } catch (error) {
+    logBackendProcess('error', 'rag.api.chat.search_failed', {
+      elapsedMs: getElapsedMs(requestStartedAt),
+      error: error instanceof Error ? error.message : 'Unknown RAG search error',
+      fileId: scopedFile?.id,
+      notebookId,
+    });
+    throw error;
+  }
 
   const fallbackResults = results.length
     ? []
     : buildExtractedTextFallbackResults(scopedFile ? [scopedFile] : notebook.files);
   const groundedResults = results.length ? results : fallbackResults;
 
+  logBackendProcess('info', 'rag.api.chat.context_selected', {
+    fallbackResultCount: fallbackResults.length,
+    fileId: scopedFile?.id,
+    notebookId,
+    ragResultCount: results.length,
+    resultCount: groundedResults.length,
+  });
+
   if (!groundedResults.length) {
+    logBackendProcess('info', 'rag.api.chat.no_context', {
+      elapsedMs: getElapsedMs(requestStartedAt),
+      fileId: scopedFile?.id,
+      notebookId: notebook.id,
+      reason: 'no_matching_chunks',
+    });
     return jsonResponse({
       answer: NO_GROUNDED_CONTEXT_MESSAGE,
       citations: [],
@@ -135,10 +187,43 @@ export async function POST(
     scopedFile,
   });
 
-  const answer = await generateChatCompletion({
-    context: formatRagContextForPrompt(groundedResults),
-    question,
+  const completionStartedAt = performance.now();
+  logBackendProcess('info', 'rag.chat_completion.started', {
+    contextChunkCount: groundedResults.length,
+    fileId: scopedFile?.id,
+    notebookId,
     scopeLabel,
+  });
+
+  let answer;
+  try {
+    answer = await generateChatCompletion({
+      context: formatRagContextForPrompt(groundedResults),
+      question,
+      scopeLabel,
+    });
+  } catch (error) {
+    logBackendProcess('error', 'rag.chat_completion.failed', {
+      elapsedMs: getElapsedMs(completionStartedAt),
+      error: error instanceof Error ? error.message : 'Unknown chat completion error',
+      fileId: scopedFile?.id,
+      notebookId,
+    });
+    throw error;
+  }
+
+  logBackendProcess('info', 'rag.chat_completion.completed', {
+    answerChars: answer.length,
+    elapsedMs: getElapsedMs(completionStartedAt),
+    fileId: scopedFile?.id,
+    notebookId,
+  });
+
+  logBackendProcess('info', 'rag.api.chat.completed', {
+    elapsedMs: getElapsedMs(requestStartedAt),
+    fileId: scopedFile?.id,
+    notebookId,
+    resultCount: groundedResults.length,
   });
 
   return jsonResponse({

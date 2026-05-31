@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { deleteNotebookStoredFile, NotebookFileValidationError, persistNotebookUpload } from '@/lib/notebook-files';
 import { jsonResponse, optionsResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
@@ -12,7 +13,11 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ notebookId: string }> },
 ) {
+  const requestStartedAt = performance.now();
   const { notebookId } = await context.params;
+  logBackendProcess('info', 'file.api.upload.started', {
+    notebookId,
+  });
 
   const existingNotebook = await prisma.notebook.findUnique({
     where: { id: notebookId },
@@ -20,6 +25,10 @@ export async function POST(
   });
 
   if (!existingNotebook) {
+    logBackendProcess('warn', 'file.api.upload.rejected', {
+      notebookId,
+      reason: 'notebook_not_found',
+    });
     return jsonResponse({ error: 'notebook not found' }, { status: 404 });
   }
 
@@ -27,6 +36,10 @@ export async function POST(
   const upload = formData?.get('file');
 
   if (!(upload instanceof File)) {
+    logBackendProcess('warn', 'file.api.upload.rejected', {
+      notebookId,
+      reason: 'missing_file',
+    });
     return jsonResponse({ error: 'file is required' }, { status: 400 });
   }
 
@@ -40,6 +53,13 @@ export async function POST(
 
     return jsonResponse({ error: 'Failed to process uploaded file.' }, { status: 500 });
   }
+
+  const databaseStartedAt = performance.now();
+  logBackendProcess('info', 'file.database.create.started', {
+    fileName: uploadData.name,
+    fileType: uploadData.type,
+    notebookId,
+  });
 
   const notebook = await prisma.notebook.update({
     where: { id: notebookId },
@@ -72,15 +92,34 @@ export async function POST(
 
   if (!createdFile) {
     await deleteNotebookStoredFile([uploadData.sourcePath]);
+    logBackendProcess('error', 'file.database.create.failed', {
+      fileName: uploadData.name,
+      notebookId,
+      reason: 'created_file_not_found',
+    });
     return jsonResponse({ error: 'Failed to persist uploaded file.' }, { status: 500 });
   }
 
+  logBackendProcess('info', 'file.database.create.completed', {
+    elapsedMs: getElapsedMs(databaseStartedAt),
+    fileId: createdFile.id,
+    fileName: createdFile.name,
+    notebookId,
+  });
+
   try {
-    await indexNotebookFileForRag({
+    const indexedChunkCount = await indexNotebookFileForRag({
       extractedText: createdFile.extractedText,
       fileId: createdFile.id,
       fileName: createdFile.name,
       fileType: createdFile.type,
+      notebookId,
+    });
+    logBackendProcess('info', 'file.api.upload.indexed', {
+      elapsedMs: getElapsedMs(requestStartedAt),
+      fileId: createdFile.id,
+      fileName: createdFile.name,
+      indexedChunkCount,
       notebookId,
     });
   } catch (error) {
@@ -88,6 +127,13 @@ export async function POST(
       where: { id: createdFile.id },
     }).catch(() => undefined);
     await deleteNotebookStoredFile([createdFile.sourcePath]);
+    logBackendProcess('error', 'file.api.upload.index_failed', {
+      elapsedMs: getElapsedMs(requestStartedAt),
+      error: error instanceof Error ? error.message : 'Unknown RAG indexing error',
+      fileId: createdFile.id,
+      fileName: createdFile.name,
+      notebookId,
+    });
     return jsonResponse({ error: 'Failed to index uploaded file for search.' }, { status: 500 });
   }
 
@@ -98,6 +144,13 @@ export async function POST(
         orderBy: { createdAt: 'desc' },
       },
     },
+  });
+
+  logBackendProcess('info', 'file.api.upload.completed', {
+    elapsedMs: getElapsedMs(requestStartedAt),
+    fileId: createdFile.id,
+    fileName: createdFile.name,
+    notebookId,
   });
 
   return jsonResponse(

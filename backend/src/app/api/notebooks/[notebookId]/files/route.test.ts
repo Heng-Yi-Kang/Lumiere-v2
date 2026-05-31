@@ -87,7 +87,7 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
           status: 'ready',
           sourcePath: '',
           extractedText: 'plain text content',
-          summary: 'plain text content',
+          summary: null,
           totalPages: null,
         },
       ],
@@ -129,11 +129,11 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
 
     expect(response.status).toBe(201);
     expect(payload.notebook.files).toHaveLength(1);
-    expect(payload.notebook.files[0].summary).toBe('plain text content');
+    expect(payload.notebook.files[0].summary).toBeUndefined();
     expect(prismaMock.notebook.update).toHaveBeenCalledTimes(1);
 
     const createdFileData = prismaMock.notebook.update.mock.calls[0][0].data.files.create;
-    expect(createdFileData.summary).toBe('plain text content');
+    expect(createdFileData.summary).toBeNull();
 
     const storedPath = createdFileData.sourcePath as string;
     const storedContent = await readFile(storedPath, 'utf8');

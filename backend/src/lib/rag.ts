@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { getEmbeddingModel, generateEmbedding } from '@/lib/embeddings';
 import { prisma } from '@/lib/prisma';
 
@@ -100,17 +101,52 @@ export async function indexNotebookFileForRag(params: {
   fileType: string;
   notebookId: string;
 }) {
+  const indexingStartedAt = performance.now();
   const chunks = splitIntoChunks(params.extractedText || '');
 
+  logBackendProcess('info', 'rag.index.started', {
+    chunkCount: chunks.length,
+    extractedTextChars: params.extractedText?.length || 0,
+    fileId: params.fileId,
+    fileName: params.fileName,
+    fileType: params.fileType,
+    notebookId: params.notebookId,
+  });
+
   if (!chunks.length) {
+    logBackendProcess('warn', 'rag.index.skipped', {
+      elapsedMs: getElapsedMs(indexingStartedAt),
+      fileId: params.fileId,
+      fileName: params.fileName,
+      notebookId: params.notebookId,
+      reason: 'no_extractable_text',
+    });
     return 0;
   }
 
   const embeddingModel = getEmbeddingModel();
 
   for (const [chunkIndex, content] of chunks.entries()) {
+    const chunkStartedAt = performance.now();
+    logBackendProcess('info', 'rag.embedding.started', {
+      chunkIndex,
+      chunkTextChars: content.length,
+      fileId: params.fileId,
+      fileName: params.fileName,
+      notebookId: params.notebookId,
+    });
+
     const embedding = await generateEmbedding(content);
     assertVectorDimensions(embedding);
+
+    logBackendProcess('info', 'rag.embedding.completed', {
+      chunkIndex,
+      embeddingDims: embedding.length,
+      elapsedMs: getElapsedMs(chunkStartedAt),
+      fileId: params.fileId,
+      fileName: params.fileName,
+      notebookId: params.notebookId,
+    });
 
     await prisma.$executeRaw`
       INSERT INTO "NotebookFileChunk" (
@@ -140,21 +176,66 @@ export async function indexNotebookFileForRag(params: {
         NOW()
       )
     `;
+
+    logBackendProcess('info', 'rag.chunk.stored', {
+      chunkIndex,
+      elapsedMs: getElapsedMs(chunkStartedAt),
+      fileId: params.fileId,
+      fileName: params.fileName,
+      notebookId: params.notebookId,
+      tokenCount: estimateTokenCount(content),
+    });
   }
+
+  logBackendProcess('info', 'rag.index.completed', {
+    chunkCount: chunks.length,
+    elapsedMs: getElapsedMs(indexingStartedAt),
+    embeddingModel,
+    fileId: params.fileId,
+    fileName: params.fileName,
+    notebookId: params.notebookId,
+  });
 
   return chunks.length;
 }
 
 export async function retrieveNotebookRagContext(options: RagSearchOptions) {
+  const searchStartedAt = performance.now();
   const limit = Math.min(Math.max(options.limit || 5, 1), 20);
+  logBackendProcess('info', 'rag.search.started', {
+    fileId: options.fileId,
+    limit,
+    notebookId: options.notebookId,
+    queryChars: options.query.length,
+  });
+
+  const embeddingStartedAt = performance.now();
+  logBackendProcess('info', 'rag.search.embedding.started', {
+    notebookId: options.notebookId,
+    queryChars: options.query.length,
+  });
+
   const embedding = await generateEmbedding(options.query);
   assertVectorDimensions(embedding);
+  logBackendProcess('info', 'rag.search.embedding.completed', {
+    embeddingDims: embedding.length,
+    elapsedMs: getElapsedMs(embeddingStartedAt),
+    notebookId: options.notebookId,
+  });
+
   const vector = toVectorLiteral(embedding);
   const candidateLimit = Math.min(Math.max(limit * 4, 20), 100);
   const indexedSubvectorCast = Prisma.raw(`vector(${RAG_INDEX_SUBVECTOR_DIMENSIONS})`);
   const fileFilter = options.fileId ? Prisma.sql`AND c."notebookFileId" = ${options.fileId}` : Prisma.empty;
 
-  return prisma.$queryRaw<RagSearchResult[]>`
+  logBackendProcess('info', 'rag.database.search.started', {
+    candidateLimit,
+    fileId: options.fileId,
+    limit,
+    notebookId: options.notebookId,
+  });
+
+  const results = await prisma.$queryRaw<RagSearchResult[]>`
     WITH candidate_chunks AS MATERIALIZED (
       SELECT
         c."id",
@@ -180,6 +261,17 @@ export async function retrieveNotebookRagContext(options: RagSearchOptions) {
     ORDER BY c."embedding" <=> ${vector}::vector
     LIMIT ${limit}
   `;
+
+  logBackendProcess('info', 'rag.database.search.completed', {
+    candidateLimit,
+    elapsedMs: getElapsedMs(searchStartedAt),
+    fileId: options.fileId,
+    limit,
+    notebookId: options.notebookId,
+    resultCount: results.length,
+  });
+
+  return results;
 }
 
 export function formatRagContextForPrompt(results: RagSearchResult[]) {

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import mammoth from 'mammoth';
 import sanitizeHtml from 'sanitize-html';
+import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { generateNotebookFileSummary } from '@/lib/file-summary';
 import { transcribeAudioFile } from '@/lib/stt';
 
@@ -121,30 +122,19 @@ function formatBytes(bytes: number) {
   return `${value.toFixed(1)} ${units[unitIndex]}`;
 }
 
-function buildSummary(text: string | undefined, fileName: string) {
-  const cleaned = (text || '').replace(/\s+/g, ' ').trim();
-  if (!cleaned) {
-    return `Uploaded material for ${fileName}. Preview is available in the notebook viewer.`;
-  }
-
-  return cleaned.length > 280 ? `${cleaned.slice(0, 277)}...` : cleaned;
-}
-
 async function buildStoredSummary(params: {
   fileName: string;
   fileType: SupportedNotebookFileType;
   text: string | undefined;
 }) {
-  const fallbackSummary = buildSummary(params.text, params.fileName);
-
   try {
     return await generateNotebookFileSummary({
       fileName: params.fileName,
       fileType: params.fileType,
       text: params.text || '',
-    }) || fallbackSummary;
+    });
   } catch {
-    return fallbackSummary;
+    return undefined;
   }
 }
 
@@ -266,23 +256,52 @@ async function buildDerivedPreview(
 }
 
 export async function persistNotebookUpload(notebookId: string, file: File): Promise<UploadResult> {
+  const uploadStartedAt = performance.now();
   const extension = getFileExtension(file.name);
   const fileType = getNotebookFileType(extension);
 
+  logBackendProcess('info', 'file.upload.received', {
+    fileName: file.name,
+    fileSizeBytes: file.size,
+    mimeType: file.type || null,
+    notebookId,
+  });
+
   if (!fileType) {
+    logBackendProcess('warn', 'file.upload.rejected', {
+      extension,
+      fileName: file.name,
+      reason: 'unsupported_extension',
+    });
     throw new NotebookFileValidationError('Only pdf, docx, pptx, txt, and common audio files are supported.');
   }
 
   if (file.size <= 0) {
+    logBackendProcess('warn', 'file.upload.rejected', {
+      fileName: file.name,
+      reason: 'empty_file',
+    });
     throw new NotebookFileValidationError('Uploaded file is empty.');
   }
 
   if (file.size > MAX_UPLOAD_BYTES) {
+    logBackendProcess('warn', 'file.upload.rejected', {
+      fileName: file.name,
+      fileSizeBytes: file.size,
+      maxUploadBytes: MAX_UPLOAD_BYTES,
+      reason: 'file_too_large',
+    });
     throw new NotebookFileValidationError('File exceeds the 100 MB upload limit.');
   }
 
   const allowedMimeTypes = MIME_TYPE_MAP[fileType];
   if (file.type && !allowedMimeTypes.includes(file.type)) {
+    logBackendProcess('warn', 'file.upload.rejected', {
+      extension,
+      fileName: file.name,
+      mimeType: file.type,
+      reason: 'invalid_mime_type',
+    });
     throw new NotebookFileValidationError(`Invalid MIME type for .${extension} file.`);
   }
 
@@ -295,16 +314,64 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
 
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(storedPath, buffer);
+  logBackendProcess('info', 'file.storage.written', {
+    elapsedMs: getElapsedMs(uploadStartedAt),
+    fileName: file.name,
+    fileSizeBytes: buffer.byteLength,
+    fileType,
+    notebookId,
+    storedName,
+  });
 
   try {
+    const extractionStartedAt = performance.now();
+    logBackendProcess('info', 'file.extraction.started', {
+      fileName: file.name,
+      fileType,
+      notebookId,
+    });
+
     const preview = fileType === 'audio'
       ? await buildAudioPreview(storedPath, file.name, file.type || allowedMimeTypes[0])
       : await buildDerivedPreview(fileType, storedPath);
+
+    logBackendProcess('info', 'file.extraction.completed', {
+      elapsedMs: getElapsedMs(extractionStartedAt),
+      extractedTextChars: preview.extractedText.length,
+      fileName: file.name,
+      fileType,
+      notebookId,
+      previewFormat: preview.previewFormat,
+      totalPages: preview.totalPages,
+    });
+
+    const summaryStartedAt = performance.now();
+    logBackendProcess('info', 'file.summary.started', {
+      extractedTextChars: preview.extractedText.length,
+      fileName: file.name,
+      fileType,
+      notebookId,
+    });
 
     const summary = await buildStoredSummary({
       fileName: file.name,
       fileType,
       text: preview.extractedText,
+    });
+
+    logBackendProcess('info', 'file.summary.completed', {
+      elapsedMs: getElapsedMs(summaryStartedAt),
+      fileName: file.name,
+      notebookId,
+      summaryChars: summary?.length || 0,
+    });
+
+    logBackendProcess('info', 'file.upload.completed', {
+      elapsedMs: getElapsedMs(uploadStartedAt),
+      extractedTextChars: preview.extractedText.length,
+      fileName: file.name,
+      fileType,
+      notebookId,
     });
 
     return {
@@ -322,6 +389,12 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
     };
   } catch (error) {
     await fs.unlink(storedPath).catch(() => undefined);
+    logBackendProcess('error', 'file.upload.failed', {
+      elapsedMs: getElapsedMs(uploadStartedAt),
+      error: error instanceof Error ? error.message : 'Unknown upload processing error',
+      fileName: file.name,
+      notebookId,
+    });
     throw error;
   }
 }

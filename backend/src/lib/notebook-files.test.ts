@@ -98,7 +98,7 @@ describe('persistNotebookUpload', () => {
     );
   });
 
-  it('falls back to extracted text summary when AI summary generation fails', async () => {
+  it('does not store extracted text as a summary when AI summary generation fails', async () => {
     process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
     process.env.CHAT_API_KEY = 'test-chat-key';
     process.env.CHAT_MODEL = 'study-summary-model';
@@ -110,7 +110,7 @@ describe('persistNotebookUpload', () => {
 
     const result = await persistNotebookUpload('nb-1', upload);
 
-    expect(result.summary).toBe('Fallback summary content from the uploaded file.');
+    expect(result.summary).toBeUndefined();
   });
 
   it('rejects unsupported file extensions', async () => {

@@ -161,6 +161,8 @@ export default function NotebookView({
   const colorTone = notebook ? getNotebookColorTone(notebook.color) : null;
   const viewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
+  const isAudioPreview = selectedMaterial?.type === 'audio';
+  const summaryText = activePreview?.summary || selectedMaterial?.summary;
   const uploadProgressValue = uploadPhase === 'validating'
     ? 10
     : uploadPhase === 'uploading'
@@ -685,9 +687,34 @@ export default function NotebookView({
                 ) : null}
 
                 {activePreview?.previewFormat === 'text' ? (
-                  <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-text-primary font-serif">
-                    {activePreview.previewContent || ''}
-                  </pre>
+                  <div className="space-y-4">
+                    {isAudioPreview && selectedViewerUrl ? (
+                      <div className="rounded-xl border border-border-subtle bg-bg-elevated/70 p-4">
+                        <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
+                          <Volume2 className="h-4 w-4" />
+                          Audio Player
+                        </div>
+                        <audio
+                          controls
+                          preload="metadata"
+                          src={selectedViewerUrl}
+                          className="w-full"
+                        >
+                          <a href={selectedViewerUrl}>Download audio</a>
+                        </audio>
+                      </div>
+                    ) : null}
+
+                    {isAudioPreview ? (
+                      <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
+                        Transcript
+                      </div>
+                    ) : null}
+
+                    <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-text-primary font-serif">
+                      {activePreview.previewContent || ''}
+                    </pre>
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -697,10 +724,10 @@ export default function NotebookView({
                 <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
                   <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
                     <Sparkles className="h-4 w-4" />
-                    Extracted Summary
+                    Chat LLM Summary
                   </div>
                   <p className="mt-3 text-sm leading-relaxed text-text-primary font-serif">
-                    {activePreview?.summary || selectedMaterial.summary || 'No summary was generated for this file.'}
+                    {summaryText || 'No chat-generated summary is available for this file.'}
                   </p>
                 </div>
 
