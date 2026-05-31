@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 
 export const RAG_CHUNK_SIZE = 2000;
 export const RAG_CHUNK_OVERLAP = 400;
+export const RAG_PROMPT_SOURCE_CHAR_LIMIT = 1200;
 export const RAG_VECTOR_DIMENSIONS = 4096;
 export const RAG_INDEX_SUBVECTOR_DIMENSIONS = 2000;
 
@@ -276,9 +277,15 @@ export async function retrieveNotebookRagContext(options: RagSearchOptions) {
 
 export function formatRagContextForPrompt(results: RagSearchResult[]) {
   return results
-    .map((result, index) => [
-      `[SOURCE ${index + 1}: ${result.fileName}, chunk ${result.chunkIndex + 1}, score ${result.score.toFixed(3)}]`,
-      result.content,
-    ].join('\n'))
+    .map((result, index) => {
+      const content = result.content.length > RAG_PROMPT_SOURCE_CHAR_LIMIT
+        ? `${result.content.slice(0, RAG_PROMPT_SOURCE_CHAR_LIMIT).trimEnd()}\n[Source excerpt truncated]`
+        : result.content;
+
+      return [
+        `[SOURCE ${index + 1}: ${result.fileName}, chunk ${result.chunkIndex + 1}, score ${result.score.toFixed(3)}]`,
+        content,
+      ].join('\n');
+    })
     .join('\n\n');
 }

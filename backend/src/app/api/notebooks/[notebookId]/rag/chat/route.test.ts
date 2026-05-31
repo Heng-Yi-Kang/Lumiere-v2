@@ -158,4 +158,57 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
       }),
     );
   });
+
+  it('returns a JSON error when RAG retrieval fails', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      files: [{ extractedText: null, id: 'file-1', name: 'week-1.txt' }],
+      id: 'nb-1',
+      name: 'Algorithms',
+    });
+    vi.mocked(retrieveNotebookRagContext).mockRejectedValue(new Error('vector store unavailable'));
+
+    const response = await POST(
+      new Request('http://localhost/api/notebooks/nb-1/rag/chat', {
+        body: JSON.stringify({ fileId: 'file-1', question: 'Explain this file' }),
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ notebookId: 'nb-1' }) },
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(payload.error).toBe('vector store unavailable');
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBeTruthy();
+  });
+
+  it('returns a JSON error when chat generation fails', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      files: [{ extractedText: null, id: 'file-1', name: 'week-1.txt' }],
+      id: 'nb-1',
+      name: 'Algorithms',
+    });
+    vi.mocked(retrieveNotebookRagContext).mockResolvedValue([
+      {
+        chunkIndex: 0,
+        content: 'Greedy algorithms choose local optima.',
+        fileId: 'file-1',
+        fileName: 'week-1.txt',
+        score: 0.92,
+      },
+    ]);
+    vi.mocked(generateChatCompletion).mockRejectedValue(new Error('chat provider unavailable'));
+
+    const response = await POST(
+      new Request('http://localhost/api/notebooks/nb-1/rag/chat', {
+        body: JSON.stringify({ fileId: 'file-1', question: 'Explain this file' }),
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ notebookId: 'nb-1' }) },
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(payload.error).toBe('chat provider unavailable');
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBeTruthy();
+  });
 });

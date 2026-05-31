@@ -145,7 +145,10 @@ export async function POST(
       fileId: scopedFile?.id,
       notebookId,
     });
-    throw error;
+    return jsonResponse(
+      { error: error instanceof Error ? error.message : 'RAG search failed.' },
+      { status: 502 },
+    );
   }
 
   const fallbackResults = results.length
@@ -209,7 +212,10 @@ export async function POST(
       fileId: scopedFile?.id,
       notebookId,
     });
-    throw error;
+    return jsonResponse(
+      { error: error instanceof Error ? error.message : 'Grounded chat generation failed.' },
+      { status: 502 },
+    );
   }
 
   logBackendProcess('info', 'rag.chat_completion.completed', {

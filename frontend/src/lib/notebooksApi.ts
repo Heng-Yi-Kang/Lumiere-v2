@@ -1,6 +1,6 @@
 import { GroundedChatResponse, Notebook, NotebookFilePreview } from '../types';
 
-export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
 
 type NotebookResponse = {
   notebooks?: Notebook[];
@@ -24,7 +24,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${NOTEBOOKS_API_BASE_URL}${path}`, {
+  const response = await fetch(buildNotebookApiUrl(path), {
     ...init,
     headers,
   });
@@ -39,6 +39,15 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+export function buildNotebookApiUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${NOTEBOOKS_API_BASE_URL}${normalizedPath}`;
 }
 
 export async function fetchNotebooks() {

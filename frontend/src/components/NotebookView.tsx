@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
+  Bot,
   Download,
   Edit3,
   ExternalLink,
@@ -12,14 +13,16 @@ import {
   MonitorPlay,
   Plus,
   Search,
+  Send,
+  ShieldCheck,
   Sparkles,
   Trash2,
   Upload,
   Volume2,
   X,
 } from 'lucide-react';
-import { ChatGroundingScope, FileItem, Notebook, NotebookFilePreview } from '../types';
-import { fetchNotebookFilePreview, NOTEBOOKS_API_BASE_URL } from '../lib/notebooksApi';
+import { ChatGroundingScope, ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
+import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
 import { validateNotebookUpload } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 
@@ -56,7 +59,22 @@ function getViewerUrl(sourceUrl?: string) {
     return undefined;
   }
 
-  return `${NOTEBOOKS_API_BASE_URL}${sourceUrl}`;
+  return buildNotebookApiUrl(sourceUrl);
+}
+
+function createFileChatInitialMessage(fileName: string): ChatMessage {
+  return {
+    id: `file-chat-init-${fileName}`,
+    role: 'assistant',
+    text: `Ask questions about "${fileName}". Answers are limited to the indexed material from this file and will show grounded references when context is found.`,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    grounded: true,
+    suggestedPrompts: [
+      'Summarize the key ideas in this material',
+      'What should I focus on for exams?',
+      'Make five revision questions from this file',
+    ],
+  };
 }
 
 export default function NotebookView({
@@ -84,13 +102,37 @@ export default function NotebookView({
   const [isDeletingNotebook, setIsDeletingNotebook] = useState(false);
   const [pendingDeleteFile, setPendingDeleteFile] = useState<FileItem | null>(null);
   const [isDeleteNotebookModalOpen, setIsDeleteNotebookModalOpen] = useState(false);
+  const [fileChatMessagesById, setFileChatMessagesById] = useState<Record<string, ChatMessage[]>>({});
+  const [fileChatInput, setFileChatInput] = useState('');
+  const [isFileChatTyping, setIsFileChatTyping] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setSelectedMaterial(null);
     setPreviewError('');
     setUploadError('');
+    setFileChatInput('');
   }, [notebook?.id]);
+
+  useEffect(() => {
+    if (!selectedMaterial) {
+      setFileChatInput('');
+      return;
+    }
+
+    setFileChatMessagesById((current) => {
+      if (current[selectedMaterial.id]) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [selectedMaterial.id]: [createFileChatInitialMessage(selectedMaterial.name)],
+      };
+    });
+    setFileChatInput('');
+  }, [selectedMaterial]);
 
   useEffect(() => {
     if (uploadPhase !== 'success') {
@@ -158,6 +200,7 @@ export default function NotebookView({
   }, [materialSearchText, notebook]);
 
   const activePreview = selectedMaterial ? previewCache[selectedMaterial.id] : undefined;
+  const activeFileChatMessages = selectedMaterial ? fileChatMessagesById[selectedMaterial.id] || [] : [];
   const colorTone = notebook ? getNotebookColorTone(notebook.color) : null;
   const viewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
@@ -181,6 +224,76 @@ export default function NotebookView({
         : uploadPhase === 'success'
           ? 'Upload finished. Material is ready.'
           : '';
+
+  useEffect(() => {
+    if (!fileChatScrollRef.current) {
+      return;
+    }
+
+    fileChatScrollRef.current.scrollTop = fileChatScrollRef.current.scrollHeight;
+  }, [activeFileChatMessages, isFileChatTyping]);
+
+  const updateFileChatMessages = (fileId: string, update: (messages: ChatMessage[]) => ChatMessage[]) => {
+    setFileChatMessagesById((current) => {
+      const existingMessages = current[fileId] || [];
+      return {
+        ...current,
+        [fileId]: update(existingMessages),
+      };
+    });
+  };
+
+  const handleFileChatSubmit = async (question: string) => {
+    if (!notebook || !selectedMaterial || !question.trim() || isFileChatTyping) {
+      return;
+    }
+
+    const file = selectedMaterial;
+    const submittedQuestion = question.trim();
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMessage: ChatMessage = {
+      id: `file-chat-user-${Date.now()}`,
+      role: 'user',
+      text: submittedQuestion,
+      timestamp,
+    };
+
+    updateFileChatMessages(file.id, (messages) => [...messages, userMessage]);
+    setFileChatInput('');
+    setIsFileChatTyping(true);
+
+    try {
+      const response = await askGroundedNotebookChat({
+        fileId: file.id,
+        notebookId: notebook.id,
+        question: submittedQuestion,
+      });
+
+      const assistantMessage: ChatMessage = {
+        id: `file-chat-assistant-${Date.now()}`,
+        role: 'assistant',
+        text: response.answer,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        citations: response.citations,
+        grounded: response.grounded,
+      };
+
+      updateFileChatMessages(file.id, (messages) => [...messages, assistantMessage]);
+    } catch (error) {
+      const assistantMessage: ChatMessage = {
+        id: `file-chat-error-${Date.now()}`,
+        role: 'assistant',
+        text: error instanceof Error ? error.message : 'Grounded chat failed.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        citations: [],
+        grounded: false,
+      };
+
+      updateFileChatMessages(file.id, (messages) => [...messages, assistantMessage]);
+    } finally {
+      setIsFileChatTyping(false);
+    }
+  };
 
   const handleUpload = async (file: File) => {
     if (!notebook || !onUploadFile) {
@@ -719,8 +832,8 @@ export default function NotebookView({
               </div>
             </div>
 
-            <div className="flex w-full flex-col justify-between p-5 xl:w-[42%]">
-              <div className="space-y-4">
+            <div className="flex min-h-0 w-full flex-col p-5 xl:w-[42%]">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
                 <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
                   <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
                     <Sparkles className="h-4 w-4" />
@@ -738,6 +851,128 @@ export default function NotebookView({
                     <div className="mt-3 text-xs text-text-muted">{activePreview.totalPages} pages detected</div>
                   ) : null}
                 </div>
+              </div>
+
+              <div className="mt-4 flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-base/35">
+                <div className="flex items-center justify-between gap-3 border-b border-border-subtle bg-bg-elevated/40 px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-primary font-mono">
+                      <Bot className="h-4 w-4 text-accent-hover" />
+                      Ask This File
+                    </div>
+                    <p className="mt-1 truncate text-[10px] text-text-muted">
+                      Grounded on {selectedMaterial.name}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-success/25 bg-success-subtle px-2 py-1 text-[9px] font-black uppercase tracking-wider text-success">
+                    File scope
+                  </span>
+                </div>
+
+                <div
+                  ref={fileChatScrollRef}
+                  className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3"
+                >
+                  {activeFileChatMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[88%] rounded-2xl border p-3 text-xs leading-relaxed ${
+                        message.role === 'user'
+                          ? 'rounded-tr-sm border-accent bg-accent text-white'
+                          : 'rounded-tl-sm border-border-subtle bg-bg-elevated/60 text-text-primary'
+                      }`}>
+                        <div className="mb-1.5 flex items-center justify-between gap-3 border-b border-white/10 pb-1 text-[8.5px] font-extrabold uppercase tracking-wide text-text-muted font-mono">
+                          <span>{message.role === 'user' ? 'You' : 'Lumiere'}</span>
+                          <span>{message.timestamp}</span>
+                        </div>
+                        <div className="whitespace-pre-wrap font-semibold leading-relaxed">
+                          {message.text}
+                        </div>
+
+                        {message.role === 'assistant' && message.grounded === false ? (
+                          <div className="mt-2 rounded-lg border border-cta/20 bg-cta-subtle px-2 py-1.5 text-[9px] font-bold text-cta">
+                            No grounded context was found for this file.
+                          </div>
+                        ) : null}
+
+                        {message.citations && message.citations.length > 0 ? (
+                          <div className="mt-2.5 border-t border-border-subtle pt-2">
+                            <div className="mb-1.5 flex items-center gap-1 text-[8.5px] font-black uppercase tracking-wider text-success font-mono">
+                              <ShieldCheck className="h-3 w-3" />
+                              Grounded references
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {message.citations.map((citation, index) => (
+                                <span
+                                  key={`${citation.fileId}-${citation.position}-${index}`}
+                                  className="inline-flex max-w-full items-center gap-1 rounded border border-success/20 bg-success-subtle px-1.5 py-0.5 text-[9px] font-extrabold text-success"
+                                >
+                                  <FileText className="h-2.5 w-2.5 shrink-0" />
+                                  <span className="max-w-[120px] truncate">{citation.fileName}</span>
+                                  <span className="rounded-sm bg-success/10 px-0.5 font-mono text-[8px]">
+                                    {citation.position}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {message.suggestedPrompts && message.suggestedPrompts.length > 0 ? (
+                          <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-2">
+                            {message.suggestedPrompts.map((prompt) => (
+                              <button
+                                key={prompt}
+                                type="button"
+                                onClick={() => void handleFileChatSubmit(prompt)}
+                                disabled={isFileChatTyping}
+                                className="w-full rounded-lg border border-border-subtle bg-bg-elevated/40 px-2 py-1.5 text-left text-[9.5px] font-bold text-text-secondary transition hover:border-accent/30 hover:bg-bg-elevated/70 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {prompt}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+
+                  {isFileChatTyping ? (
+                    <div className="flex justify-start">
+                      <div className="inline-flex items-center gap-2 rounded-2xl border border-border-subtle bg-bg-elevated/60 px-3 py-2 text-[9px] font-extrabold uppercase tracking-wide text-text-muted font-mono">
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin text-accent-hover" />
+                        Retrieving grounded context
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleFileChatSubmit(fileChatInput);
+                  }}
+                  className="flex items-center gap-2 border-t border-border-subtle bg-bg-elevated/35 p-3"
+                >
+                  <input
+                    type="text"
+                    value={fileChatInput}
+                    onChange={(event) => setFileChatInput(event.target.value)}
+                    placeholder="Ask a grounded question..."
+                    className="min-w-0 flex-1 rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2 text-xs font-semibold text-text-primary outline-none transition placeholder:text-text-muted focus:border-accent"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!fileChatInput.trim() || isFileChatTyping}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Send grounded file question"
+                    title="Send grounded file question"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </form>
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2.5 border-t border-border-subtle pt-4">

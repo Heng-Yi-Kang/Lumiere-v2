@@ -15,7 +15,7 @@ vi.mock('@/lib/embeddings', () => ({
   getEmbeddingModel: vi.fn().mockReturnValue('test-embedding-model'),
 }));
 
-import { RAG_VECTOR_DIMENSIONS, retrieveNotebookRagContext, splitIntoChunks } from './rag';
+import { formatRagContextForPrompt, RAG_PROMPT_SOURCE_CHAR_LIMIT, RAG_VECTOR_DIMENSIONS, retrieveNotebookRagContext, splitIntoChunks } from './rag';
 
 describe('splitIntoChunks', () => {
   it('chunks text with overlap from prior content', () => {
@@ -56,5 +56,23 @@ describe('retrieveNotebookRagContext', () => {
     expect(sql).toContain('subvector(c."embedding", 1, CAST(');
     expect(sql).toContain('AS integer))::');
     expect(sql).toContain('<=> subvector(');
+  });
+});
+
+describe('formatRagContextForPrompt', () => {
+  it('trims oversized source content before sending it to chat generation', () => {
+    const context = formatRagContextForPrompt([
+      {
+        chunkIndex: 0,
+        content: 'a'.repeat(RAG_PROMPT_SOURCE_CHAR_LIMIT + 500),
+        fileId: 'file-1',
+        fileName: 'week-1.txt',
+        score: 0.95,
+      },
+    ]);
+
+    expect(context).toContain('[SOURCE 1: week-1.txt, chunk 1, score 0.950]');
+    expect(context).toContain('[Source excerpt truncated]');
+    expect(context.length).toBeLessThan(RAG_PROMPT_SOURCE_CHAR_LIMIT + 120);
   });
 });
