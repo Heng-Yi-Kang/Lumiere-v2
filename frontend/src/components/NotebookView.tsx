@@ -14,7 +14,6 @@ import {
   MessageSquare,
   MonitorPlay,
   Plus,
-  Search,
   Send,
   ShieldCheck,
   Sparkles,
@@ -102,7 +101,6 @@ export default function NotebookView({
   onCreateNotebookRequested,
 }: NotebookViewProps) {
   type UploadPhase = 'idle' | 'validating' | 'uploading' | 'extracting' | 'success';
-  const [materialSearchText, setMaterialSearchText] = useState('');
   const [selectedMaterial, setSelectedMaterial] = useState<FileItem | null>(null);
   const [previewCache, setPreviewCache] = useState<Record<string, NotebookFilePreview>>({});
   const [previewError, setPreviewError] = useState('');
@@ -214,10 +212,8 @@ export default function NotebookView({
       return [];
     }
 
-    return notebook.files.filter((file) =>
-      file.name.toLowerCase().includes(materialSearchText.toLowerCase()),
-    );
-  }, [materialSearchText, notebook]);
+    return notebook.files;
+  }, [notebook]);
 
   const activePreview = selectedMaterial ? previewCache[selectedMaterial.id] : undefined;
   const activeFileChatMessages = selectedMaterial ? fileChatMessagesById[selectedMaterial.id] || [] : [];
@@ -639,32 +635,12 @@ export default function NotebookView({
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <div className={`surface-card rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow}`}>
-          <div className="flex flex-col gap-3 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-border-subtle pb-4">
             <div>
               <h2 className="text-sm font-black text-text-primary font-display">Materials Directory</h2>
               <p className="text-[11px] text-text-muted">Open inline previews or delete files directly from this notebook.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadPhase !== 'idle'}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-              >
-                {uploadPhase !== 'idle' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploadPhase !== 'idle' ? 'Uploading...' : 'Select File'}
-              </button>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
-                <input
-                  type="text"
-                  value={materialSearchText}
-                  onChange={(event) => setMaterialSearchText(event.target.value)}
-                  placeholder="Search files..."
-                  className={`w-full rounded-xl border border-border-default bg-bg-elevated/60 py-2 pl-8 pr-3 text-xs text-text-primary outline-none transition sm:w-56 focus:border-accent ${colorTone?.borderGlow || ''}`}
-                />
-              </div>
             </div>
           </div>
 
@@ -750,6 +726,16 @@ export default function NotebookView({
                 </div>
               ))
             )}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadPhase !== 'idle'}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+            >
+              {uploadPhase !== 'idle' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {uploadPhase !== 'idle' ? 'Uploading...' : 'Upload File'}
+            </button>
           </div>
         </div>
 
