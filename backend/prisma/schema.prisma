@@ -39,6 +39,9 @@ model NotebookFile {
   uploadDate  String
   status      String   @default("ready")
   summary     String?
+  summaryStatus String @default("idle")
+  summaryError String?
+  summaryGeneratedAt DateTime?
   totalPages  Int?
   sourcePath  String?
   previewFormat String?

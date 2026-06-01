@@ -4,6 +4,7 @@ import { DEFAULT_COURSES, DEFAULT_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES
 import { ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
 import FloatingDock from './components/FloatingDock';
 import Header from './components/Header';
+import PriorityGoalBox from './components/PriorityGoalBox';
 import DashboardView from './components/DashboardView';
 import NotebookView from './components/NotebookView';
 import StudyBuddy from './components/StudyBuddy';
@@ -100,6 +101,40 @@ export default function App() {
   }, [curNotebooksList]);
 
   const activeNotebook = curNotebooksList.find(nb => nb.id === activeNotebookId);
+  const hasGeneratingSummaries = curNotebooksList.some((notebook) =>
+    notebook.files.some((file) => file.summaryStatus === 'in-progress'),
+  );
+
+  useEffect(() => {
+    if (!hasGeneratingSummaries) {
+      return;
+    }
+
+    let isActive = true;
+    const intervalId = window.setInterval(() => {
+      const requestId = ++notebookLoadRequestIdRef.current;
+
+      void fetchNotebooks()
+        .then((loadedNotebooks) => {
+          if (!isActive || requestId !== notebookLoadRequestIdRef.current) {
+            return;
+          }
+
+          setNotebooks(loadedNotebooks);
+          setNotebookLoadError('');
+        })
+        .catch((error) => {
+          if (isActive) {
+            setNotebookLoadError(error instanceof Error ? error.message : 'Failed to refresh notebooks.');
+          }
+        });
+    }, 5000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [hasGeneratingSummaries]);
 
   const setCurrentPage = useCallback((page: string) => {
     navigate(pageToPath[page as keyof typeof pageToPath] ?? pageToPath.Dashboard);
@@ -279,13 +314,13 @@ export default function App() {
         onDeleteGoal={handleDeleteGoal}
       />
 
+      {/* Top Priority Goal — Lower Left */}
+      <PriorityGoalBox goal={goals.find(g => g.isPriority)} />
+
       {/* Main Layout Area */}
       <div className="flex-1 flex flex-col min-h-screen relative z-10 bg-transparent pl-20 md:pl-24">
         {/* Top Header bar with Picker & Streak ranks */}
-        <Header 
-          streak={MOCK_STREAK}
-          activeTab={currentPage}
-        />
+        <Header activeTab={currentPage} />
 
         {/* Dynamic Context Canvas */}
         <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full pb-16 relative z-10">

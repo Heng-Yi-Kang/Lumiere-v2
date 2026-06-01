@@ -4,6 +4,7 @@ import { deleteNotebookStoredFile, NotebookFileValidationError, persistNotebookU
 import { jsonResponse, optionsResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
 import { indexNotebookFileForRag } from '@/lib/rag';
+import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 
 export async function OPTIONS() {
   return optionsResponse();
@@ -74,7 +75,9 @@ export async function POST(
           size: uploadData.size,
           sourcePath: uploadData.sourcePath,
           status: 'ready',
-          summary: uploadData.summary || null,
+          summary: null,
+          summaryError: null,
+          summaryStatus: uploadData.extractedText?.trim() ? 'in-progress' : 'idle',
           totalPages: uploadData.totalPages ?? null,
           type: uploadData.type,
           uploadDate: uploadData.uploadDate,
@@ -136,6 +139,10 @@ export async function POST(
       notebookId,
     });
     return jsonResponse({ error: 'Failed to index uploaded file for search.' }, { status: 500 });
+  }
+
+  if (createdFile.extractedText?.trim()) {
+    startNotebookFileSummaryJob(createdFile.id);
   }
 
   const refreshedNotebook = await prisma.notebook.findUnique({

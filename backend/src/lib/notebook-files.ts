@@ -5,7 +5,6 @@ import path from 'node:path';
 import mammoth from 'mammoth';
 import sanitizeHtml from 'sanitize-html';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
-import { generateNotebookFileSummary } from '@/lib/file-summary';
 import { transcribeAudioFile } from '@/lib/stt';
 import { processVideoFile, type VideoRagSegment } from '@/lib/video-processing';
 
@@ -51,7 +50,6 @@ type UploadResult = {
   ragChunks?: VideoRagSegment[];
   size: string;
   sourcePath: string;
-  summary?: string;
   totalPages?: number;
   type: SupportedNotebookFileType;
   uploadDate: string;
@@ -132,27 +130,6 @@ function formatBytes(bytes: number) {
   }
 
   return `${value.toFixed(1)} ${units[unitIndex]}`;
-}
-
-async function buildStoredSummary(params: {
-  fileName: string;
-  fileType: SupportedNotebookFileType;
-  text: string | undefined;
-}) {
-  try {
-    return await generateNotebookFileSummary({
-      fileName: params.fileName,
-      fileType: params.fileType,
-      text: params.text || '',
-    });
-  } catch (error) {
-    logBackendProcess('warn', 'file.summary.failed', {
-      error: error instanceof Error ? error.message : 'Unknown summary generation error',
-      fileName: params.fileName,
-      fileType: params.fileType,
-    });
-    return undefined;
-  }
 }
 
 function sanitizePreviewHtml(html: string) {
@@ -378,27 +355,6 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       totalPages: preview.totalPages,
     });
 
-    const summaryStartedAt = performance.now();
-    logBackendProcess('info', 'file.summary.started', {
-      extractedTextChars: preview.extractedText.length,
-      fileName: file.name,
-      fileType,
-      notebookId,
-    });
-
-    const summary = await buildStoredSummary({
-      fileName: file.name,
-      fileType,
-      text: preview.extractedText,
-    });
-
-    logBackendProcess('info', 'file.summary.completed', {
-      elapsedMs: getElapsedMs(summaryStartedAt),
-      fileName: file.name,
-      notebookId,
-      summaryChars: summary?.length || 0,
-    });
-
     logBackendProcess('info', 'file.upload.completed', {
       elapsedMs: getElapsedMs(uploadStartedAt),
       extractedTextChars: preview.extractedText.length,
@@ -418,7 +374,6 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       ragChunks,
       size: formatBytes(file.size),
       sourcePath: storedPath,
-      summary,
       totalPages: preview.totalPages,
       type: fileType,
       uploadDate: formatUploadDate(new Date()),

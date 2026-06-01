@@ -212,7 +212,14 @@ export default function NotebookView({
   const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const isAudioPreview = selectedMaterial?.type === 'audio';
   const isVideoPreview = selectedMaterial?.type === 'video';
+  const summaryStatus = activePreview?.summaryStatus || selectedMaterial?.summaryStatus || 'idle';
+  const summaryError = activePreview?.summaryError || selectedMaterial?.summaryError;
   const summaryText = activePreview?.summary || selectedMaterial?.summary;
+  const summaryDisplayText = summaryStatus === 'in-progress'
+    ? 'Generating summary...'
+    : summaryStatus === 'error'
+      ? summaryError || 'Summary generation failed.'
+      : summaryText || 'No chat-generated summary is available for this file.';
   const uploadProgressValue = uploadPhase === 'validating'
     ? 10
     : uploadPhase === 'uploading'
@@ -239,6 +246,17 @@ export default function NotebookView({
 
     fileChatScrollRef.current.scrollTop = fileChatScrollRef.current.scrollHeight;
   }, [activeFileChatMessages, isFileChatTyping]);
+
+  useEffect(() => {
+    if (!notebook || !selectedMaterial) {
+      return;
+    }
+
+    const refreshedFile = notebook.files.find((file) => file.id === selectedMaterial.id);
+    if (refreshedFile && refreshedFile !== selectedMaterial) {
+      setSelectedMaterial(refreshedFile);
+    }
+  }, [notebook, selectedMaterial]);
 
   const updateFileChatMessages = (fileId: string, update: (messages: ChatMessage[]) => ChatMessage[]) => {
     setFileChatMessagesById((current) => {
@@ -721,6 +739,8 @@ export default function NotebookView({
                         <span>{file.size}</span>
                         <span>{file.uploadDate}</span>
                         {file.totalPages ? <span>{file.totalPages} pages</span> : null}
+                        {file.summaryStatus === 'in-progress' ? <span>Generating summary</span> : null}
+                        {file.summaryStatus === 'error' ? <span>Summary failed</span> : null}
                       </div>
                     </div>
                   </div>
@@ -880,7 +900,7 @@ export default function NotebookView({
                         Chat LLM Summary
                       </div>
                       <p className="mt-3 text-sm leading-relaxed text-text-primary font-serif">
-                        {summaryText || 'No chat-generated summary is available for this file.'}
+                        {summaryDisplayText}
                       </p>
                     </div>
 

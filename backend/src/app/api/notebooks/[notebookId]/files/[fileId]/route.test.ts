@@ -34,6 +34,9 @@ describe('GET /api/notebooks/[notebookId]/files/[fileId]', () => {
       previewFormat: 'text',
       sourcePath: path.join('uploads', 'notebooks', 'nb-1', 'week-1.txt'),
       summary: 'Summary',
+      summaryError: null,
+      summaryGeneratedAt: new Date('2026-06-01T00:00:00.000Z'),
+      summaryStatus: 'done',
       totalPages: null,
       type: 'txt',
     });
@@ -46,6 +49,7 @@ describe('GET /api/notebooks/[notebookId]/files/[fileId]', () => {
     expect(response.status).toBe(200);
     expect(payload.preview.previewContent).toBe('Preview text');
     expect(payload.preview.summary).toBe('Summary');
+    expect(payload.preview.summaryStatus).toBe('done');
     expect(payload.preview.type).toBe('txt');
     expect(payload.preview.sourceUrl).toContain('/uploads/notebooks/nb-1/week-1.txt');
   });

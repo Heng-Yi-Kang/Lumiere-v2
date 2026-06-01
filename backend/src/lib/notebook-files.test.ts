@@ -64,19 +64,11 @@ describe('persistNotebookUpload', () => {
     expect(storedFile.isFile()).toBe(true);
   });
 
-  it('generates and stores an AI summary when chat configuration is available', async () => {
+  it('does not generate a summary before the file row is persisted', async () => {
     process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
     process.env.CHAT_API_KEY = 'test-chat-key';
     process.env.CHAT_MODEL = 'study-summary-model';
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      choices: [
-        {
-          message: {
-            content: 'AI summary of the uploaded course file.',
-          },
-        },
-      ],
-    })));
+    const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     const upload = new File(['Propositional logic notes with truth tables and De Morgan laws.'], 'logic.txt', {
@@ -85,20 +77,11 @@ describe('persistNotebookUpload', () => {
 
     const result = await persistNotebookUpload('nb-1', upload);
 
-    expect(result.summary).toBe('AI summary of the uploaded course file.');
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://chat.example.test/v1/chat/completions',
-      expect.objectContaining({
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer test-chat-key',
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    expect(result.extractedText).toContain('Propositional logic notes');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('does not store extracted text as a summary when AI summary generation fails', async () => {
+  it('does not store extracted text as a summary placeholder', async () => {
     process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
     process.env.CHAT_API_KEY = 'test-chat-key';
     process.env.CHAT_MODEL = 'study-summary-model';
@@ -110,7 +93,7 @@ describe('persistNotebookUpload', () => {
 
     const result = await persistNotebookUpload('nb-1', upload);
 
-    expect(result.summary).toBeUndefined();
+    expect(result.extractedText).toBe('Fallback summary content from the uploaded file.');
   });
 
   it('rejects unsupported file extensions', async () => {
@@ -168,26 +151,14 @@ describe('persistNotebookUpload', () => {
     );
   });
 
-  it('sends an uploaded audio transcript to chat summary generation', async () => {
+  it('returns an uploaded audio transcript for later chat summary generation', async () => {
     process.env.STT_API_BASE = 'https://stt.example.test/v1';
     process.env.STT_API_KEY = 'test-key';
     process.env.STT_MODEL = 'qwen3-asr-1.7b';
-    process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
-    process.env.CHAT_API_KEY = 'test-chat-key';
-    process.env.CHAT_MODEL = 'study-summary-model';
     const transcript = 'Audio transcript that should be summarized by the chat model.';
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ text: transcript })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        choices: [
-          {
-            message: {
-              content: 'Summary generated from the audio transcript.',
-            },
-          },
-        ],
-      })));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: transcript })));
     vi.stubGlobal('fetch', fetchMock);
 
     const upload = new File(['audio-bytes'], 'lecture.mp3', {
@@ -196,22 +167,8 @@ describe('persistNotebookUpload', () => {
 
     const result = await persistNotebookUpload('nb-1', upload);
 
-    expect(result.summary).toBe('Summary generated from the audio transcript.');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      'https://chat.example.test/v1/chat/completions',
-      expect.objectContaining({
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer test-chat-key',
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
-
-    const summaryRequest = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
-    expect(summaryRequest.messages[1].content).toContain(transcript);
+    expect(result.extractedText).toBe(transcript);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('removes the stored audio file when transcription fails', async () => {

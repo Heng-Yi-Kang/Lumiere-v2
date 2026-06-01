@@ -1,14 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StudyStreak } from '../types';
-import { Search, Flame, GraduationCap, Award, Bell } from 'lucide-react';
+import { Search, Bell } from 'lucide-react';
 
 interface HeaderProps {
-  streak: StudyStreak;
   activeTab: string;
 }
 
-export default function Header({ streak, activeTab }: HeaderProps) {
+export default function Header({ activeTab }: HeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -43,44 +41,7 @@ export default function Header({ streak, activeTab }: HeaderProps) {
         </div>
       </div>
 
-      {/* Streak Metrics */}
       <div className="flex items-center gap-3 md:gap-4">
-        {/* Streak Counter */}
-        <div
-          className="group relative hidden cursor-help items-center gap-2 rounded-xl border border-cta/20 bg-cta-subtle px-3 py-2 text-cta shadow-sm transition-colors hover:bg-cta/15 sm:flex"
-          title={`${streak.currentStreak} Days Streak!`}
-        >
-          <Flame className="h-4 w-4 fill-cta" />
-          <div className="flex flex-col leading-none">
-            <span className="text-sm font-extrabold">{streak.currentStreak} Days</span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted font-mono">Streak</span>
-          </div>
-
-          {/* Hover state for Student rank levels */}
-          <div className="absolute right-0 top-12 z-50 w-64 origin-top-right rounded-2xl border border-border-default bg-bg-overlay p-5 text-left opacity-0 shadow-2xl backdrop-blur-xl transition-all duration-200 pointer-events-none translate-y-1 group-hover:opacity-100 group-hover:translate-y-0">
-            <div className="flex items-center gap-2 border-b border-border-default pb-3 mb-3">
-              <Award className="h-4 w-4 text-cta" />
-              <h4 className="text-xs font-extrabold text-text-primary uppercase tracking-wider font-mono">Lumiere Study Rank</h4>
-            </div>
-            <div className="space-y-2">
-              <div className="text-[11px] font-semibold uppercase text-text-muted font-mono">Current Tier</div>
-              <div className="flex items-center gap-2 text-sm font-black text-text-primary">
-                <GraduationCap className="h-4 w-4 text-cta" />
-                {streak.malaysianTier}
-              </div>
-              <p className="text-xs leading-relaxed text-text-secondary">
-                You studied 6/7 days this week. Rank progress toward <span className="font-bold text-cta">Royal Award</span>: 80%
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Mini academic rank badge */}
-        <div className="hidden h-9 items-center gap-1.5 rounded-xl border border-border-default bg-bg-elevated/60 px-3 text-text-muted xl:flex">
-          <GraduationCap className="h-3.5 w-3.5 text-cta" />
-          <span className="text-[11px] font-bold tracking-tight font-mono">{streak.malaysianTier}</span>
-        </div>
-
         {/* Notification bell */}
         <button 
           id="notif-bell"

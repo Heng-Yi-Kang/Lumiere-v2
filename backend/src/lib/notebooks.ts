@@ -22,6 +22,9 @@ export function serializeNotebook(notebook: NotebookWithFiles) {
       uploadDate: file.uploadDate,
       status: file.status as 'processing' | 'ready',
       summary: file.summary ?? undefined,
+      summaryError: file.summaryError ?? undefined,
+      summaryGeneratedAt: file.summaryGeneratedAt?.toISOString(),
+      summaryStatus: file.summaryStatus as 'idle' | 'in-progress' | 'done' | 'error',
       totalPages: file.totalPages ?? undefined,
     })),
   };

@@ -23,8 +23,13 @@ vi.mock('@/lib/rag', () => ({
   indexNotebookFileForRag: vi.fn().mockResolvedValue(1),
 }));
 
+vi.mock('@/lib/notebook-file-summary-job', () => ({
+  startNotebookFileSummaryJob: vi.fn(),
+}));
+
 import { POST } from './route';
 import { indexNotebookFileForRag } from '@/lib/rag';
+import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 
 describe('POST /api/notebooks/[notebookId]/files', () => {
   const originalUploadRoot = process.env.NOTEBOOK_UPLOAD_ROOT;
@@ -49,6 +54,7 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     prismaMock.notebook.findUnique.mockReset();
     prismaMock.notebook.update.mockReset();
     vi.mocked(indexNotebookFileForRag).mockResolvedValue(1);
+    vi.mocked(startNotebookFileSummaryJob).mockReset();
   });
 
   afterEach(async () => {
@@ -109,6 +115,9 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
           sourcePath: '',
           extractedText: 'plain text content',
           summary: null,
+          summaryError: null,
+          summaryGeneratedAt: null,
+          summaryStatus: 'in-progress',
           totalPages: null,
         },
       ],
@@ -130,6 +139,9 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
           status: 'ready',
           sourcePath: data.files.create.sourcePath,
           summary: data.files.create.summary,
+          summaryError: data.files.create.summaryError,
+          summaryGeneratedAt: null,
+          summaryStatus: data.files.create.summaryStatus,
           totalPages: data.files.create.totalPages,
         },
       ],
@@ -151,10 +163,12 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     expect(response.status).toBe(201);
     expect(payload.notebook.files).toHaveLength(1);
     expect(payload.notebook.files[0].summary).toBeUndefined();
+    expect(payload.notebook.files[0].summaryStatus).toBe('in-progress');
     expect(prismaMock.notebook.update).toHaveBeenCalledTimes(1);
 
     const createdFileData = prismaMock.notebook.update.mock.calls[0][0].data.files.create;
     expect(createdFileData.summary).toBeNull();
+    expect(createdFileData.summaryStatus).toBe('in-progress');
 
     const storedPath = createdFileData.sourcePath as string;
     const storedContent = await readFile(storedPath, 'utf8');
@@ -166,21 +180,15 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
         notebookId: 'nb-1',
       }),
     );
+    expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
   });
 
-  it('persists the AI-generated summary in the notebook file row', async () => {
+  it('schedules summary generation instead of blocking upload on the chat model', async () => {
     process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
     process.env.CHAT_API_KEY = 'test-chat-key';
     process.env.CHAT_MODEL = 'study-summary-model';
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      choices: [
-        {
-          message: {
-            content: 'AI route summary for refetching.',
-          },
-        },
-      ],
-    }))));
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
 
     const returnedNotebook = {
       id: 'nb-1',
@@ -206,7 +214,10 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
             status: 'ready',
             sourcePath: 'stored-path',
             extractedText: 'plain text content',
-            summary: 'AI route summary for refetching.',
+            summary: null,
+            summaryError: null,
+            summaryGeneratedAt: null,
+            summaryStatus: 'in-progress',
             totalPages: null,
           },
         ],
@@ -225,6 +236,9 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
           status: 'ready',
           sourcePath: data.files.create.sourcePath,
           summary: data.files.create.summary,
+          summaryError: data.files.create.summaryError,
+          summaryGeneratedAt: null,
+          summaryStatus: data.files.create.summaryStatus,
           totalPages: data.files.create.totalPages,
         },
       ],
@@ -242,11 +256,13 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     const payload = await response.json();
 
     expect(response.status).toBe(201);
-    expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.summary).toBe('AI route summary for refetching.');
-    expect(payload.notebook.files[0].summary).toBe('AI route summary for refetching.');
+    expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.summaryStatus).toBe('in-progress');
+    expect(payload.notebook.files[0].summaryStatus).toBe('in-progress');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
   });
 
-  it('persists an AI-generated summary from an audio transcript', async () => {
+  it('schedules summary generation from an audio transcript', async () => {
     process.env.STT_API_BASE = 'https://stt.example.test/v1';
     process.env.STT_API_KEY = 'test-stt-key';
     process.env.STT_MODEL = 'qwen3-asr-1.7b';
@@ -256,16 +272,7 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     const transcript = 'Lecture transcript from an uploaded MP3 about graph traversal.';
     vi.stubGlobal('fetch', vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ text: transcript })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        choices: [
-          {
-            message: {
-              content: 'Graph traversal audio summary.',
-            },
-          },
-        ],
-      }))));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: transcript }))));
 
     const returnedNotebook = {
       id: 'nb-1',
@@ -291,7 +298,10 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
             status: 'ready',
             sourcePath: 'stored-path',
             extractedText: transcript,
-            summary: 'Graph traversal audio summary.',
+            summary: null,
+            summaryError: null,
+            summaryGeneratedAt: null,
+            summaryStatus: 'in-progress',
             totalPages: null,
           },
         ],
@@ -310,6 +320,9 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
           status: 'ready',
           sourcePath: data.files.create.sourcePath,
           summary: data.files.create.summary,
+          summaryError: data.files.create.summaryError,
+          summaryGeneratedAt: null,
+          summaryStatus: data.files.create.summaryStatus,
           totalPages: data.files.create.totalPages,
         },
       ],
@@ -325,14 +338,12 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
       params: Promise.resolve({ notebookId: 'nb-1' }),
     });
     const payload = await response.json();
-    const fetchMock = vi.mocked(fetch);
-    const summaryRequest = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
 
     expect(response.status).toBe(201);
     expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.extractedText).toBe(transcript);
-    expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.summary).toBe('Graph traversal audio summary.');
-    expect(payload.notebook.files[0].summary).toBe('Graph traversal audio summary.');
-    expect(summaryRequest.messages[1].content).toContain(transcript);
+    expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.summaryStatus).toBe('in-progress');
+    expect(payload.notebook.files[0].summaryStatus).toBe('in-progress');
+    expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
   });
 
   it('removes the uploaded file row and stored file when indexing fails', async () => {
@@ -356,6 +367,9 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
           status: 'ready',
           sourcePath: data.files.create.sourcePath,
           summary: data.files.create.summary,
+          summaryError: data.files.create.summaryError,
+          summaryGeneratedAt: null,
+          summaryStatus: data.files.create.summaryStatus,
           totalPages: data.files.create.totalPages,
         },
       ],

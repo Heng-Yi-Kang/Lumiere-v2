@@ -15,6 +15,9 @@ export interface FileItem {
   status: 'processing' | 'ready';
   transcript?: TranscriptSegment[];
   summary?: string;
+  summaryError?: string;
+  summaryGeneratedAt?: string;
+  summaryStatus?: 'idle' | 'in-progress' | 'done' | 'error';
   totalPages?: number;
 }
 
@@ -28,6 +31,9 @@ export interface NotebookFilePreview {
   previewContent?: string;
   totalPages?: number;
   summary?: string;
+  summaryError?: string;
+  summaryGeneratedAt?: string;
+  summaryStatus?: 'idle' | 'in-progress' | 'done' | 'error';
 }
 
 export interface TranscriptSegment {
