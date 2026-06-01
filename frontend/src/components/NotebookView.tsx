@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { ChatGroundingScope, ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
 import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
+import { getGroundedChatErrorMessage } from '../lib/apiErrors';
 import { validateNotebookUpload } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 
@@ -308,10 +309,9 @@ export default function NotebookView({
       const assistantMessage: ChatMessage = {
         id: `file-chat-error-${Date.now()}`,
         role: 'assistant',
-        text: error instanceof Error ? error.message : 'Grounded chat failed.',
+        text: getGroundedChatErrorMessage(error),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         citations: [],
-        grounded: false,
       };
 
       updateFileChatMessages(file.id, (messages) => [...messages, assistantMessage]);

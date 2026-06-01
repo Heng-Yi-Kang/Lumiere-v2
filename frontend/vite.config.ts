@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
+const API_PROXY_TIMEOUT_MS = 180_000;
+
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
@@ -19,10 +21,14 @@ export default defineConfig(() => {
         '/api': {
           target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:3001',
           changeOrigin: true,
+          proxyTimeout: API_PROXY_TIMEOUT_MS,
+          timeout: API_PROXY_TIMEOUT_MS,
         },
         '/uploads': {
           target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:3001',
           changeOrigin: true,
+          proxyTimeout: API_PROXY_TIMEOUT_MS,
+          timeout: API_PROXY_TIMEOUT_MS,
         },
       },
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Bot, FileText, Minimize2, Send, ShieldCheck, Sparkles, Trash2, Video, X } from 'lucide-react';
+import { getGroundedChatErrorMessage } from '../lib/apiErrors';
 import { askGroundedNotebookChat } from '../lib/notebooksApi';
 import { ChatGroundingScope, ChatMessage, GroundedChatRequest, Notebook } from '../types';
 
@@ -129,10 +130,9 @@ export default function StudyBuddy({
       const aiMsg: ChatMessage = {
         id: `buddy-${Date.now()}`,
         role: 'assistant',
-        text: error instanceof Error ? error.message : 'Grounded chat failed.',
+        text: getGroundedChatErrorMessage(error),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         citations: [],
-        grounded: false,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
