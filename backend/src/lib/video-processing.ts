@@ -52,8 +52,28 @@ function getPositiveNumberEnv(name: string, fallback: number) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+function getOptionalEnv(...names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
 function buildChatCompletionsUrl(baseUrl: string) {
   return `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+}
+
+export function getVideoFrameProviderConfig() {
+  return {
+    apiKey: getOptionalEnv('VLM_API_KEY', 'CHAT_API_KEY'),
+    baseUrl: getOptionalEnv('VLM_API_BASE_URL', 'VLM_API_BASE', 'CHAT_API_BASE_URL') || 'https://api.openai.com/v1',
+    model: getOptionalEnv('VLM_MODEL', 'CHAT_MODEL'),
+  };
 }
 
 function formatTimestamp(seconds: number) {
@@ -198,9 +218,7 @@ async function extractFrames(videoPath: string, outputDirectory: string, duratio
 }
 
 async function describeFrame(filePath: string) {
-  const apiKey = (process.env.VLM_API_KEY || process.env.CHAT_API_KEY)?.trim();
-  const model = (process.env.VLM_MODEL || process.env.CHAT_MODEL)?.trim();
-  const baseUrl = (process.env.VLM_API_BASE_URL || process.env.CHAT_API_BASE_URL || 'https://api.openai.com/v1').trim();
+  const { apiKey, baseUrl, model } = getVideoFrameProviderConfig();
 
   if (!apiKey || !model) {
     throw new VideoProcessingError('VLM_API_KEY/CHAT_API_KEY and VLM_MODEL/CHAT_MODEL are required for video frame description.');

@@ -93,7 +93,7 @@ Each sampled JPG frame is base64 encoded and sent to `/chat/completions` with im
 
 Environment variables:
 
-- `VLM_API_BASE_URL`, falling back to `CHAT_API_BASE_URL`, then `https://api.openai.com/v1`
+- `VLM_API_BASE_URL` or legacy `VLM_API_BASE`, falling back to `CHAT_API_BASE_URL`, then `https://api.openai.com/v1`
 - `VLM_API_KEY`, falling back to `CHAT_API_KEY`
 - `VLM_MODEL`, falling back to `CHAT_MODEL`
 - `VLM_TIMEOUT_MS`, default `45000`
