@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LoaderCircle, Send, Sparkles, Trash2 } from 'lucide-react';
+import { FileText, LoaderCircle, Send, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 import { ChatMessage } from '../types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { getNotebookColorTone } from '../lib/notebookColors';
+import { askGroundedNotebookChat } from '../lib/notebooksApi';
+import { getGroundedChatErrorMessage } from '../lib/apiErrors';
 
 interface NotebookChatPanelProps {
   notebookId: string;
@@ -10,35 +12,23 @@ interface NotebookChatPanelProps {
   color?: string;
 }
 
-const MOCK_REPLIES = [
-  "I'm a frontend-only assistant, so I can't read your files — but keep going, you're doing great!",
-  'Study tip: try teaching this topic to an imaginary friend. If you can explain it simply, you know it.',
-  "Since I'm offline, I can't ground my answer in your notebook. For grounded help, open a file and use 'Ask This File'.",
-  'Active recall beats re-reading every time. Close your notes and write down what you remember!',
-  'Break your study into 25-minute Pomodoro chunks. Focus hard, then rest for 5 minutes.',
-  'Mock mode: if you need real AI answers, click the floating Study Buddy button at the bottom right.',
-];
-
-function getMockReply(): string {
-  return MOCK_REPLIES[Math.floor(Math.random() * MOCK_REPLIES.length)];
-}
-
 function createInitialMessage(notebookName: string): ChatMessage {
   return {
-    id: 'mock-init',
+    id: 'notebook-chat-init',
     role: 'assistant',
-    text: `Welcome to "${notebookName}"! This is a frontend-only study space. Ask anything — I'll do my best to motivate and guide you.`,
+    text: `Ask questions about "${notebookName}". Answers are grounded across all indexed files uploaded to this notebook and will show references when context is found.`,
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    grounded: true,
     suggestedPrompts: [
-      'Give me a study tip',
-      'How should I revise for exams?',
-      'What is active recall?',
+      'Summarize the uploaded files in this notebook',
+      'What are the likely exam angles from this material?',
+      'Make a revision checklist from the grounded context',
     ],
   };
 }
 
 export default function NotebookChatPanel({ notebookId, notebookName, color }: NotebookChatPanelProps) {
-  const storageKey = `lumiere_notebook_chat_${notebookId}`;
+  const storageKey = `lumiere_notebook_grounded_chat_${notebookId}`;
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -62,31 +52,50 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
     localStorage.setItem(storageKey, JSON.stringify(messages));
   }, [messages, isTyping, storageKey]);
 
-  const handleSend = (text: string) => {
+  const handleSend = async (text: string) => {
     if (!text.trim() || isTyping) {
       return;
     }
+    const submittedQuestion = text.trim();
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
       role: 'user',
-      text: text.trim(),
+      text: submittedQuestion,
       timestamp,
     };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
-    window.setTimeout(() => {
-      const reply: ChatMessage = {
+    try {
+      const response = await askGroundedNotebookChat({
+        notebookId,
+        question: submittedQuestion,
+      });
+
+      const assistantMessage: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: 'assistant',
-        text: getMockReply(),
+        text: response.answer,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        citations: response.citations,
+        grounded: response.grounded,
       };
-      setMessages((prev) => [...prev, reply]);
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      const assistantMessage: ChatMessage = {
+        id: `bot-error-${Date.now()}`,
+        role: 'assistant',
+        text: getGroundedChatErrorMessage(error),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        citations: [],
+        grounded: false,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
       setIsTyping(false);
-    }, 800);
+    }
   };
 
   const clearHistory = () => {
@@ -104,7 +113,7 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
           </div>
           <div>
             <h2 className="text-sm font-black text-text-primary font-display">Notebook Chat</h2>
-            <p className="text-[10px] text-text-muted">Frontend-only assistant</p>
+            <p className="text-[10px] text-text-muted">Grounded on all notebook files</p>
           </div>
         </div>
         <button
@@ -142,14 +151,45 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
               ) : (
                 <div className="whitespace-pre-wrap font-semibold leading-relaxed">{msg.text}</div>
               )}
+
+              {msg.role === 'assistant' && msg.grounded === false ? (
+                <div className="mt-2 rounded-lg border border-cta/20 bg-cta-subtle px-2 py-1.5 text-[9px] font-bold text-cta">
+                  No grounded notebook context was found.
+                </div>
+              ) : null}
+
+              {msg.citations && msg.citations.length > 0 ? (
+                <div className="mt-2.5 border-t border-border-subtle pt-2">
+                  <div className="mb-1.5 flex items-center gap-1 text-[8.5px] font-black uppercase tracking-wider text-success font-mono">
+                    <ShieldCheck className="h-3 w-3" />
+                    Grounded references
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {msg.citations.map((citation, index) => (
+                      <span
+                        key={`${citation.fileId}-${citation.position}-${index}`}
+                        className="inline-flex max-w-full items-center gap-1 rounded border border-success/20 bg-success-subtle px-1.5 py-0.5 text-[9px] font-extrabold text-success"
+                      >
+                        <FileText className="h-2.5 w-2.5 shrink-0" />
+                        <span className="max-w-[120px] truncate">{citation.fileName}</span>
+                        <span className="rounded-sm bg-success/10 px-0.5 font-mono text-[8px]">
+                          {citation.position}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               {msg.suggestedPrompts && msg.suggestedPrompts.length > 0 && (
                 <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-2">
                   {msg.suggestedPrompts.map((prompt) => (
                     <button
                       key={prompt}
                       type="button"
-                      onClick={() => handleSend(prompt)}
-                      className="w-full rounded-lg border border-border-subtle bg-bg-elevated/40 px-2 py-1.5 text-left text-[9.5px] font-bold text-text-secondary transition hover:border-accent/30 hover:bg-bg-elevated/70 hover:text-text-primary"
+                      onClick={() => void handleSend(prompt)}
+                      disabled={isTyping}
+                      className="w-full rounded-lg border border-border-subtle bg-bg-elevated/40 px-2 py-1.5 text-left text-[9.5px] font-bold text-text-secondary transition hover:border-accent/30 hover:bg-bg-elevated/70 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {prompt}
                     </button>
@@ -163,7 +203,7 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
           <div className="flex justify-start">
             <div className="inline-flex items-center gap-2 rounded-2xl border border-border-subtle bg-bg-elevated/60 px-3 py-2 text-[9px] font-extrabold uppercase tracking-wide text-text-muted font-mono">
               <LoaderCircle className="h-3.5 w-3.5 animate-spin text-accent-hover" />
-              Thinking...
+              Retrieving grounded context
             </div>
           </div>
         )}
@@ -172,7 +212,7 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          handleSend(input);
+          void handleSend(input);
         }}
         className="flex items-center gap-2 border-t border-border-subtle bg-bg-elevated/35 p-3 rounded-2xl"
       >
@@ -180,7 +220,7 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
           type="text"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Ask anything..."
+          placeholder="Ask across this notebook..."
           className="min-w-0 flex-1 rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2 text-xs font-semibold text-text-primary outline-none transition placeholder:text-text-muted focus:border-accent"
         />
         <button

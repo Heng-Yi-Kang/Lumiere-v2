@@ -740,6 +740,7 @@ export default function NotebookView({
         </div>
 
         <NotebookChatPanel
+          key={notebook.id}
           notebookId={notebook.id}
           notebookName={notebook.name}
           color={notebook.color}
