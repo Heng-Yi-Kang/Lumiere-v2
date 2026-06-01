@@ -138,6 +138,33 @@ export function buildVideoRagSegments(params: {
   });
 }
 
+export function buildTimestampedTranscriptPreview(segments: VideoRagSegment[]) {
+  const transcriptSegments = segments
+    .map((segment) => {
+      const transcript = segment.metadata.transcript.trim();
+
+      if (!transcript) {
+        return undefined;
+      }
+
+      return [
+        `[${formatTimestamp(segment.metadata.videoTimestampStart)} - ${formatTimestamp(segment.metadata.videoTimestampEnd)}]`,
+        transcript,
+      ].join('\n');
+    })
+    .filter((segment): segment is string => Boolean(segment));
+
+  if (!transcriptSegments.length) {
+    return 'No spoken transcript is available for this video.';
+  }
+
+  return [
+    'Timestamped transcript',
+    '',
+    ...transcriptSegments,
+  ].join('\n');
+}
+
 async function runMediaCommand(command: string, args: string[]) {
   try {
     return await execFileAsync(command, args, {
@@ -312,17 +339,7 @@ export async function processVideoFile(params: {
       segmentSeconds: getPositiveNumberEnv('VIDEO_SEGMENT_SECONDS', DEFAULT_VIDEO_SEGMENT_SECONDS),
       transcript,
     });
-    const previewContent = [
-      'Transcript',
-      transcript,
-      '',
-      'Visual timeline',
-      ...ragSegments.map((segment) => [
-        `[${formatTimestamp(segment.metadata.videoTimestampStart)} - ${formatTimestamp(segment.metadata.videoTimestampEnd)}]`,
-        segment.metadata.frameDescription || 'No sampled frame description is available.',
-        segment.metadata.transcript ? `Transcript excerpt: ${segment.metadata.transcript}` : '',
-      ].filter(Boolean).join('\n')),
-    ].join('\n');
+    const previewContent = buildTimestampedTranscriptPreview(ragSegments);
 
     return {
       durationSeconds,

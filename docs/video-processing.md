@@ -52,7 +52,7 @@ Stages:
 5. Send sampled frames to a VLM through an OpenAI-compatible chat completions API.
 6. Build timestamped video segments from transcript slices plus frame descriptions.
 7. Save the plain transcript as `NotebookFile.extractedText`.
-8. Save a transcript plus visual timeline as `NotebookFile.previewContent`.
+8. Save a timestamped transcript as `NotebookFile.previewContent`.
 9. Embed each timestamped segment into `NotebookFileChunk`.
 
 ## Audio Transcription
@@ -135,10 +135,11 @@ Embeddings are still text embeddings. The embedded content includes the timestam
 The stored notebook file preview exposes:
 
 - video player using the uploaded source file
-- transcript
-- visual timeline with timestamped frame descriptions
+- timestamped transcript
 
 The frontend renders this in `frontend/src/components/NotebookView.tsx`.
+
+Visual frame descriptions stay server-side in `NotebookFileChunk.content` and chunk metadata for retrieval. They are not included in the file preview payload shown by the frontend.
 
 ## Operational Requirements
 

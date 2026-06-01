@@ -864,7 +864,7 @@ export default function NotebookView({
 
                     {isAudioPreview || isVideoPreview ? (
                       <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
-                        {isVideoPreview ? 'Transcript and visual timeline' : 'Transcript'}
+                        {isVideoPreview ? 'Timestamped transcript' : 'Transcript'}
                       </div>
                     ) : null}
 
