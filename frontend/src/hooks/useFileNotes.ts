@@ -1,139 +1,176 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+  createFileNote,
+  deleteFileNote,
+  fetchFileNotes,
+  updateFileNote,
+} from '../lib/notebooksApi';
 import { FileNote } from '../types';
 
-const STORAGE_KEY = 'lumiere_file_notes';
-
-function readNotes(): Record<string, FileNote[]> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, FileNote[]>;
-    return parsed || {};
-  } catch {
-    return {};
-  }
-}
-
-function writeNotes(notes: Record<string, FileNote[]>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-}
-
-export function useFileNotes(activeFileIds: string[]) {
+export function useFileNotes(notebookId?: string, activeFileId?: string) {
   const [allNotes, setAllNotes] = useState<Record<string, FileNote[]>>({});
+  const [loadedFileIds, setLoadedFileIds] = useState<Record<string, true>>({});
+  const [loadingByFileId, setLoadingByFileId] = useState<Record<string, boolean>>({});
+  const [mutationByFileId, setMutationByFileId] = useState<Record<string, boolean>>({});
+  const [errorByFileId, setErrorByFileId] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setAllNotes(readNotes());
-  }, []);
-
-  const persist = useCallback((next: Record<string, FileNote[]>) => {
-    setAllNotes(next);
-    writeNotes(next);
-  }, []);
+    setAllNotes({});
+    setLoadedFileIds({});
+    setLoadingByFileId({});
+    setMutationByFileId({});
+    setErrorByFileId({});
+  }, [notebookId]);
 
   const getNotesForFile = useCallback(
     (fileId: string) => allNotes[fileId] || [],
     [allNotes],
   );
 
-  const addNote = useCallback(
-    (fileId: string, title: string, body: string) => {
-      const now = new Date().toISOString();
-      const note: FileNote = {
-        id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        fileId,
-        title: title.trim() || 'Untitled note',
-        body: body.trim(),
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      persist({
-        ...allNotes,
-        [fileId]: [...(allNotes[fileId] || []), note],
-      });
-
-      return note;
-    },
-    [allNotes, persist],
-  );
-
-  const updateNote = useCallback(
-    (fileId: string, noteId: string, title: string, body: string) => {
-      const list = allNotes[fileId] || [];
-      const nextList = list.map((n) =>
-        n.id === noteId
-          ? {
-              ...n,
-              title: title.trim() || n.title,
-              body: body.trim(),
-              updatedAt: new Date().toISOString(),
-            }
-          : n,
-      );
-
-      persist({
-        ...allNotes,
-        [fileId]: nextList,
-      });
-    },
-    [allNotes, persist],
-  );
-
-  const deleteNote = useCallback(
-    (fileId: string, noteId: string) => {
-      const list = allNotes[fileId] || [];
-      const nextList = list.filter((n) => n.id !== noteId);
-      const next = { ...allNotes };
-
-      if (nextList.length === 0) {
-        delete next[fileId];
-      } else {
-        next[fileId] = nextList;
+  const loadNotesForFile = useCallback(
+    async (fileId: string, force = false) => {
+      if (!notebookId) {
+        return;
       }
 
-      persist(next);
+      setLoadingByFileId((current) => ({
+        ...current,
+        [fileId]: true,
+      }));
+      setErrorByFileId((current) => {
+        const next = { ...current };
+        delete next[fileId];
+        return next;
+      });
+
+      try {
+        const notes = await fetchFileNotes(notebookId, fileId);
+        setAllNotes((current) => ({
+          ...current,
+          [fileId]: notes,
+        }));
+        setLoadedFileIds((current) => ({
+          ...current,
+          [fileId]: true,
+        }));
+      } catch (error) {
+        setErrorByFileId((current) => ({
+          ...current,
+          [fileId]: error instanceof Error ? error.message : 'Failed to load notes.',
+        }));
+      } finally {
+        setLoadingByFileId((current) => ({
+          ...current,
+          [fileId]: false,
+        }));
+      }
     },
-    [allNotes, persist],
+    [notebookId],
   );
 
-  const deleteNotesForFile = useCallback(
-    (fileId: string) => {
-      const next = { ...allNotes };
-      delete next[fileId];
-      persist(next);
-    },
-    [allNotes, persist],
-  );
-
-  // Cleanup orphaned notes when active file list changes (skip if empty to avoid wiping all notes)
   useEffect(() => {
-    if (activeFileIds.length === 0) {
+    if (!activeFileId) {
       return;
     }
 
-    const current = readNotes();
-    const fileIdSet = new Set(activeFileIds);
-    let changed = false;
-    const next: Record<string, FileNote[]> = {};
+    if (loadedFileIds[activeFileId] || loadingByFileId[activeFileId] || errorByFileId[activeFileId]) {
+      return;
+    }
 
-    for (const [fileId, notes] of Object.entries(current)) {
-      if (fileIdSet.has(fileId)) {
-        next[fileId] = notes;
-      } else {
-        changed = true;
+    void loadNotesForFile(activeFileId);
+  }, [activeFileId, errorByFileId, loadedFileIds, loadingByFileId, loadNotesForFile]);
+
+  const runMutation = useCallback(
+    async (fileId: string, action: () => Promise<void>) => {
+      if (!notebookId) {
+        throw new Error('Notebook context is required to save notes.');
       }
-    }
 
-    if (changed) {
-      persist(next);
-    }
-  }, [activeFileIds, persist]);
+      setMutationByFileId((current) => ({
+        ...current,
+        [fileId]: true,
+      }));
+      setErrorByFileId((current) => {
+        const next = { ...current };
+        delete next[fileId];
+        return next;
+      });
+
+      try {
+        await action();
+      } catch (error) {
+        setErrorByFileId((current) => ({
+          ...current,
+          [fileId]: error instanceof Error ? error.message : 'Failed to save notes.',
+        }));
+        throw error;
+      } finally {
+        setMutationByFileId((current) => ({
+          ...current,
+          [fileId]: false,
+        }));
+      }
+    },
+    [notebookId],
+  );
+
+  const addNote = useCallback(
+    async (fileId: string, title: string, body: string) => {
+      await runMutation(fileId, async () => {
+        const createdNote = await createFileNote(notebookId!, fileId, {
+          title: title.trim() || 'Untitled note',
+          body: body.trim(),
+        });
+        setAllNotes((current) => ({
+          ...current,
+          [fileId]: [createdNote, ...(current[fileId] || [])],
+        }));
+        setLoadedFileIds((current) => ({
+          ...current,
+          [fileId]: true,
+        }));
+      });
+    },
+    [notebookId, runMutation],
+  );
+
+  const updateNoteForFile = useCallback(
+    async (fileId: string, noteId: string, title: string, body: string) => {
+      await runMutation(fileId, async () => {
+        const updatedNote = await updateFileNote(notebookId!, fileId, noteId, {
+          title: title.trim(),
+          body: body.trim(),
+        });
+        setAllNotes((current) => ({
+          ...current,
+          [fileId]: (current[fileId] || []).map((note) => (note.id === noteId ? updatedNote : note)),
+        }));
+      });
+    },
+    [notebookId, runMutation],
+  );
+
+  const deleteNoteForFile = useCallback(
+    async (fileId: string, noteId: string) => {
+      await runMutation(fileId, async () => {
+        await deleteFileNote(notebookId!, fileId, noteId);
+        setAllNotes((current) => ({
+          ...current,
+          [fileId]: (current[fileId] || []).filter((note) => note.id !== noteId),
+        }));
+      });
+    },
+    [notebookId, runMutation],
+  );
 
   return {
     getNotesForFile,
+    isLoadingFile: (fileId: string) => Boolean(loadingByFileId[fileId]),
+    isMutatingFile: (fileId: string) => Boolean(mutationByFileId[fileId]),
+    getErrorForFile: (fileId: string) => errorByFileId[fileId] || '',
+    reloadFileNotes: (fileId: string) => loadNotesForFile(fileId, true),
     addNote,
-    updateNote,
-    deleteNote,
-    deleteNotesForFile,
+    updateNote: updateNoteForFile,
+    deleteNote: deleteNoteForFile,
   };
 }

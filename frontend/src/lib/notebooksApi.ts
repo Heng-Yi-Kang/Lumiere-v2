@@ -1,4 +1,4 @@
-import { GroundedChatResponse, Notebook, NotebookFilePreview } from '../types';
+import { FileNote, GroundedChatResponse, Notebook, NotebookFilePreview } from '../types';
 
 export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
 
@@ -14,6 +14,12 @@ type NotebookPreviewResponse = {
 };
 
 type GroundedChatApiResponse = GroundedChatResponse & {
+  error?: string;
+};
+
+type FileNotesResponse = {
+  notes?: FileNote[];
+  note?: FileNote;
   error?: string;
 };
 
@@ -158,6 +164,70 @@ export async function askGroundedNotebookChat(input: {
         fileId: input.fileId,
         question: input.question,
       }),
+    },
+  );
+}
+
+export async function fetchFileNotes(notebookId: string, fileId: string) {
+  const payload = await requestJson<FileNotesResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}/notes`,
+  );
+
+  return payload.notes || [];
+}
+
+export async function createFileNote(
+  notebookId: string,
+  fileId: string,
+  input: {
+    title: string;
+    body: string;
+  },
+) {
+  const payload = await requestJson<FileNotesResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}/notes`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!payload.note) {
+    throw new Error('Created note was not returned by the API');
+  }
+
+  return payload.note;
+}
+
+export async function updateFileNote(
+  notebookId: string,
+  fileId: string,
+  noteId: string,
+  input: {
+    title: string;
+    body: string;
+  },
+) {
+  const payload = await requestJson<FileNotesResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}/notes/${encodeURIComponent(noteId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!payload.note) {
+    throw new Error('Updated note was not returned by the API');
+  }
+
+  return payload.note;
+}
+
+export async function deleteFileNote(notebookId: string, fileId: string, noteId: string) {
+  await requestJson<void>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}/notes/${encodeURIComponent(noteId)}`,
+    {
+      method: 'DELETE',
     },
   );
 }

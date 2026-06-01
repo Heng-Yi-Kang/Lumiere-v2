@@ -121,7 +121,7 @@ export default function NotebookView({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const fileNoteApi = useFileNotes(notebook?.files.map((f) => f.id) ?? []);
+  const fileNoteApi = useFileNotes(notebook?.id, selectedMaterial?.id);
 
   useEffect(() => {
     setSelectedMaterial(null);
@@ -385,8 +385,6 @@ export default function NotebookView({
       if (selectedMaterial?.id === file.id) {
         setSelectedMaterial(null);
       }
-
-      fileNoteApi.deleteNotesForFile(file.id);
     } catch (error) {
       setPreviewError(error instanceof Error ? error.message : 'Delete failed.');
     } finally {
@@ -1072,6 +1070,12 @@ export default function NotebookView({
                     fileId={selectedMaterial.id}
                     fileName={selectedMaterial.name}
                     notes={fileNoteApi.getNotesForFile(selectedMaterial.id)}
+                    isLoading={fileNoteApi.isLoadingFile(selectedMaterial.id)}
+                    isMutating={fileNoteApi.isMutatingFile(selectedMaterial.id)}
+                    error={fileNoteApi.getErrorForFile(selectedMaterial.id)}
+                    onRetry={() => {
+                      void fileNoteApi.reloadFileNotes(selectedMaterial.id);
+                    }}
                     notebookColor={notebook?.color}
                     onAdd={fileNoteApi.addNote}
                     onUpdate={fileNoteApi.updateNote}
