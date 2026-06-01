@@ -10,7 +10,7 @@ export default function PriorityGoalBox({ goal }: PriorityGoalBoxProps) {
   if (!goal) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-30 w-[200px] md:w-[240px]">
+    <div className="fixed bottom-4 left-4 z-30 w-[140px] md:w-[152px]">
       <div className="surface-glass rounded-2xl p-4 space-y-2 border border-cta/20">
         <div className="flex items-center gap-1.5">
           <Star className="h-3.5 w-3.5 text-cta fill-cta" />
