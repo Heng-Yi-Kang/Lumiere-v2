@@ -22,7 +22,9 @@ function buildExtractedTextFallbackResults(files: NotebookFileForChat[], limit =
         content,
         fileId: file.id,
         fileName: file.name,
+        rerankScore: null,
         score: 1,
+        vectorScore: 1,
       })),
     )
     .slice(0, limit);

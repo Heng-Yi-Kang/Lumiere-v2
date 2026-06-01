@@ -27,6 +27,26 @@ import { generateChatCompletion } from '@/lib/openai-chat';
 import { diversifyRagResults, formatRagContextForPrompt, retrieveNotebookRagContext } from '@/lib/rag';
 import { POST } from './route';
 
+function ragSearchResult(params: {
+  chunkIndex?: number;
+  content: string;
+  fileId?: string;
+  fileName?: string;
+  score?: number;
+}) {
+  const score = params.score ?? 0.9;
+
+  return {
+    chunkIndex: params.chunkIndex ?? 0,
+    content: params.content,
+    fileId: params.fileId ?? 'file-1',
+    fileName: params.fileName ?? 'week-1.txt',
+    rerankScore: null,
+    score,
+    vectorScore: score,
+  };
+}
+
 describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
   beforeEach(() => {
     prismaMock.notebook.findUnique.mockReset();
@@ -89,13 +109,10 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
       name: 'Algorithms',
     });
     vi.mocked(retrieveNotebookRagContext).mockResolvedValue([
-      {
-        chunkIndex: 0,
+      ragSearchResult({
         content: 'Greedy algorithms choose local optima.',
-        fileId: 'file-1',
-        fileName: 'week-1.txt',
         score: 0.92,
-      },
+      }),
     ]);
 
     const response = await POST(
@@ -134,7 +151,9 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
           content: 'Greedy algorithms choose local optima.',
           fileId: 'file-1',
           fileName: 'week-1.txt',
+          rerankScore: null,
           score: 0.92,
+          vectorScore: 0.92,
         },
       ],
       {
@@ -156,20 +175,18 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
       name: 'Algorithms',
     });
     const retrievedResults = [
-      {
-        chunkIndex: 0,
+      ragSearchResult({
         content: 'First retrieved chunk.',
         fileId: 'file-1',
         fileName: 'week-1.txt',
         score: 0.95,
-      },
-      {
-        chunkIndex: 0,
+      }),
+      ragSearchResult({
         content: 'Second retrieved chunk.',
         fileId: 'file-2',
         fileName: 'week-2.txt',
         score: 0.94,
-      },
+      }),
     ];
     const diversifiedResults = [retrievedResults[1]];
     vi.mocked(retrieveNotebookRagContext).mockResolvedValue(retrievedResults);
@@ -198,13 +215,10 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
       name: 'Algorithms',
     });
     const retrievedResults = [
-      {
-        chunkIndex: 0,
+      ragSearchResult({
         content: 'Scoped chunk.',
-        fileId: 'file-1',
-        fileName: 'week-1.txt',
         score: 0.92,
-      },
+      }),
     ];
     vi.mocked(retrieveNotebookRagContext).mockResolvedValue(retrievedResults);
 
@@ -335,13 +349,10 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
       name: 'Algorithms',
     });
     vi.mocked(retrieveNotebookRagContext).mockResolvedValue([
-      {
-        chunkIndex: 0,
+      ragSearchResult({
         content: 'Greedy algorithms choose local optima.',
-        fileId: 'file-1',
-        fileName: 'week-1.txt',
         score: 0.92,
-      },
+      }),
     ]);
     vi.mocked(generateChatCompletion).mockRejectedValue(new Error('chat provider unavailable'));
 
