@@ -300,7 +300,7 @@ export default function DashboardView({
                 ) : null}
                 {notebooks.map(nb => (
                   <option key={nb.id} value={nb.id} className="bg-bg-overlay text-text-primary">
-                    ({nb.courseCode}) {nb.name}
+                    ({nb.courseLabel || nb.courseCode}) {nb.name}
                   </option>
                 ))}
               </select>
@@ -521,7 +521,7 @@ export default function DashboardView({
               >
                 <div className="flex items-start justify-between">
                   <div className={`rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border font-mono ${colorTone.badge}`}>
-                    {nb.courseCode}
+                    {nb.courseLabel || nb.courseCode}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5 text-xs text-text-muted">

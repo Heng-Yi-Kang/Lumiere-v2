@@ -134,6 +134,7 @@ export interface Notebook {
   id: string;
   name: string;
   courseCode: string;
+  courseLabel?: string;
   color: string;
   description: string;
   fileCount: number;

@@ -484,7 +484,7 @@ export default function NotebookView({
             >
               <div className="flex items-center justify-between">
                 <span className={`rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest border font-mono ${entryTone.badge}`}>
-                  {entry.courseCode}
+                  {entry.courseLabel || entry.courseCode}
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-text-muted">{entry.fileCount} files</span>
@@ -554,7 +554,7 @@ export default function NotebookView({
               </button>
             </div>
             <div className="space-y-1">
-              <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${colorTone?.text || 'text-accent-hover'}`}>{notebook.courseCode}</p>
+              <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${colorTone?.text || 'text-accent-hover'}`}>{notebook.courseLabel || notebook.courseCode}</p>
               <h1 className="text-2xl font-black text-text-primary font-display">{notebook.name}</h1>
               <p className="max-w-3xl text-sm leading-relaxed text-text-secondary font-serif">
                 {notebook.description || 'No description set yet.'}
@@ -868,7 +868,7 @@ export default function NotebookView({
                       </div>
                     ) : null}
 
-                    <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-text-primary font-serif">
+                    <pre className="whitespace-pre-wrap break-words text-base leading-6 text-text-primary font-serif">
                       {activePreview.previewContent || ''}
                     </pre>
                   </div>
@@ -899,17 +899,9 @@ export default function NotebookView({
                         <Sparkles className="h-4 w-4" />
                         Chat LLM Summary
                       </div>
-                      <p className="mt-3 text-sm leading-relaxed text-text-primary font-serif">
+                      <p className="mt-3 text-base leading-relaxed text-text-primary font-serif">
                         {summaryDisplayText}
                       </p>
-                    </div>
-
-                    <div className={`rounded-2xl border bg-bg-elevated/30 p-4 text-sm text-text-secondary font-serif ${colorTone?.subtleBlock || 'border-border-default'}`}>
-                      <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">File Details</div>
-                      <div className="mt-2">Inline preview and download are generated from notebook storage on demand.</div>
-                      {activePreview?.totalPages ? (
-                        <div className="mt-3 text-xs text-text-muted">{activePreview.totalPages} pages detected</div>
-                      ) : null}
                     </div>
                   </div>
                 </div>

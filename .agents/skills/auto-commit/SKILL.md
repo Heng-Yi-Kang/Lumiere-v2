@@ -1,6 +1,6 @@
 ---
 name: auto-commit
-description: Stages all changes (if any), analyzes them, and performs a git commit with a descriptive message. Triggered by "commit my changes" or "/auto-commit".
+description: Stages files changed in the current session first, falls back to remaining changes if none were changed by the agent, analyzes them, and performs a git commit with a descriptive message. Triggered by "commit my changes" or "/auto-commit".
 ---
 
 # Auto-Commit Skill
@@ -13,7 +13,8 @@ Run `git status --porcelain` to see the current state of all files.
 
 ## 2. Stage Changes (if needed)
 
-- If there are **unstaged changes** (files with ` M`, `??`, etc.): run `git add -A`
+- If you changed files in this session: stage only those files with `git add -- <paths>`
+- If you did **not** change any files in this session: stage the remaining changes with `git add -A`
 - If there are **only staged changes** (files with `M `, `A `, etc.): proceed directly to commit
 - If there are **no changes at all**: inform the user and exit
 
@@ -58,22 +59,10 @@ Use the **Conventional Commits** format with an explanatory body:
 
 ## 6. Execute Commit
 
-Run the commit command with a heredoc for proper multi-line formatting:
+Run the commit command with a multi-line message:
 
 ```bash
 git commit -m "[type]: [subject]" -m "- [change 1]" -m "- [change 2]" -m "- [change 3]"
-```
-
-Or use a heredoc if preferred:
-```bash
-git commit -m "$(cat <<'EOF'
-[type]: [subject]
-
-- [change 1]
-- [change 2]
-- [change 3]
-EOF
-)"
 ```
 
 ## 7. Verify
