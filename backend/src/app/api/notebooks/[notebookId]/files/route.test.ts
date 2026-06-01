@@ -346,6 +346,103 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
   });
 
+  it('stores an image VLM description as the file description without scheduling a second summary job', async () => {
+    process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
+    process.env.CHAT_API_KEY = 'test-chat-key';
+    process.env.CHAT_MODEL = 'vision-model';
+    const description = 'A lecture slide image explains binary search with a sorted array diagram.';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [
+        {
+          message: {
+            content: description,
+          },
+        },
+      ],
+    }))));
+
+    const returnedNotebook = {
+      id: 'nb-1',
+      name: 'Algorithms',
+      courseCode: 'CS101',
+      color: 'indigo',
+      description: 'Notes',
+      conceptCount: 4,
+      files: [],
+    };
+    prismaMock.notebook.findUnique
+      .mockResolvedValueOnce({ id: 'nb-1' })
+      .mockResolvedValueOnce({
+        ...returnedNotebook,
+        files: [
+          {
+            id: 'file-1',
+            name: 'binary-search.png',
+            type: 'image',
+            mimeType: 'image/png',
+            size: '11 B',
+            uploadDate: '30 May 2026',
+            status: 'ready',
+            sourcePath: 'stored-path',
+            extractedText: description,
+            summary: description,
+            summaryError: null,
+            summaryGeneratedAt: new Date('2026-06-01T00:00:00.000Z'),
+            summaryStatus: 'done',
+            totalPages: null,
+          },
+        ],
+      });
+    prismaMock.notebook.update.mockImplementation(async ({ data }: { data: { files: { create: Record<string, unknown> } } }) => ({
+      ...returnedNotebook,
+      files: [
+        {
+          id: 'file-1',
+          extractedText: data.files.create.extractedText,
+          name: data.files.create.name,
+          type: data.files.create.type,
+          mimeType: data.files.create.mimeType,
+          size: data.files.create.size,
+          uploadDate: data.files.create.uploadDate,
+          status: 'ready',
+          sourcePath: data.files.create.sourcePath,
+          summary: data.files.create.summary,
+          summaryError: data.files.create.summaryError,
+          summaryGeneratedAt: data.files.create.summaryGeneratedAt,
+          summaryStatus: data.files.create.summaryStatus,
+          totalPages: data.files.create.totalPages,
+        },
+      ],
+    }));
+
+    const formData = new FormData();
+    formData.append('file', new File(['image-bytes'], 'binary-search.png', { type: 'image/png' }));
+
+    const response = await POST(new Request('http://localhost/api/notebooks/nb-1/files', {
+      method: 'POST',
+      body: formData,
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1' }),
+    });
+    const payload = await response.json();
+    const createdFileData = prismaMock.notebook.update.mock.calls[0][0].data.files.create;
+
+    expect(response.status).toBe(201);
+    expect(createdFileData.type).toBe('image');
+    expect(createdFileData.extractedText).toBe(description);
+    expect(createdFileData.summary).toBe(description);
+    expect(createdFileData.summaryStatus).toBe('done');
+    expect(payload.notebook.files[0].summary).toBe(description);
+    expect(indexNotebookFileForRag).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extractedText: description,
+        fileId: 'file-1',
+        notebookId: 'nb-1',
+      }),
+    );
+    expect(startNotebookFileSummaryJob).not.toHaveBeenCalled();
+  });
+
   it('removes the uploaded file row and stored file when indexing fails', async () => {
     prismaMock.notebook.findUnique.mockResolvedValueOnce({ id: 'nb-1' });
     prismaMock.notebook.update.mockImplementation(async ({ data }: { data: { files: { create: Record<string, unknown> } } }) => ({

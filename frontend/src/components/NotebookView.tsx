@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
+  Image,
   ListChecks,
   LoaderCircle,
   MessageSquare,
@@ -26,7 +27,7 @@ import {
 import { ChatGroundingScope, ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
 import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
 import { getGroundedChatErrorMessage } from '../lib/apiErrors';
-import { validateNotebookUpload } from '../lib/notebookUpload';
+import { NOTEBOOK_UPLOAD_ACCEPT, validateNotebookUpload } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useFileNotes } from '../hooks/useFileNotes';
@@ -60,6 +61,8 @@ function getFileIcon(type: FileItem['type']) {
       return <Volume2 className="h-5 w-5 text-accent-hover" />;
     case 'video':
       return <MonitorPlay className="h-5 w-5 text-cta" />;
+    case 'image':
+      return <Image className="h-5 w-5 text-success" />;
     default:
       return <FileText className="h-5 w-5 text-text-muted" />;
   }
@@ -222,14 +225,15 @@ export default function NotebookView({
   const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const isAudioPreview = selectedMaterial?.type === 'audio';
   const isVideoPreview = selectedMaterial?.type === 'video';
+  const isImagePreview = selectedMaterial?.type === 'image';
   const summaryStatus = activePreview?.summaryStatus || selectedMaterial?.summaryStatus || 'idle';
   const summaryError = activePreview?.summaryError || selectedMaterial?.summaryError;
   const summaryText = activePreview?.summary || selectedMaterial?.summary;
   const summaryDisplayText = summaryStatus === 'in-progress'
-    ? 'Generating summary...'
+    ? 'Generating description...'
     : summaryStatus === 'error'
-      ? summaryError || 'Summary generation failed.'
-      : summaryText || 'No chat-generated summary is available for this file.';
+      ? summaryError || 'Description generation failed.'
+      : summaryText || 'No generated description is available for this file.';
   const uploadProgressValue = uploadPhase === 'validating'
     ? 10
     : uploadPhase === 'uploading'
@@ -470,11 +474,11 @@ export default function NotebookView({
                   </div>
                   <div className="rounded-2xl border border-border-default bg-bg-elevated/30 p-4">
                     <div className="text-[11px] font-black uppercase tracking-[0.14em] text-success font-mono">2. Upload your first files</div>
-                    <div className="mt-1 text-sm leading-relaxed text-text-secondary font-serif">Add PDFs, DOCX, PPTX, TXT notes, or lecture audio from classes and revision packs.</div>
+                    <div className="mt-1 text-sm leading-relaxed text-text-secondary font-serif">Add PDFs, DOCX, PPTX, TXT notes, images, or lecture audio from classes and revision packs.</div>
                   </div>
                   <div className="rounded-2xl border border-border-default bg-bg-elevated/30 p-4">
                     <div className="text-[11px] font-black uppercase tracking-[0.14em] text-cta font-mono">3. Study from one place</div>
-                    <div className="mt-1 text-sm leading-relaxed text-text-secondary font-serif">Open the notebook to preview files, review summaries, and ask notebook-grounded questions.</div>
+                    <div className="mt-1 text-sm leading-relaxed text-text-secondary font-serif">Open the notebook to preview files, review descriptions, and ask notebook-grounded questions.</div>
                   </div>
                 </div>
               </div>
@@ -663,7 +667,7 @@ export default function NotebookView({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.mov,.m4v,.webm"
+            accept={NOTEBOOK_UPLOAD_ACCEPT}
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -703,8 +707,8 @@ export default function NotebookView({
                         <span>{file.size}</span>
                         <span>{file.uploadDate}</span>
                         {file.totalPages ? <span>{file.totalPages} pages</span> : null}
-                        {file.summaryStatus === 'in-progress' ? <span>Generating summary</span> : null}
-                        {file.summaryStatus === 'error' ? <span>Summary failed</span> : null}
+                        {file.summaryStatus === 'in-progress' ? <span>Generating description</span> : null}
+                        {file.summaryStatus === 'error' ? <span>Description failed</span> : null}
                       </div>
                     </div>
                   </div>
@@ -849,6 +853,20 @@ export default function NotebookView({
                       </div>
                     ) : null}
 
+                    {isImagePreview && selectedViewerUrl ? (
+                      <div className="rounded-xl border border-border-subtle bg-bg-elevated/70 p-4">
+                        <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
+                          <Image className="h-4 w-4" />
+                          Image Preview
+                        </div>
+                        <img
+                          src={selectedViewerUrl}
+                          alt={selectedMaterial.name}
+                          className="max-h-[420px] w-full rounded-lg object-contain"
+                        />
+                      </div>
+                    ) : null}
+
                     <pre className="whitespace-pre-wrap break-words text-base leading-6 text-text-primary font-serif">
                       {activePreview.previewContent || ''}
                     </pre>
@@ -865,7 +883,7 @@ export default function NotebookView({
               >
                 <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-secondary font-mono">
                   <Sparkles className="h-4 w-4 text-accent-hover" />
-                  Summary & Details
+                  Description & Details
                 </span>
                 <ChevronDown className={`h-4 w-4 text-text-muted transition-transform ${isSummaryOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -878,7 +896,7 @@ export default function NotebookView({
                     <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
                       <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
                         <Sparkles className="h-4 w-4" />
-                        Chat LLM Summary
+                        Description
                       </div>
                       <p className="mt-3 text-base leading-relaxed text-text-primary font-serif">
                         {summaryDisplayText}

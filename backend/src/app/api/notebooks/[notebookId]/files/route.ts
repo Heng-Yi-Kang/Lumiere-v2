@@ -80,9 +80,14 @@ export async function POST(
           size: uploadData.size,
           sourcePath: uploadData.sourcePath,
           status: 'ready',
-          summary: null,
+          summary: uploadData.type === 'image' ? uploadData.extractedText || null : null,
           summaryError: null,
-          summaryStatus: uploadData.extractedText?.trim() ? 'in-progress' : 'idle',
+          summaryGeneratedAt: uploadData.type === 'image' && uploadData.extractedText?.trim() ? new Date() : null,
+          summaryStatus: uploadData.type === 'image' && uploadData.extractedText?.trim()
+            ? 'done'
+            : uploadData.extractedText?.trim()
+              ? 'in-progress'
+              : 'idle',
           totalPages: uploadData.totalPages ?? null,
           type: uploadData.type,
           uploadDate: uploadData.uploadDate,
@@ -146,7 +151,7 @@ export async function POST(
     return jsonResponse({ error: 'Failed to index uploaded file for search.' }, { status: 500 });
   }
 
-  if (createdFile.extractedText?.trim()) {
+  if (createdFile.type !== 'image' && createdFile.extractedText?.trim()) {
     startNotebookFileSummaryJob(createdFile.id);
   }
 

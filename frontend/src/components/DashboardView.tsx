@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 import { StudyStreak } from '../types';
-import { isSupportedNotebookExtension, validateNotebookUpload } from '../lib/notebookUpload';
+import { NOTEBOOK_UPLOAD_ACCEPT, isSupportedNotebookExtension, validateNotebookUpload } from '../lib/notebookUpload';
 import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 
@@ -98,7 +98,7 @@ export default function DashboardView({
       return;
     }
     if (!extension || !isSupportedNotebookExtension(extension)) {
-      setUploadError('Only PDF, DOCX, PPTX, TXT, common audio files, and common video files are supported.');
+      setUploadError('Only PDF, DOCX, PPTX, TXT, common image files, common audio files, and common video files are supported.');
       return;
     }
 
@@ -190,7 +190,7 @@ export default function DashboardView({
             </h1>
             <p className="max-w-xl text-base font-normal leading-relaxed text-text-secondary font-serif">
               {notebooks.length === 0 ? (
-                <>Start by creating your first notebook, then upload lecture materials so Lumiere can build summaries and study aids.</>
+                <>Start by creating your first notebook, then upload lecture materials so Lumiere can build descriptions and study aids.</>
               ) : (
                 <>Your materials are linked. You have <span className="text-accent-hover font-bold">{notebooks.length} notebooks</span> ready across your active course library. Ready to score that 4.00 flat?</>
               )}
@@ -245,12 +245,12 @@ export default function DashboardView({
             <div className="rounded-2xl border border-border-default bg-bg-elevated/40 p-5">
               <div className="text-[11px] font-black uppercase tracking-[0.14em] text-success font-mono">2. Upload</div>
               <p className="mt-2 text-sm font-semibold text-text-primary">Drop in lecture files and notes.</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">Use PDF, DOCX, PPTX, TXT, audio, or video files. Upload becomes available as soon as your first notebook exists.</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">Use PDF, DOCX, PPTX, TXT, image, audio, or video files. Upload becomes available as soon as your first notebook exists.</p>
             </div>
             <div className="rounded-2xl border border-border-default bg-bg-elevated/40 p-5">
               <div className="text-[11px] font-black uppercase tracking-[0.14em] text-cta font-mono">3. Review</div>
               <p className="mt-2 text-sm font-semibold text-text-primary">Open the notebook and study from there.</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">You&apos;ll get inline previews, extracted summaries, and notebook-grounded AI prompts once materials are indexed.</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-text-secondary font-serif">You&apos;ll get inline previews, generated descriptions, and notebook-grounded AI prompts once materials are indexed.</p>
             </div>
           </div>
 
@@ -277,7 +277,7 @@ export default function DashboardView({
               Upload Materials & Audio Recordings
             </h2>
             <p className="text-xs text-text-secondary">
-              Drag PDF, DOCX, PPTX, TXT, audio, or video files directly into a notebook.
+              Drag PDF, DOCX, PPTX, TXT, image, audio, or video files directly into a notebook.
             </p>
           </div>
 
@@ -321,7 +321,7 @@ export default function DashboardView({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.mov,.m4v,.webm"
+                accept={NOTEBOOK_UPLOAD_ACCEPT}
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -354,7 +354,7 @@ export default function DashboardView({
                   {notebooks.length === 0 ? 'Create a notebook to unlock uploads' : 'Drag your lecture material here, or click to pick'}
                 </div>
                 <div className="text-[10px] text-text-muted">
-                  {notebooks.length === 0 ? 'Your first upload target will appear after notebook setup.' : 'Supports PDF, DOCX, PPTX, TXT, audio, and video up to 100MB'}
+                  {notebooks.length === 0 ? 'Your first upload target will appear after notebook setup.' : 'Supports PDF, DOCX, PPTX, TXT, image, audio, and video up to 100MB'}
                 </div>
               </div>
             ) : uploadProgress <= 100 ? (
@@ -392,7 +392,7 @@ export default function DashboardView({
                   <Check className="h-5 w-5" />
                 </div>
                 <span className="text-xs font-bold text-success">Processed & Indexed!</span>
-                <span className="text-[10px] text-text-muted">Concept linkages, summaries and flashcards populated successfully.</span>
+                <span className="text-[10px] text-text-muted">Concept linkages, descriptions and flashcards populated successfully.</span>
               </div>
             )}
           </div>
@@ -482,7 +482,7 @@ export default function DashboardView({
         <div className="flex items-center justify-between border-b border-border-default pb-3 font-display">
           <div className="space-y-1">
             <h2 className="text-lg font-black text-text-primary">Personal Course Notebooks</h2>
-            <p className="text-xs text-text-secondary">Each notebook links lecture videos, transcript files, and OCR-extracted summaries.</p>
+            <p className="text-xs text-text-secondary">Each notebook links lecture videos, transcript files, images, and generated descriptions.</p>
           </div>
           <button 
             id="add-notebook"

@@ -7,10 +7,11 @@ import sanitizeHtml from 'sanitize-html';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { transcribeAudioFile } from '@/lib/stt';
 import { processVideoFile, type VideoRagSegment } from '@/lib/video-processing';
+import { describeImageFile } from '@/lib/vlm';
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
-type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video';
+type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image';
 type PreviewFormat = 'pdf' | 'html' | 'text';
 
 const MIME_TYPE_MAP: Record<SupportedNotebookFileType, string[]> = {
@@ -36,9 +37,20 @@ const MIME_TYPE_MAP: Record<SupportedNotebookFileType, string[]> = {
     'video/webm',
     'video/x-m4v',
   ],
+  image: [
+    'image/bmp',
+    'image/gif',
+    'image/jpg',
+    'image/jpeg',
+    'image/png',
+    'image/tiff',
+    'image/webp',
+    'image/x-ms-bmp',
+  ],
 };
 
 const AUDIO_EXTENSIONS = new Set(['aac', 'flac', 'm4a', 'mp3', 'ogg', 'wav']);
+const IMAGE_EXTENSIONS = new Set(['bmp', 'gif', 'jpeg', 'jpg', 'png', 'tif', 'tiff', 'webp']);
 const VIDEO_EXTENSIONS = new Set(['m4v', 'mov', 'mp4', 'webm']);
 
 type UploadResult = {
@@ -87,6 +99,10 @@ function getFileExtension(fileName: string) {
 }
 
 function getNotebookFileType(value: string): SupportedNotebookFileType | undefined {
+  if (IMAGE_EXTENSIONS.has(value)) {
+    return 'image';
+  }
+
   if (VIDEO_EXTENSIONS.has(value)) {
     return 'video';
   }
@@ -245,8 +261,34 @@ async function buildVideoPreview(filePath: string, fileName: string): Promise<De
   };
 }
 
+async function buildImagePreview(filePath: string, fileName: string, mimeType: string): Promise<DerivedPreview> {
+  const description = await describeImageFile({
+    fileName,
+    filePath,
+    mimeType,
+    prompt: [
+      'Describe this uploaded study image for retrieval and student review.',
+      'Mention visible text, diagrams, formulas, labels, tables, people, objects, and relevant academic context.',
+      'If it appears to be a slide, whiteboard, handwritten note, screenshot, chart, or photo, say so.',
+      'Write a concise but complete description in 4 to 8 sentences.',
+    ].join(' '),
+  });
+
+  const previewContent = [
+    'Generated image description',
+    '',
+    description,
+  ].join('\n');
+
+  return {
+    extractedText: description,
+    previewContent,
+    previewFormat: 'text' as const,
+  } satisfies DerivedPreview;
+}
+
 async function buildDerivedPreview(
-  type: Exclude<SupportedNotebookFileType, 'audio' | 'video'>,
+  type: Exclude<SupportedNotebookFileType, 'audio' | 'video' | 'image'>,
   filePath: string,
 ): Promise<DerivedPreview> {
   switch (type) {
@@ -281,7 +323,7 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       fileName: file.name,
       reason: 'unsupported_extension',
     });
-    throw new NotebookFileValidationError('Only pdf, docx, pptx, txt, common audio files, and common video files are supported.');
+    throw new NotebookFileValidationError('Only pdf, docx, pptx, txt, common image files, common audio files, and common video files are supported.');
   }
 
   if (file.size <= 0) {
@@ -343,7 +385,9 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       ? await buildAudioPreview(storedPath, file.name, file.type || allowedMimeTypes[0])
       : fileType === 'video'
         ? await buildVideoPreview(storedPath, file.name)
-        : await buildDerivedPreview(fileType, storedPath);
+        : fileType === 'image'
+          ? await buildImagePreview(storedPath, file.name, file.type || allowedMimeTypes[0])
+          : await buildDerivedPreview(fileType, storedPath);
 
     logBackendProcess('info', 'file.extraction.completed', {
       elapsedMs: getElapsedMs(extractionStartedAt),

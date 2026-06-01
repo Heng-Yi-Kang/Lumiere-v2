@@ -5,22 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { transcribeAudioFile } from '@/lib/stt';
+import { describeImageFile, getVlmProviderConfig } from '@/lib/vlm';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_VIDEO_SEGMENT_SECONDS = 30;
 const DEFAULT_VIDEO_MAX_FRAMES = 60;
 const DEFAULT_VIDEO_COMMAND_TIMEOUT_MS = 120_000;
-const DEFAULT_VLM_TIMEOUT_MS = 45_000;
-
-type ChatCompletionResponse = {
-  choices?: Array<{
-    message?: {
-      content?: string | null;
-      reasoning?: string | null;
-    };
-  }>;
-};
-
 export type VideoRagSegment = {
   content: string;
   metadata: {
@@ -52,28 +42,8 @@ function getPositiveNumberEnv(name: string, fallback: number) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-function getOptionalEnv(...names: string[]) {
-  for (const name of names) {
-    const value = process.env[name]?.trim();
-
-    if (value) {
-      return value;
-    }
-  }
-
-  return undefined;
-}
-
-function buildChatCompletionsUrl(baseUrl: string) {
-  return `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
-}
-
 export function getVideoFrameProviderConfig() {
-  return {
-    apiKey: getOptionalEnv('VLM_API_KEY', 'CHAT_API_KEY'),
-    baseUrl: getOptionalEnv('VLM_API_BASE_URL', 'VLM_API_BASE', 'CHAT_API_BASE_URL') || 'https://api.openai.com/v1',
-    model: getOptionalEnv('VLM_MODEL', 'CHAT_MODEL'),
-  };
+  return getVlmProviderConfig();
 }
 
 function formatTimestamp(seconds: number) {
@@ -245,61 +215,20 @@ async function extractFrames(videoPath: string, outputDirectory: string, duratio
 }
 
 async function describeFrame(filePath: string) {
-  const { apiKey, baseUrl, model } = getVideoFrameProviderConfig();
-
-  if (!apiKey || !model) {
-    throw new VideoProcessingError('VLM_API_KEY/CHAT_API_KEY and VLM_MODEL/CHAT_MODEL are required for video frame description.');
-  }
-
-  const image = await fs.readFile(filePath);
-  const response = await fetch(buildChatCompletionsUrl(baseUrl), {
-    method: 'POST',
-    signal: AbortSignal.timeout(getPositiveNumberEnv('VLM_TIMEOUT_MS', DEFAULT_VLM_TIMEOUT_MS)),
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      max_tokens: 180,
-      model,
-      temperature: 0,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: [
-                'Describe this video frame for study retrieval.',
-                'Mention visible slide text, diagrams, equations, labels, people, objects, and actions.',
-                'Keep it to one or two concise sentences.',
-              ].join(' '),
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${image.toString('base64')}`,
-              },
-            },
-          ],
-        },
-      ],
-    }),
+  return describeImageFile({
+    fileName: path.basename(filePath),
+    filePath,
+    maxTokens: 180,
+    mimeType: 'image/jpeg',
+    prompt: [
+      'Describe this video frame for study retrieval.',
+      'Mention visible slide text, diagrams, equations, labels, people, objects, and actions.',
+      'Keep it to one or two concise sentences.',
+    ].join(' '),
+  }).catch((error) => {
+    const message = error instanceof Error ? error.message.replace(/^Image description failed/, 'Frame description failed') : 'Frame description failed.';
+    throw new VideoProcessingError(message);
   });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new VideoProcessingError(`Frame description failed with ${response.status}: ${body || response.statusText}`);
-  }
-
-  const payload = (await response.json()) as ChatCompletionResponse;
-  const answer = payload.choices?.[0]?.message?.content?.trim() || payload.choices?.[0]?.message?.reasoning?.trim();
-
-  if (!answer) {
-    throw new VideoProcessingError('VLM provider returned no frame description.');
-  }
-
-  return answer;
 }
 
 async function describeFrames(frames: Array<{ filePath: string; timestamp: number }>) {

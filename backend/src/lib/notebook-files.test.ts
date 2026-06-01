@@ -171,6 +171,43 @@ describe('persistNotebookUpload', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('describes image uploads with the VLM and stores the description as text preview content', async () => {
+    process.env.CHAT_API_BASE_URL = 'https://chat.example.test/v1';
+    process.env.CHAT_API_KEY = 'test-chat-key';
+    process.env.CHAT_MODEL = 'vision-model';
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [
+        {
+          message: {
+            content: 'A handwritten calculus note shows an integration by parts formula and a worked example.',
+          },
+        },
+      ],
+    })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const upload = new File(['image-bytes'], 'whiteboard.png', {
+      type: 'image/png',
+    });
+
+    const result = await persistNotebookUpload('nb-1', upload);
+
+    expect(result.type).toBe('image');
+    expect(result.previewFormat).toBe('text');
+    expect(result.previewContent).toContain('Generated image description');
+    expect(result.extractedText).toContain('integration by parts');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://chat.example.test/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test-chat-key',
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+  });
+
   it('removes the stored audio file when transcription fails', async () => {
     process.env.STT_API_BASE = 'https://stt.example.test/v1';
     process.env.STT_API_KEY = 'test-key';
