@@ -5,6 +5,7 @@ import { jsonResponse, optionsResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
 import { indexNotebookFileForRag } from '@/lib/rag';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
+import { isFrameDescriptionRateLimitError, RETRY_LATER_UPLOAD_ERROR } from '@/lib/upload-errors';
 
 export async function OPTIONS() {
   return optionsResponse();
@@ -50,6 +51,10 @@ export async function POST(
   } catch (error) {
     if (error instanceof NotebookFileValidationError) {
       return jsonResponse({ error: error.message }, { status: 400 });
+    }
+
+    if (isFrameDescriptionRateLimitError(error)) {
+      return jsonResponse({ error: RETRY_LATER_UPLOAD_ERROR }, { status: 429 });
     }
 
     return jsonResponse({ error: 'Failed to process uploaded file.' }, { status: 500 });

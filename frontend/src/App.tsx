@@ -13,6 +13,7 @@ import RevisionView from './components/RevisionView';
 import SlangLounge from './components/SlangLounge';
 import CreateNotebookModal from './components/CreateNotebookModal';
 import { createNotebook, createNotebookFile, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
+import { getRetryLaterUploadMessage, isRetryLaterUploadError } from './lib/apiErrors';
 
 const pageToPath = {
   Dashboard: '/dashboard',
@@ -39,6 +40,7 @@ export default function App() {
   const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
   const [chatGroundingScope, setChatGroundingScope] = useState<ChatGroundingScope | undefined>(undefined);
+  const [rateLimitDialogMessage, setRateLimitDialogMessage] = useState('');
 
   // Notebook data is persisted in the backend database and shared across the workspace.
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -163,7 +165,19 @@ export default function App() {
 
   const handleAddNewFile = async (notebookId: string, file: File) => {
     notebookLoadRequestIdRef.current += 1;
-    const notebook = await createNotebookFile(notebookId, file);
+    let notebook: Notebook;
+
+    try {
+      notebook = await createNotebookFile(notebookId, file);
+    } catch (error) {
+      if (isRetryLaterUploadError(error)) {
+        const message = getRetryLaterUploadMessage();
+        setRateLimitDialogMessage(message);
+        throw new Error(message);
+      }
+
+      throw error;
+    }
 
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
@@ -415,6 +429,52 @@ export default function App() {
           }}
           reusableCourseCodes={reusableCourseCodes}
         />
+      )}
+
+      {rateLimitDialogMessage && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rate-limit-dialog-title"
+          onClick={() => setRateLimitDialogMessage('')}
+        >
+          <div
+            className="surface-glass w-full max-w-md rounded-3xl p-6 text-left"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-cta font-mono">
+                  Service busy
+                </p>
+                <h3 id="rate-limit-dialog-title" className="mt-2 text-lg font-black text-text-primary font-display">
+                  Try again later
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRateLimitDialogMessage('')}
+                className="premium-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-default bg-bg-elevated/60 text-text-muted transition-colors hover:bg-bg-overlay hover:text-text-primary"
+                aria-label="Close dialog"
+              >
+                X
+              </button>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-text-secondary font-serif">
+              {rateLimitDialogMessage}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setRateLimitDialogMessage('')}
+                className="rounded-xl bg-cta px-4 py-2 text-xs font-bold text-text-inverse transition hover:bg-cta-hover"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Floating Study Buddy Helper */}
