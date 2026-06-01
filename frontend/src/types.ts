@@ -148,3 +148,12 @@ export interface Goal {
   completed: boolean;
   isPriority: boolean;
 }
+
+export interface FileNote {
+  id: string;
+  fileId: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
