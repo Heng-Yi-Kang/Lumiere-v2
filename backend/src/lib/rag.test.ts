@@ -46,6 +46,7 @@ vi.mock('@/lib/qdrant', () => ({
 }));
 
 import {
+  diversifyRagResults,
   formatRagContextForPrompt,
   indexNotebookFileForRag,
   RAG_PROMPT_SOURCE_CHAR_LIMIT,
@@ -53,6 +54,16 @@ import {
   retrieveNotebookRagContext,
   splitIntoChunks,
 } from './rag';
+
+function ragResult(fileId: string, chunkIndex: number, score: number) {
+  return {
+    chunkIndex,
+    content: `${fileId} chunk ${chunkIndex}`,
+    fileId,
+    fileName: `${fileId}.txt`,
+    score,
+  };
+}
 
 describe('splitIntoChunks', () => {
   it('chunks text with overlap from prior content', () => {
@@ -237,6 +248,92 @@ describe('retrieveNotebookRagContext', () => {
         score: 0.93,
       },
     ]);
+  });
+});
+
+describe('diversifyRagResults', () => {
+  it('limits selected context to three chunks per file by default', () => {
+    const results = [
+      ragResult('file-a', 0, 0.99),
+      ragResult('file-a', 1, 0.98),
+      ragResult('file-a', 2, 0.97),
+      ragResult('file-a', 3, 0.96),
+      ragResult('file-b', 0, 0.95),
+      ragResult('file-b', 1, 0.94),
+    ];
+
+    const diversified = diversifyRagResults(results);
+
+    expect(diversified).toHaveLength(5);
+    expect(diversified.filter((result) => result.fileId === 'file-a')).toHaveLength(3);
+    expect(diversified.map((result) => result.chunkIndex)).not.toContain(3);
+  });
+
+  it('prefers chunks from different files when scores are close', () => {
+    const results = [
+      ragResult('file-a', 0, 0.99),
+      ragResult('file-a', 1, 0.98),
+      ragResult('file-b', 0, 0.975),
+      ragResult('file-c', 0, 0.97),
+    ];
+
+    const diversified = diversifyRagResults(results, {
+      maxChunks: 3,
+      maxChunksPerFile: 3,
+      preserveTopN: 1,
+      scoreTolerance: 0.03,
+    });
+
+    expect(diversified.map((result) => result.fileId)).toEqual(['file-a', 'file-b', 'file-c']);
+  });
+
+  it('preserves higher-scoring chunks when alternative files are outside tolerance', () => {
+    const results = [
+      ragResult('file-a', 0, 0.99),
+      ragResult('file-a', 1, 0.97),
+      ragResult('file-b', 0, 0.90),
+    ];
+
+    const diversified = diversifyRagResults(results, {
+      maxChunks: 2,
+      maxChunksPerFile: 3,
+      preserveTopN: 1,
+      scoreTolerance: 0.03,
+    });
+
+    expect(diversified).toEqual([
+      ragResult('file-a', 0, 0.99),
+      ragResult('file-a', 1, 0.97),
+    ]);
+  });
+
+  it('does not let preserved results override the per-file cap', () => {
+    const results = [
+      ragResult('file-a', 0, 0.99),
+      ragResult('file-a', 1, 0.98),
+      ragResult('file-a', 2, 0.97),
+      ragResult('file-b', 0, 0.96),
+    ];
+
+    const diversified = diversifyRagResults(results, {
+      maxChunks: 4,
+      maxChunksPerFile: 2,
+      preserveTopN: 3,
+      scoreTolerance: 0.03,
+    });
+
+    expect(diversified.filter((result) => result.fileId === 'file-a')).toHaveLength(2);
+    expect(diversified.map((result) => result.fileId)).toContain('file-b');
+  });
+
+  it('caps the final result count', () => {
+    const results = [
+      ragResult('file-a', 0, 0.99),
+      ragResult('file-b', 0, 0.98),
+      ragResult('file-c', 0, 0.97),
+    ];
+
+    expect(diversifyRagResults(results, { maxChunks: 2 })).toHaveLength(2);
   });
 });
 

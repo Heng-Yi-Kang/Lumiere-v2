@@ -2,10 +2,11 @@ import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { jsonResponse, optionsResponse } from '@/lib/http';
 import { generateChatCompletion } from '@/lib/openai-chat';
 import { prisma } from '@/lib/prisma';
-import { formatRagContextForPrompt, retrieveNotebookRagContext, splitIntoChunks } from '@/lib/rag';
+import { diversifyRagResults, formatRagContextForPrompt, retrieveNotebookRagContext, splitIntoChunks } from '@/lib/rag';
 
 const NO_GROUNDED_CONTEXT_MESSAGE = 'No grounded context is available for this request. Upload and index at least one file in this notebook before asking grounded questions.';
-const FALLBACK_CONTEXT_LIMIT = 6;
+const FINAL_CONTEXT_LIMIT = 6;
+const NOTEBOOK_CONTEXT_CANDIDATE_LIMIT = 20;
 
 type NotebookFileForChat = {
   extractedText: string | null;
@@ -13,7 +14,7 @@ type NotebookFileForChat = {
   name: string;
 };
 
-function buildExtractedTextFallbackResults(files: NotebookFileForChat[], limit = FALLBACK_CONTEXT_LIMIT) {
+function buildExtractedTextFallbackResults(files: NotebookFileForChat[], limit = NOTEBOOK_CONTEXT_CANDIDATE_LIMIT) {
   return files
     .flatMap((file) =>
       splitIntoChunks(file.extractedText || '').map((content, chunkIndex) => ({
@@ -134,7 +135,7 @@ export async function POST(
   try {
     results = await retrieveNotebookRagContext({
       fileId: scopedFile?.id,
-      limit: 6,
+      limit: scopedFile ? FINAL_CONTEXT_LIMIT : NOTEBOOK_CONTEXT_CANDIDATE_LIMIT,
       notebookId,
       query: question,
     });
@@ -153,8 +154,19 @@ export async function POST(
 
   const fallbackResults = results.length
     ? []
-    : buildExtractedTextFallbackResults(scopedFile ? [scopedFile] : notebook.files);
-  const groundedResults = results.length ? results : fallbackResults;
+    : buildExtractedTextFallbackResults(
+        scopedFile ? [scopedFile] : notebook.files,
+        scopedFile ? FINAL_CONTEXT_LIMIT : NOTEBOOK_CONTEXT_CANDIDATE_LIMIT,
+      );
+  const selectedResults = results.length ? results : fallbackResults;
+  const groundedResults = scopedFile
+    ? selectedResults.slice(0, FINAL_CONTEXT_LIMIT)
+    : diversifyRagResults(selectedResults, {
+        maxChunks: FINAL_CONTEXT_LIMIT,
+        maxChunksPerFile: 3,
+        preserveTopN: 1,
+        scoreTolerance: 0.03,
+      });
 
   logBackendProcess('info', 'rag.api.chat.context_selected', {
     fallbackResultCount: fallbackResults.length,
