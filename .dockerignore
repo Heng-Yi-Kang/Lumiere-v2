@@ -1,0 +1,14 @@
+.git/
+node_modules/
+backend/.next/
+backend/node_modules/
+backend/tsconfig.tsbuildinfo
+frontend/dist/
+frontend/node_modules/
+.pnpm-store/
+.env
+.env.*
+backend/.env
+frontend/.env
+example_docker/.env
+example_docker/logs/
