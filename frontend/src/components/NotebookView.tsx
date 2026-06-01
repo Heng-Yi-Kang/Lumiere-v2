@@ -32,6 +32,7 @@ import { getNotebookColorTone } from '../lib/notebookColors';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useFileNotes } from '../hooks/useFileNotes';
 import FileNotesPanel from './FileNotesPanel';
+import NotebookChatPanel from './NotebookChatPanel';
 
 interface NotebookViewProps {
   notebook: Notebook | null;
@@ -571,6 +572,14 @@ export default function NotebookView({
               <p className="max-w-3xl text-sm leading-relaxed text-text-secondary font-serif">
                 {notebook.description || 'No description set yet.'}
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className={`rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest border font-mono ${colorTone?.badge || 'border-accent-border bg-accent-subtle text-accent-hover'}`}>
+                  {notebook.fileCount} files
+                </span>
+                <span className={`rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest border font-mono ${colorTone?.badge || 'border-accent-border bg-accent-subtle text-accent-hover'}`}>
+                  {notebook.conceptCount} concepts
+                </span>
+              </div>
             </div>
           </div>
 
@@ -630,96 +639,63 @@ export default function NotebookView({
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <div className={`surface-card rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow}`}>
-            <div className="space-y-2">
-              <h2 className="text-sm font-black text-text-primary font-display">Upload Material</h2>
-              <p className="text-sm leading-relaxed text-text-secondary font-serif">
-                PDF, DOCX, PPTX, TXT, audio, and video files are saved on the backend filesystem and indexed in the notebook.
-              </p>
-            </div>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadPhase !== 'idle'}
-              className={`mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-7 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border/50 bg-accent-subtle/50 text-accent-hover hover:bg-accent-subtle'}`}
-            >
-              {uploadPhase !== 'idle' ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
-              {uploadPhase !== 'idle' ? 'Processing upload...' : 'Select File'}
-            </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.mov,.m4v,.webm"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  void handleUpload(file);
-                }
-              }}
-            />
-
-            {uploadPhase !== 'idle' && (
-              <div className={`mt-5 rounded-2xl border bg-bg-elevated/50 p-4 ${colorTone?.subtleBlock || 'border-border-default'}`}>
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate font-bold text-text-primary">{uploadFileName}</span>
-                  <span className={`font-black ${colorTone?.text || 'text-accent-hover'}`}>{uploadProgressValue}%</span>
-                </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-bg-elevated">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-200"
-                    style={{ width: `${uploadProgressValue}%` }}
-                  />
-                </div>
-                <p className="mt-3 text-sm text-text-secondary">{uploadStatusLabel}</p>
-              </div>
-            )}
-
-            <div className={`mt-4 rounded-2xl border bg-bg-elevated/30 p-4 text-sm leading-relaxed text-text-secondary font-serif ${colorTone?.subtleBlock || 'border-border-default'}`}>
-              <p>Limit: 100MB per file.</p>
-              <p>Stored under the backend app for preview and download.</p>
-              <p>Delete removes both the database record and the stored file immediately.</p>
-            </div>
-          </div>
-
-          <div className={`surface-card rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow}`}>
-            <div className="space-y-1">
-              <h2 className="text-sm font-black text-text-primary font-display">Notebook Snapshot</h2>
-              <p className="text-xs text-text-muted">Quick counts for the current notebook.</p>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className={`rounded-2xl border bg-bg-elevated/40 p-4 ${colorTone?.subtleBlock || 'border-border-default'}`}>
-                <div className="text-[10px] font-black uppercase tracking-widest text-text-muted font-mono">Files</div>
-                <div className="mt-2 text-2xl font-black text-text-primary">{notebook.fileCount}</div>
-              </div>
-              <div className={`rounded-2xl border bg-bg-elevated/40 p-4 ${colorTone?.subtleBlock || 'border-border-default'}`}>
-                <div className="text-[10px] font-black uppercase tracking-widest text-text-muted font-mono">Concepts</div>
-                <div className="mt-2 text-2xl font-black text-text-primary">{notebook.conceptCount}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className={`surface-card rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow}`}>
           <div className="flex flex-col gap-3 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-black text-text-primary font-display">Materials Directory</h2>
               <p className="text-[11px] text-text-muted">Open inline previews or delete files directly from this notebook.</p>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
-              <input
-                type="text"
-                value={materialSearchText}
-                onChange={(event) => setMaterialSearchText(event.target.value)}
-                placeholder="Search files..."
-                className={`w-full rounded-xl border border-border-default bg-bg-elevated/60 py-2 pl-8 pr-3 text-xs text-text-primary outline-none transition sm:w-56 focus:border-accent ${colorTone?.borderGlow || ''}`}
-              />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadPhase !== 'idle'}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+              >
+                {uploadPhase !== 'idle' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {uploadPhase !== 'idle' ? 'Uploading...' : 'Select File'}
+              </button>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
+                <input
+                  type="text"
+                  value={materialSearchText}
+                  onChange={(event) => setMaterialSearchText(event.target.value)}
+                  placeholder="Search files..."
+                  className={`w-full rounded-xl border border-border-default bg-bg-elevated/60 py-2 pl-8 pr-3 text-xs text-text-primary outline-none transition sm:w-56 focus:border-accent ${colorTone?.borderGlow || ''}`}
+                />
+              </div>
             </div>
           </div>
+
+          {uploadPhase !== 'idle' && (
+            <div className={`mt-4 rounded-2xl border bg-bg-elevated/50 p-4 ${colorTone?.subtleBlock || 'border-border-default'}`}>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate font-bold text-text-primary">{uploadFileName}</span>
+                <span className={`font-black ${colorTone?.text || 'text-accent-hover'}`}>{uploadProgressValue}%</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-bg-elevated">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-200"
+                  style={{ width: `${uploadProgressValue}%` }}
+                />
+              </div>
+              <p className="mt-3 text-sm text-text-secondary">{uploadStatusLabel}</p>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.pptx,.txt,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.mov,.m4v,.webm"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                void handleUpload(file);
+              }
+            }}
+          />
 
           <div className="mt-4 space-y-3">
             {filteredFiles.length === 0 ? (
@@ -776,6 +752,12 @@ export default function NotebookView({
             )}
           </div>
         </div>
+
+        <NotebookChatPanel
+          notebookId={notebook.id}
+          notebookName={notebook.name}
+          color={notebook.color}
+        />
       </div>
 
       {selectedMaterial && (
