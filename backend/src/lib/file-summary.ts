@@ -5,6 +5,7 @@ type ChatCompletionMessage = {
 };
 
 type ChatCompletionChoice = {
+  finish_reason?: string | null;
   message?: ChatCompletionMessage;
 };
 
@@ -14,6 +15,7 @@ type ChatCompletionResponse = {
 
 const MAX_SUMMARY_SOURCE_CHARS = 12000;
 const DEFAULT_SUMMARY_REQUEST_TIMEOUT_MS = 30000;
+const LOG_SNIPPET_CHARS = 280;
 
 function getOptionalEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -36,6 +38,26 @@ function getProviderHost(baseUrl: string) {
 function getSummaryRequestTimeoutMs() {
   const value = Number.parseInt(process.env.SUMMARY_REQUEST_TIMEOUT_MS || '', 10);
   return Number.isFinite(value) && value > 0 ? value : DEFAULT_SUMMARY_REQUEST_TIMEOUT_MS;
+}
+
+function buildLogSnippet(value: string | null | undefined) {
+  const normalized = value?.replace(/\s+/g, ' ').trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized.length > LOG_SNIPPET_CHARS
+    ? `${normalized.slice(0, LOG_SNIPPET_CHARS)}...`
+    : normalized;
+}
+
+function parseChatCompletionPayload(text: string) {
+  if (!text.trim()) {
+    return undefined;
+  }
+
+  return JSON.parse(text) as ChatCompletionResponse;
 }
 
 export async function generateNotebookFileSummary(params: {
@@ -129,9 +151,44 @@ export async function generateNotebookFileSummary(params: {
     throw error;
   }
 
+  const responseText = await response.text();
+  let payload: ChatCompletionResponse | undefined;
+  let parseError: Error | undefined;
+
+  try {
+    payload = parseChatCompletionPayload(responseText);
+  } catch (error) {
+    parseError = error instanceof Error ? error : new Error('Unknown JSON parse error');
+  }
+
+  const firstChoice = payload?.choices?.[0];
+  const firstMessageContent = firstChoice?.message?.content;
+  const responseLogFields = {
+    bodyChars: responseText.length,
+    bodySnippet: buildLogSnippet(responseText),
+    choiceCount: payload?.choices?.length || 0,
+    contentType: response.headers.get('content-type'),
+    elapsedMs: getElapsedMs(requestStartedAt),
+    fileName: params.fileName,
+    fileType: params.fileType,
+    firstChoiceFinishReason: firstChoice?.finish_reason,
+    firstMessageContentChars: firstMessageContent?.length || 0,
+    firstMessageContentSnippet: buildLogSnippet(firstMessageContent),
+    model,
+    parsedJson: Boolean(payload),
+    providerHost: getProviderHost(baseUrl),
+    status: response.status,
+    statusText: response.statusText,
+  };
+
+  logBackendProcess(response.ok ? 'info' : 'warn', 'file.summary.response.received', responseLogFields);
+
   if (!response.ok) {
     logBackendProcess('warn', 'file.summary.request.failed', {
-      elapsedMs: getElapsedMs(requestStartedAt),
+      bodyChars: responseText.length,
+      bodySnippet: buildLogSnippet(responseText),
+      contentType: response.headers.get('content-type'),
+      elapsedMs: responseLogFields.elapsedMs,
       fileName: params.fileName,
       fileType: params.fileType,
       model,
@@ -142,15 +199,34 @@ export async function generateNotebookFileSummary(params: {
     throw new Error(`Summary generation failed with ${response.status}: ${response.statusText}`);
   }
 
-  const payload = (await response.json()) as ChatCompletionResponse;
+  if (parseError || !payload) {
+    logBackendProcess('warn', 'file.summary.response.parse_failed', {
+      bodyChars: responseText.length,
+      bodySnippet: buildLogSnippet(responseText),
+      contentType: response.headers.get('content-type'),
+      elapsedMs: responseLogFields.elapsedMs,
+      error: parseError?.message || 'Empty response body',
+      fileName: params.fileName,
+      fileType: params.fileType,
+      model,
+      providerHost: getProviderHost(baseUrl),
+      status: response.status,
+      statusText: response.statusText,
+    });
+    throw new Error(parseError?.message || 'Summary provider returned an empty response body.');
+  }
+
   const summary = payload.choices?.[0]?.message?.content?.replace(/\s+/g, ' ').trim() || undefined;
 
   if (!summary) {
     logBackendProcess('warn', 'file.summary.empty_response', {
       choiceCount: payload.choices?.length || 0,
-      elapsedMs: getElapsedMs(requestStartedAt),
+      elapsedMs: responseLogFields.elapsedMs,
       fileName: params.fileName,
       fileType: params.fileType,
+      firstChoiceFinishReason: firstChoice?.finish_reason,
+      firstMessageContentChars: firstMessageContent?.length || 0,
+      responseBodySnippet: buildLogSnippet(responseText),
       model,
       providerHost: getProviderHost(baseUrl),
     });
@@ -158,7 +234,7 @@ export async function generateNotebookFileSummary(params: {
   }
 
   logBackendProcess('info', 'file.summary.request.completed', {
-    elapsedMs: getElapsedMs(requestStartedAt),
+    elapsedMs: responseLogFields.elapsedMs,
     fileName: params.fileName,
     fileType: params.fileType,
     model,

@@ -14,7 +14,6 @@ import {
   Trophy,
   X,
   Settings,
-  Sparkles,
 } from 'lucide-react';
 import { Goal } from '../types';
 
@@ -81,20 +80,6 @@ export default function FloatingDock({
         className="fixed left-4 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2 rounded-3xl border border-border-default bg-bg-surface/70 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
         style={{ backdropFilter: 'blur(24px) saturate(1.2)' }}
       >
-        {/* Brand Logo */}
-        <button
-          type="button"
-          onClick={() => setCurrentPage('Dashboard')}
-          className="premium-focus flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 transition-transform duration-200 hover:scale-105"
-          title="Lumiere Dashboard"
-          aria-label="Go to Dashboard"
-        >
-          <Sparkles className="h-5 w-5 text-white" />
-          {renderDockOverlay('Dashboard')}
-        </button>
-
-        <div className="h-px w-8 bg-border-default my-1" />
-
         {/* Navigation Items */}
         {menuItems.map((item) => {
           const Icon = item.icon;

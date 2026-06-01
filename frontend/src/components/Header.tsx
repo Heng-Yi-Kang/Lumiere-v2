@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StudyStreak } from '../types';
 import { Search, Flame, GraduationCap, Award, Bell } from 'lucide-react';
 
@@ -8,8 +9,21 @@ interface HeaderProps {
 }
 
 export default function Header({ streak, activeTab }: HeaderProps) {
+  const navigate = useNavigate();
+
   return (
     <header className="sticky top-0 z-40 mx-4 mt-4 flex h-[4.5rem] items-center justify-between rounded-2xl border border-border-default bg-bg-surface/60 px-5 text-text-primary shadow-[0_18px_50px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
+      {/* Brand Logo */}
+      <button
+        type="button"
+        onClick={() => navigate('/dashboard')}
+        className="premium-focus mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 transition-transform duration-200 hover:scale-105"
+        title="Lumiere Dashboard"
+        aria-label="Go to Dashboard"
+      >
+        <span className="text-lg font-black text-white">L</span>
+      </button>
+
       {/* Search and Context Indicators */}
       <div className="flex flex-1 items-center gap-5">
         <div className="hidden min-w-0 md:block">
