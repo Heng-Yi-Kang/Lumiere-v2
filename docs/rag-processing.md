@@ -1,82 +1,78 @@
 # RAG Processing
 
-This document describes the current notebook Retrieval-Augmented Generation implementation in the Next.js backend.
+This document describes the notebook Retrieval-Augmented Generation implementation in the Next.js backend.
 
 ## Scope
 
-RAG in this codebase has two phases:
+RAG has two phases:
 
-1. Ingestion: convert uploaded notebook files into `NotebookFileChunk` rows with pgvector embeddings.
-2. Retrieval: embed a search or chat query, retrieve similar chunks from PostgreSQL, and format the best chunks for grounded chat prompts.
+1. Ingestion: convert uploaded notebook files into chunks, embed each chunk, store vectors in Qdrant, and store a chunk manifest in PostgreSQL.
+2. Retrieval: embed a search or chat query, retrieve similar chunks from Qdrant, validate returned files against PostgreSQL, and format the best chunks for grounded chat prompts.
 
-The current system is scoped by notebook, with an optional file-level filter.
+PostgreSQL remains the source of truth for notebooks, files, permissions, stored-file metadata, and chunk indexing history. Qdrant stores chunk embeddings plus the payload required for retrieval.
 
-## Core Storage Model
+## Storage Model
 
-RAG storage lives in PostgreSQL in the `NotebookFileChunk` table.
-
-Prisma defines the model in `backend/prisma/schema.prisma`:
+Notebook and file metadata lives in PostgreSQL. RAG manifests live in `NotebookFileChunk`:
 
 ```prisma
 model NotebookFileChunk {
   id              String   @id @default(cuid())
   notebookId      String
   notebookFileId  String
+  qdrantPointId   String
   chunkIndex      Int
-  content         String
   tokenCount      Int?
   metadata        Json     @default("{}")
-  embedding       Unsupported("vector")
   embeddingModel  String
-  embeddingDims   Int
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   notebookFile    NotebookFile @relation(fields: [notebookFileId], references: [id], onDelete: Cascade)
-
-  @@unique([notebookFileId, chunkIndex])
-  @@index([notebookId])
-  @@index([notebookFileId])
 }
 ```
 
-The migration creates the real PostgreSQL column as `vector(4096)`:
+The manifest intentionally does not store vectors. Retrieval uses Qdrant, then checks Qdrant hits against `NotebookFile` rows before returning context.
 
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
+## Qdrant Collection
 
-CREATE TABLE "NotebookFileChunk" (
-  ...
-  "embedding" vector(4096) NOT NULL,
-  "embeddingModel" TEXT NOT NULL,
-  "embeddingDims" INTEGER NOT NULL,
-  ...
-);
-```
+Qdrant access lives in `backend/src/lib/qdrant.ts`.
 
-The database container uses `pgvector/pgvector:0.8.2-pg16`, and `docker/postgres/init/001-enable-pgvector.sql` enables the extension for fresh local databases.
+Required environment variables:
 
-## Vector Index
+- `QDRANT_URL`
+- `QDRANT_COLLECTION`
 
-The migration adds an HNSW index over the first 2000 dimensions of the embedding:
+Optional environment variable:
 
-```sql
-CREATE INDEX "NotebookFileChunk_embedding_subvector_hnsw_idx"
-  ON "NotebookFileChunk"
-  USING hnsw ((subvector("embedding", 1, 2000)::vector(2000)) vector_cosine_ops);
-```
+- `QDRANT_API_KEY`
 
-The full embedding has 4096 dimensions, but the indexed candidate search uses a 2000-dimensional subvector. Retrieval then re-ranks those candidates with the full 4096-dimensional vector.
+The collection is lazily initialized on first ingestion or retrieval. It must use:
 
-Relevant constants live in `backend/src/lib/rag.ts`:
+- vector size: `4096`
+- distance: `Cosine`
 
-```ts
-export const RAG_CHUNK_SIZE = 2000;
-export const RAG_CHUNK_OVERLAP = 400;
-export const RAG_PROMPT_SOURCE_CHAR_LIMIT = 1200;
-export const RAG_VECTOR_DIMENSIONS = 4096;
-export const RAG_INDEX_SUBVECTOR_DIMENSIONS = 2000;
-```
+The client also creates payload indexes for:
+
+- `notebookId`
+- `notebookFileId`
+
+Each Qdrant point payload includes:
+
+- `notebookId`
+- `notebookFileId`
+- `fileName`
+- `fileType`
+- `chunkIndex`
+- `content`
+- `tokenCount`
+- `pageNumber`
+- `slideNumber`
+- `timestampStart`
+- `timestampEnd`
+- `embeddingModel`
+
+PDF, DOCX, PPTX, TXT, and audio chunks currently store `null` for page, slide, and timestamp fields. Video chunks map existing segment metadata into `timestampStart` and `timestampEnd`.
 
 ## Embedding Service
 
@@ -98,7 +94,7 @@ Generation behavior:
 
 The RAG layer rejects vectors unless they have exactly 4096 dimensions.
 
-## Ingestion Sources
+## Ingestion Flow
 
 Uploads enter RAG through `POST /api/notebooks/[notebookId]/files`.
 
@@ -111,7 +107,17 @@ The upload route:
 5. deletes the `NotebookFile` and stored file if indexing fails
 6. starts the file summary job when extracted text exists
 
-Supported file types are handled in `backend/src/lib/notebook-files.ts`:
+`indexNotebookFileForRag()`:
+
+1. splits extracted text or uses prebuilt video RAG segments
+2. generates one embedding per chunk
+3. validates vector dimensions
+4. ensures the Qdrant collection exists
+5. upserts chunk vectors and payloads into Qdrant
+6. writes `NotebookFileChunk` manifest rows in PostgreSQL
+7. deletes inserted Qdrant points if manifest persistence fails
+
+Supported upload types are handled in `backend/src/lib/notebook-files.ts`:
 
 - PDF
 - DOCX
@@ -120,7 +126,37 @@ Supported file types are handled in `backend/src/lib/notebook-files.ts`:
 - audio files
 - video files
 
-Documents, text files, and audio transcripts are indexed from extracted text. Video files use prebuilt timestamped RAG segments generated by `backend/src/lib/video-processing.ts`.
+## Retrieval Flow
+
+`retrieveNotebookRagContext()` lives in `backend/src/lib/rag.ts`.
+
+Inputs:
+
+- `notebookId`
+- `query`
+- optional `fileId`
+- optional `limit`
+
+Behavior:
+
+1. clamp `limit` to 1 through 20, defaulting to 5
+2. generate a normalized 4096-dimensional embedding for the query
+3. query Qdrant with a required `notebookId` payload filter and optional `notebookFileId` payload filter
+4. request extra candidates so stale Qdrant hits can be discarded
+5. load matching `NotebookFile` rows from PostgreSQL
+6. discard Qdrant hits whose files no longer exist in the requested notebook or file scope
+7. return the best validated chunks in the existing API shape
+
+The search and chat routes keep their existing request and response contracts.
+
+## Delete Cleanup
+
+File and notebook deletion still treat PostgreSQL as authoritative. After the Postgres delete, the backend best-effort deletes matching Qdrant points by payload filter:
+
+- file delete: `notebookId` + `notebookFileId`
+- notebook delete: `notebookId`
+
+Qdrant cleanup failures are logged but do not block deletion. Retrieval validation prevents stale Qdrant points from being returned if cleanup fails.
 
 ## Chunking Strategy
 
@@ -162,175 +198,3 @@ The metadata includes:
 - `videoTimestampEnd`
 
 These segments are passed directly to `indexNotebookFileForRag()` through the upload route. Visual frame descriptions are stored in chunk content and metadata for retrieval; they are not surfaced as separate preview content.
-
-## Indexing Flow
-
-`indexNotebookFileForRag()` lives in `backend/src/lib/rag.ts`.
-
-For each chunk or video segment:
-
-1. generate an embedding for the chunk content
-2. assert the embedding has 4096 dimensions
-3. insert a row into `NotebookFileChunk` with raw SQL
-
-The insert stores:
-
-- generated UUID
-- notebook id
-- notebook file id
-- chunk index
-- chunk content
-- estimated token count
-- metadata JSON
-- vector literal cast with `::vector`
-- embedding model
-- embedding dimension count
-- updated timestamp
-
-Prisma does not natively model pgvector values here, so writes use `prisma.$executeRaw`.
-
-## Retrieval Flow
-
-`retrieveNotebookRagContext()` lives in `backend/src/lib/rag.ts`.
-
-Inputs:
-
-- `notebookId`
-- `query`
-- optional `fileId`
-- optional `limit`
-
-Behavior:
-
-1. clamp `limit` to 1 through 20, defaulting to 5
-2. generate a normalized 4096-dimensional embedding for the query
-3. set `candidateLimit` to `limit * 4`, clamped from 20 through 100
-4. optionally filter chunks to a single notebook file
-5. use the 2000-dimensional HNSW subvector index to select candidate chunks
-6. re-rank candidates by full-vector cosine distance
-7. return the best chunks
-
-The candidate query uses pgvector cosine distance with `<=>`:
-
-```sql
-ORDER BY subvector(c."embedding", 1, CAST(2000 AS integer))::vector(2000)
-  <=> subvector($queryVector::vector, 1, CAST(2000 AS integer))::vector(2000)
-LIMIT $candidateLimit
-```
-
-The final result computes a similarity score from full-vector cosine distance:
-
-```sql
-1 - (c."embedding" <=> $queryVector::vector) AS "score"
-```
-
-The returned result shape is:
-
-- `fileId`
-- `fileName`
-- `chunkIndex`
-- `content`
-- `score`
-
-## Search Endpoint
-
-`POST /api/notebooks/[notebookId]/rag/search` calls `retrieveNotebookRagContext()` directly.
-
-Request body:
-
-```json
-{
-  "query": "explain database indexing",
-  "fileId": "optional-file-id",
-  "limit": 5
-}
-```
-
-Response body:
-
-```json
-{
-  "results": [
-    {
-      "fileId": "...",
-      "fileName": "...",
-      "chunkIndex": 0,
-      "content": "...",
-      "score": 0.82
-    }
-  ]
-}
-```
-
-The route validates the notebook exists before searching.
-
-## Chat Endpoint
-
-`POST /api/notebooks/[notebookId]/rag/chat` retrieves RAG context, formats it, and passes it to the chat completion provider.
-
-Request body:
-
-```json
-{
-  "question": "What does this notebook say about vector search?",
-  "fileId": "optional-file-id"
-}
-```
-
-Chat retrieval uses:
-
-- `limit: 6`
-- optional file scoping when `fileId` is provided
-- `formatRagContextForPrompt()` for context formatting
-
-If pgvector retrieval returns no chunks, the chat route falls back to splitting stored `NotebookFile.extractedText` and using those chunks with `score: 1`. This fallback is only used when there are files but no indexed retrieval results.
-
-If no grounded context is available, the route returns a non-grounded response with no citations.
-
-## Prompt Formatting
-
-`formatRagContextForPrompt()` converts retrieved chunks into source blocks:
-
-```text
-[SOURCE 1: filename.pdf, chunk 3, score 0.812]
-Chunk content...
-```
-
-Long source excerpts are truncated to `RAG_PROMPT_SOURCE_CHAR_LIMIT`, currently 1200 characters.
-
-The chat route passes this formatted context to `generateChatCompletion()` with:
-
-- `context`
-- `question`
-- `scopeLabel`
-
-The response returns citations derived from the selected chunks:
-
-- `fileId`
-- `fileName`
-- `position: "Chunk N"`
-- `score`
-- `type: "page"`
-
-## Current Caveats
-
-1. pgvector values are handled through raw SQL because Prisma represents the column as `Unsupported("vector")`.
-2. Indexing generates embeddings sequentially, so large uploads can be slow.
-3. The HNSW index is on a 2000-dimensional subvector, not the full 4096-dimensional embedding.
-4. There is no dedicated reranker after full-vector cosine re-ranking.
-5. Text chunking is character-based and may split semantic units awkwardly.
-6. Video retrieval returns segment-level chunks; adjacent video hits are not merged into a single moment.
-7. Chat has an extracted-text fallback when indexed retrieval returns nothing, but the search endpoint does not.
-
-## Practical Summary
-
-The current RAG stack is:
-
-- PostgreSQL plus pgvector for embedding storage and similarity search
-- `NotebookFileChunk` as the central chunk table
-- OpenAI-compatible embedding generation through environment-configured endpoints
-- normalized 4096-dimensional embeddings
-- HNSW candidate retrieval on a 2000-dimensional subvector
-- full-vector cosine re-ranking of candidates
-- notebook-scoped and optional file-scoped search
-- grounded chat responses with chunk citations

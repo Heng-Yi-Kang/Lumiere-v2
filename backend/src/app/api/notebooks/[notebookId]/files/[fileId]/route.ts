@@ -1,5 +1,6 @@
 import { buildNotebookStoredFileUrl, deleteNotebookStoredFile } from '@/lib/notebook-files';
 import { jsonResponse, optionsResponse } from '@/lib/http';
+import { deleteNotebookFileRagIndex } from '@/lib/rag';
 import { serializeNotebook } from '@/lib/notebooks';
 import { prisma } from '@/lib/prisma';
 
@@ -81,6 +82,11 @@ export async function DELETE(
     where: {
       id: file.id,
     },
+  });
+
+  await deleteNotebookFileRagIndex({
+    fileId: file.id,
+    notebookId,
   });
 
   await deleteNotebookStoredFile([file.sourcePath]);

@@ -66,19 +66,18 @@ model NotebookFileChunk {
   id              String   @id @default(cuid())
   notebookId      String
   notebookFileId  String
+  qdrantPointId   String
   chunkIndex      Int
-  content         String
   tokenCount      Int?
   metadata        Json     @default("{}")
-  embedding       Unsupported("vector")
   embeddingModel  String
-  embeddingDims   Int
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   notebookFile    NotebookFile @relation(fields: [notebookFileId], references: [id], onDelete: Cascade)
 
   @@unique([notebookFileId, chunkIndex])
+  @@unique([qdrantPointId])
   @@index([notebookId])
   @@index([notebookFileId])
 }

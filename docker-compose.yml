@@ -34,6 +34,16 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: lumiere-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
 volumes:
   postgres_data:
   pgadmin_data:
+  qdrant_data:

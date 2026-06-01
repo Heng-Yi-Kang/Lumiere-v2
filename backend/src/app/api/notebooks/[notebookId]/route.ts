@@ -1,5 +1,6 @@
 import { deleteNotebookStoredFile } from '@/lib/notebook-files';
 import { jsonResponse, noContentResponse, optionsResponse } from '@/lib/http';
+import { deleteNotebookRagIndex } from '@/lib/rag';
 import { serializeNotebook } from '@/lib/notebooks';
 import { prisma } from '@/lib/prisma';
 
@@ -79,6 +80,10 @@ export async function DELETE(
 
   await prisma.notebook.delete({
     where: { id: notebookId },
+  });
+
+  await deleteNotebookRagIndex({
+    notebookId,
   });
 
   return noContentResponse();

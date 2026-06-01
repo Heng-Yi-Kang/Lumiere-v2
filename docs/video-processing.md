@@ -139,7 +139,7 @@ The stored notebook file preview exposes:
 
 The frontend renders this in `frontend/src/components/NotebookView.tsx`.
 
-Visual frame descriptions stay server-side in `NotebookFileChunk.content` and chunk metadata for retrieval. They are not included in the file preview payload shown by the frontend.
+Visual frame descriptions stay server-side in Qdrant chunk payloads and chunk metadata for retrieval. They are not included in the file preview payload shown by the frontend.
 
 ## Operational Requirements
 

@@ -1,14 +1,22 @@
-import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { getEmbeddingModel, generateEmbedding } from '@/lib/embeddings';
 import { prisma } from '@/lib/prisma';
+import {
+  deleteNotebookChunkPointsByFile,
+  deleteNotebookChunkPointsByIds,
+  deleteNotebookChunkPointsByNotebook,
+  ensureNotebookChunksCollection,
+  getQdrantCollectionName,
+  type NotebookChunkPayload,
+  searchNotebookChunks,
+  upsertNotebookChunkPoints,
+} from '@/lib/qdrant';
 
 export const RAG_CHUNK_SIZE = 2000;
 export const RAG_CHUNK_OVERLAP = 400;
 export const RAG_PROMPT_SOURCE_CHAR_LIMIT = 1200;
 export const RAG_VECTOR_DIMENSIONS = 4096;
-export const RAG_INDEX_SUBVECTOR_DIMENSIONS = 2000;
 
 type RagSearchOptions = {
   fileId?: string;
@@ -28,6 +36,15 @@ export type RagSearchResult = {
 export type RagIndexChunk = {
   content: string;
   metadata?: Record<string, unknown>;
+};
+
+type RagChunkMetadata = {
+  pageNumber?: unknown;
+  slideNumber?: unknown;
+  timestampEnd?: unknown;
+  timestampStart?: unknown;
+  videoTimestampEnd?: unknown;
+  videoTimestampStart?: unknown;
 };
 
 function cleanText(text: string) {
@@ -90,14 +107,58 @@ export function splitIntoChunks(text: string, chunkSize = RAG_CHUNK_SIZE, overla
   return chunks;
 }
 
-function toVectorLiteral(vector: number[]) {
-  return `[${vector.join(',')}]`;
-}
-
 function assertVectorDimensions(vector: number[]) {
   if (vector.length !== RAG_VECTOR_DIMENSIONS) {
     throw new Error(`Embedding dimension mismatch. Expected ${RAG_VECTOR_DIMENSIONS}, received ${vector.length}.`);
   }
+}
+
+function nullableNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function buildChunkPayload(params: {
+  chunk: RagIndexChunk;
+  chunkIndex: number;
+  embeddingModel: string;
+  fileId: string;
+  fileName: string;
+  fileType: string;
+  notebookId: string;
+}) {
+  const metadata = (params.chunk.metadata || {}) as RagChunkMetadata;
+  const tokenCount = estimateTokenCount(params.chunk.content);
+
+  return {
+    notebookId: params.notebookId,
+    notebookFileId: params.fileId,
+    fileName: params.fileName,
+    fileType: params.fileType,
+    chunkIndex: params.chunkIndex,
+    content: params.chunk.content,
+    tokenCount,
+    pageNumber: nullableNumber(metadata.pageNumber),
+    slideNumber: nullableNumber(metadata.slideNumber),
+    timestampStart: nullableNumber(metadata.timestampStart ?? metadata.videoTimestampStart),
+    timestampEnd: nullableNumber(metadata.timestampEnd ?? metadata.videoTimestampEnd),
+    embeddingModel: params.embeddingModel,
+  } satisfies NotebookChunkPayload;
+}
+
+function isNotebookChunkPayload(value: unknown): value is NotebookChunkPayload {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const payload = value as Partial<NotebookChunkPayload>;
+  return typeof payload.notebookId === 'string'
+    && typeof payload.notebookFileId === 'string'
+    && typeof payload.fileName === 'string'
+    && typeof payload.fileType === 'string'
+    && typeof payload.chunkIndex === 'number'
+    && typeof payload.content === 'string'
+    && typeof payload.tokenCount === 'number'
+    && typeof payload.embeddingModel === 'string';
 }
 
 export async function indexNotebookFileForRag(params: {
@@ -134,6 +195,8 @@ export async function indexNotebookFileForRag(params: {
   }
 
   const embeddingModel = getEmbeddingModel();
+  const collectionName = await ensureNotebookChunksCollection(RAG_VECTOR_DIMENSIONS);
+  const points = [];
 
   for (const [chunkIndex, chunk] of chunks.entries()) {
     const chunkStartedAt = performance.now();
@@ -148,6 +211,15 @@ export async function indexNotebookFileForRag(params: {
 
     const embedding = await generateEmbedding(content);
     assertVectorDimensions(embedding);
+    const payload = buildChunkPayload({
+      chunk,
+      chunkIndex,
+      embeddingModel,
+      fileId: params.fileId,
+      fileName: params.fileName,
+      fileType: params.fileType,
+      notebookId: params.notebookId,
+    });
 
     logBackendProcess('info', 'rag.embedding.completed', {
       chunkIndex,
@@ -158,43 +230,81 @@ export async function indexNotebookFileForRag(params: {
       notebookId: params.notebookId,
     });
 
-    await prisma.$executeRaw`
-      INSERT INTO "NotebookFileChunk" (
-        "id",
-        "notebookId",
-        "notebookFileId",
-        "chunkIndex",
-        "content",
-        "tokenCount",
-        "metadata",
-        "embedding",
-        "embeddingModel",
-        "embeddingDims",
-        "updatedAt"
-      )
-      VALUES (
-        ${randomUUID()},
-        ${params.notebookId},
-        ${params.fileId},
-        ${chunkIndex},
-        ${content},
-        ${estimateTokenCount(content)},
-        ${JSON.stringify({ fileName: params.fileName, fileType: params.fileType, ...(chunk.metadata || {}) })}::jsonb,
-        ${toVectorLiteral(embedding)}::vector,
-        ${embeddingModel},
-        ${embedding.length},
-        NOW()
-      )
-    `;
+    points.push({
+      id: randomUUID(),
+      metadata: {
+        fileName: params.fileName,
+        fileType: params.fileType,
+        pageNumber: payload.pageNumber,
+        slideNumber: payload.slideNumber,
+        timestampEnd: payload.timestampEnd,
+        timestampStart: payload.timestampStart,
+        ...(chunk.metadata || {}),
+      },
+      payload,
+      vector: embedding,
+    });
 
-    logBackendProcess('info', 'rag.chunk.stored', {
+    logBackendProcess('info', 'rag.chunk.prepared', {
       chunkIndex,
       elapsedMs: getElapsedMs(chunkStartedAt),
       fileId: params.fileId,
       fileName: params.fileName,
       notebookId: params.notebookId,
-      tokenCount: estimateTokenCount(content),
+      tokenCount: payload.tokenCount,
     });
+  }
+
+  const pointIds = points.map((point) => point.id);
+  try {
+    await deleteNotebookChunkPointsByFile({
+      collectionName,
+      fileId: params.fileId,
+      notebookId: params.notebookId,
+    }).catch(() => undefined);
+    await upsertNotebookChunkPoints({
+      collectionName,
+      points,
+    });
+    await prisma.$transaction([
+      prisma.$executeRaw`DELETE FROM "NotebookFileChunk" WHERE "notebookFileId" = ${params.fileId}`,
+      ...points.map((point) => prisma.$executeRaw`
+        INSERT INTO "NotebookFileChunk" (
+          "id",
+          "notebookId",
+          "notebookFileId",
+          "qdrantPointId",
+          "chunkIndex",
+          "tokenCount",
+          "metadata",
+          "embeddingModel",
+          "updatedAt"
+        )
+        VALUES (
+          ${randomUUID()},
+          ${params.notebookId},
+          ${params.fileId},
+          ${point.id},
+          ${point.payload.chunkIndex},
+          ${point.payload.tokenCount},
+          ${JSON.stringify(point.metadata)}::jsonb,
+          ${embeddingModel},
+          NOW()
+        )
+      `),
+    ]);
+  } catch (error) {
+    await deleteNotebookChunkPointsByIds({
+      collectionName,
+      pointIds,
+    }).catch((cleanupError) => {
+      logBackendProcess('error', 'rag.index.cleanup_failed', {
+        cleanupError: cleanupError instanceof Error ? cleanupError.message : 'Unknown Qdrant cleanup error',
+        fileId: params.fileId,
+        notebookId: params.notebookId,
+      });
+    });
+    throw error;
   }
 
   logBackendProcess('info', 'rag.index.completed', {
@@ -233,46 +343,56 @@ export async function retrieveNotebookRagContext(options: RagSearchOptions) {
     notebookId: options.notebookId,
   });
 
-  const vector = toVectorLiteral(embedding);
   const candidateLimit = Math.min(Math.max(limit * 4, 20), 100);
-  const indexedSubvectorCast = Prisma.raw(`vector(${RAG_INDEX_SUBVECTOR_DIMENSIONS})`);
-  const fileFilter = options.fileId ? Prisma.sql`AND c."notebookFileId" = ${options.fileId}` : Prisma.empty;
+  const collectionName = await ensureNotebookChunksCollection(RAG_VECTOR_DIMENSIONS);
 
-  logBackendProcess('info', 'rag.database.search.started', {
+  logBackendProcess('info', 'rag.qdrant.search.started', {
     candidateLimit,
     fileId: options.fileId,
     limit,
     notebookId: options.notebookId,
   });
 
-  const results = await prisma.$queryRaw<RagSearchResult[]>`
-    WITH candidate_chunks AS MATERIALIZED (
-      SELECT
-        c."id",
-        c."notebookFileId",
-        c."chunkIndex",
-        c."content",
-        c."embedding"
-      FROM "NotebookFileChunk" c
-      WHERE c."notebookId" = ${options.notebookId}
-        ${fileFilter}
-      ORDER BY subvector(c."embedding", 1, CAST(${RAG_INDEX_SUBVECTOR_DIMENSIONS} AS integer))::${indexedSubvectorCast}
-        <=> subvector(${vector}::vector, 1, CAST(${RAG_INDEX_SUBVECTOR_DIMENSIONS} AS integer))::${indexedSubvectorCast}
-      LIMIT ${candidateLimit}
-    )
-    SELECT
-      c."notebookFileId" AS "fileId",
-      f."name" AS "fileName",
-      c."chunkIndex",
-      c."content",
-      1 - (c."embedding" <=> ${vector}::vector) AS "score"
-    FROM candidate_chunks c
-    INNER JOIN "NotebookFile" f ON f."id" = c."notebookFileId"
-    ORDER BY c."embedding" <=> ${vector}::vector
-    LIMIT ${limit}
-  `;
+  const hits = await searchNotebookChunks({
+    collectionName,
+    fileId: options.fileId,
+    limit: candidateLimit,
+    notebookId: options.notebookId,
+    vector: embedding,
+  });
 
-  logBackendProcess('info', 'rag.database.search.completed', {
+  const payloads = hits
+    .map((hit) => ({
+      payload: hit.payload,
+      score: hit.score,
+    }))
+    .filter((hit): hit is { payload: NotebookChunkPayload; score: number } => isNotebookChunkPayload(hit.payload));
+  const fileIds = [...new Set(payloads.map((hit) => hit.payload.notebookFileId))];
+  const validFiles = fileIds.length
+    ? await prisma.notebookFile.findMany({
+        where: {
+          id: options.fileId || { in: fileIds },
+          notebookId: options.notebookId,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      })
+    : [];
+  const validFileNames = new Map(validFiles.map((file) => [file.id, file.name]));
+  const results = payloads
+    .filter((hit) => validFileNames.has(hit.payload.notebookFileId))
+    .slice(0, limit)
+    .map((hit) => ({
+      chunkIndex: hit.payload.chunkIndex,
+      content: hit.payload.content,
+      fileId: hit.payload.notebookFileId,
+      fileName: validFileNames.get(hit.payload.notebookFileId) || hit.payload.fileName,
+      score: hit.score,
+    }));
+
+  logBackendProcess('info', 'rag.qdrant.search.completed', {
     candidateLimit,
     elapsedMs: getElapsedMs(searchStartedAt),
     fileId: options.fileId,
@@ -282,6 +402,41 @@ export async function retrieveNotebookRagContext(options: RagSearchOptions) {
   });
 
   return results;
+}
+
+export async function deleteNotebookFileRagIndex(params: {
+  fileId: string;
+  notebookId: string;
+}) {
+  try {
+    await deleteNotebookChunkPointsByFile({
+      collectionName: getQdrantCollectionName(),
+      fileId: params.fileId,
+      notebookId: params.notebookId,
+    });
+  } catch (error) {
+    logBackendProcess('error', 'rag.file.cleanup_failed', {
+      error: error instanceof Error ? error.message : 'Unknown Qdrant cleanup error',
+      fileId: params.fileId,
+      notebookId: params.notebookId,
+    });
+  }
+}
+
+export async function deleteNotebookRagIndex(params: {
+  notebookId: string;
+}) {
+  try {
+    await deleteNotebookChunkPointsByNotebook({
+      collectionName: getQdrantCollectionName(),
+      notebookId: params.notebookId,
+    });
+  } catch (error) {
+    logBackendProcess('error', 'rag.notebook.cleanup_failed', {
+      error: error instanceof Error ? error.message : 'Unknown Qdrant cleanup error',
+      notebookId: params.notebookId,
+    });
+  }
 }
 
 export function formatRagContextForPrompt(results: RagSearchResult[]) {

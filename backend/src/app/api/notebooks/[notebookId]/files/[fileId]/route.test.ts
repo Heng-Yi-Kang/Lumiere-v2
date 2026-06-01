@@ -18,7 +18,12 @@ vi.mock('@/lib/prisma', () => ({
   prisma: prismaMock,
 }));
 
+vi.mock('@/lib/rag', () => ({
+  deleteNotebookFileRagIndex: vi.fn(),
+}));
+
 import { DELETE, GET } from './route';
+import { deleteNotebookFileRagIndex } from '@/lib/rag';
 
 describe('GET /api/notebooks/[notebookId]/files/[fileId]', () => {
   beforeEach(() => {
@@ -63,6 +68,7 @@ describe('DELETE /api/notebooks/[notebookId]/files/[fileId]', () => {
     prismaMock.notebookFile.findFirst.mockReset();
     prismaMock.notebookFile.delete.mockReset();
     prismaMock.notebook.findUnique.mockReset();
+    vi.mocked(deleteNotebookFileRagIndex).mockReset();
   });
 
   afterEach(async () => {
@@ -101,6 +107,10 @@ describe('DELETE /api/notebooks/[notebookId]/files/[fileId]', () => {
       where: {
         id: 'file-1',
       },
+    });
+    expect(deleteNotebookFileRagIndex).toHaveBeenCalledWith({
+      fileId: 'file-1',
+      notebookId: 'nb-1',
     });
 
     await expect(access(storedPath)).rejects.toBeDefined();
