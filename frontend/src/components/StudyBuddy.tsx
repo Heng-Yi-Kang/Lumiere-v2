@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Bot, FileText, Minimize2, Send, ShieldCheck, Sparkles, Trash2, Video, X } from 'lucide-react';
+import { ArrowUpRight, FileText, Minimize2, Send, ShieldCheck, Sparkles, Trash2, Video } from 'lucide-react';
 import { getGroundedChatErrorMessage } from '../lib/apiErrors';
 import { askGroundedNotebookChat } from '../lib/notebooksApi';
 import { ChatGroundingScope, ChatMessage, GroundedChatRequest, Notebook } from '../types';
@@ -158,26 +158,6 @@ export default function StudyBuddy({
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="premium-focus fixed bottom-6 right-6 z-[100] flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-accent text-white shadow-[0_18px_45px_rgba(99,102,241,0.35)] transition-all duration-200 hover:bg-accent-hover hover:scale-105"
-        title="Ask Study Buddy"
-        id="study-buddy-fab"
-      >
-        <span className="absolute -top-1 -right-1 flex h-4 w-4">
-          <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-cta text-[8px] font-black text-bg-base font-mono">AI</span>
-        </span>
-
-        {isOpen ? (
-          <X className="h-6 w-6 text-white" />
-        ) : (
-          <div className="relative">
-            <Bot className="h-6 w-6 text-white" />
-            <Sparkles className="absolute -top-1.5 -right-1.5 h-3 w-3 text-cta" />
-          </div>
-        )}
-      </button>
-
       {isOpen && (
         <div
           id="study-buddy-panel"

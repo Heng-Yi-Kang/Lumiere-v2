@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { DEFAULT_COURSES, DEFAULT_KNOWLEDGE_GRAPH, MOCK_FLASHCARDS, MOCK_QUIZZES, MOCK_STREAK } from './data/mockData';
+import { DEFAULT_COURSES, DEFAULT_KNOWLEDGE_GRAPH, MOCK_STREAK } from './data/mockData';
 import { ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
 import FloatingDock from './components/FloatingDock';
 import Header from './components/Header';
@@ -9,8 +9,6 @@ import DashboardView from './components/DashboardView';
 import NotebookView from './components/NotebookView';
 import StudyBuddy from './components/StudyBuddy';
 import KnowledgeGraphView from './components/KnowledgeGraphView';
-import RevisionView from './components/RevisionView';
-import SlangLounge from './components/SlangLounge';
 import CreateNotebookModal from './components/CreateNotebookModal';
 import { createNotebook, createNotebookFile, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
 import { getRetryLaterUploadMessage, isRetryLaterUploadError } from './lib/apiErrors';
@@ -19,8 +17,6 @@ const pageToPath = {
   Dashboard: '/dashboard',
   Notebooks: '/notebooks',
   KnowledgeGraph: '/knowledge-graph',
-  Revision: '/revision',
-  StudyLounge: '/study-lounge',
 } as const;
 
 const pathToPage = Object.fromEntries(
@@ -384,18 +380,6 @@ export default function App() {
                 />
               )}
             />
-            <Route
-              path={pageToPath.Revision}
-              element={(
-                <RevisionView
-                  flashcards={MOCK_FLASHCARDS}
-                  quizzes={MOCK_QUIZZES}
-                  courses={DEFAULT_COURSES}
-                  onAskInChat={handleAskInChat}
-                />
-              )}
-            />
-            <Route path={pageToPath.StudyLounge} element={<SlangLounge />} />
             <Route path="*" element={<Navigate to={pageToPath.Dashboard} replace />} />
           </Routes>
         </main>

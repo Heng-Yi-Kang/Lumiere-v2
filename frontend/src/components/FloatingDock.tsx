@@ -3,8 +3,6 @@ import {
   Compass, 
   BookOpen, 
   Network, 
-  CheckSquare, 
-  Coffee,
   Target,
   Star,
   Plus,
@@ -44,8 +42,6 @@ export default function FloatingDock({
     { page: 'Dashboard', label: 'Dashboard', icon: Compass },
     { page: 'Notebooks', label: 'My Notebooks', icon: BookOpen },
     { page: 'KnowledgeGraph', label: 'Knowledge Graph', icon: Network },
-    { page: 'Revision', label: 'Revision', icon: CheckSquare },
-    { page: 'StudyLounge', label: 'Study Lounge', icon: Coffee }
   ];
 
   const priorityGoal = goals.find(g => g.isPriority) || goals[0];
