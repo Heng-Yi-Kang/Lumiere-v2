@@ -1,14 +1,8 @@
-import { execFile } from 'node:child_process';
-import { constants as fsConstants, promises as fs } from 'node:fs';
-import { promisify } from 'node:util';
 import { logBackendProcess } from '@/lib/backend-logger';
-import { getNotebookUploadRoot } from '@/lib/notebook-files';
+import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 import { prisma } from '@/lib/prisma';
-import { getQdrantClient } from '@/lib/qdrant';
 import { isRerankingEnabled } from '@/lib/reranker';
-import { getVideoFrameProviderConfig } from '@/lib/video-processing';
 
-const execFileAsync = promisify(execFile);
 const STARTUP_HEALTH_PROMISE_KEY = '__lumiereStartupHealthPromise';
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
 const redPixelPngDataUrl =
@@ -56,6 +50,11 @@ function buildUrl(baseUrl: string, pathname: string) {
   return `${baseUrl.replace(/\/+$/, '')}${pathname}`;
 }
 
+function importRuntimeModule<T>(specifier: string): Promise<T> {
+  // Next instrumentation traces static Node built-in imports as client-resolved modules.
+  return (new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<T>)(specifier);
+}
+
 function getProviderTimeoutMs() {
   const configuredTimeout = Number(process.env.STARTUP_HEALTH_PROVIDER_TIMEOUT_MS);
   return Number.isFinite(configuredTimeout) && configuredTimeout > 0
@@ -79,6 +78,18 @@ async function parseJsonResponse(response: Response, label: string) {
 
 function getMissingEnv(names: string[]) {
   return names.filter((name) => !getTrimmedEnv(name));
+}
+
+function getFirstEnv(names: string[]) {
+  return names.map(getTrimmedEnv).find(Boolean);
+}
+
+function getVideoFrameProviderConfig() {
+  return {
+    apiKey: getFirstEnv(['VLM_API_KEY', 'CHAT_API_KEY']),
+    baseUrl: getFirstEnv(['VLM_API_BASE_URL', 'VLM_API_BASE', 'CHAT_API_BASE_URL']) || 'https://api.openai.com/v1',
+    model: getFirstEnv(['VLM_MODEL', 'CHAT_MODEL']),
+  };
 }
 
 function formatMissingEnvMessage(missingEnv: string[]) {
@@ -125,18 +136,33 @@ function buildEnvCheck(params: {
 }
 
 async function ensureUploadRootWritable() {
+  const { constants: fsConstants, promises: fs } = await importRuntimeModule<typeof import('node:fs')>('node:fs');
   const uploadRoot = getNotebookUploadRoot();
   await fs.mkdir(uploadRoot, { recursive: true });
   await fs.access(uploadRoot, fsConstants.W_OK);
 }
 
 async function hasCommand(command: string) {
-  try {
-    await execFileAsync(command, ['-version']);
-    return true;
-  } catch {
-    return false;
+  const { constants: fsConstants, promises: fs } = await importRuntimeModule<typeof import('node:fs')>('node:fs');
+  const pathEntries = (process.env.PATH ?? '').split(process.platform === 'win32' ? ';' : ':').filter(Boolean);
+  const executableExtensions = process.platform === 'win32'
+    ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';')
+    : [''];
+
+  for (const pathEntry of pathEntries) {
+    for (const extension of executableExtensions) {
+      const executablePath = `${pathEntry.replace(/[\\/]+$/, '')}/${command}${extension}`;
+
+      try {
+        await fs.access(executablePath, fsConstants.X_OK);
+        return true;
+      } catch {
+        // Keep searching PATH.
+      }
+    }
   }
+
+  return false;
 }
 
 async function pingDatabase() {
@@ -144,7 +170,27 @@ async function pingDatabase() {
 }
 
 async function pingQdrant() {
-  await getQdrantClient().getCollections();
+  const headers = new Headers();
+  const apiKey = getTrimmedEnv('QDRANT_API_KEY');
+
+  if (apiKey) {
+    headers.set('api-key', apiKey);
+  }
+
+  const payload = await parseJsonResponse(
+    await fetch(buildUrl(getTrimmedEnv('QDRANT_URL')!, '/collections'), {
+      method: 'GET',
+      signal: AbortSignal.timeout(getProviderTimeoutMs()),
+      headers,
+    }),
+    'Qdrant collections probe',
+  );
+
+  const collections = (payload.result as { collections?: unknown } | undefined)?.collections;
+
+  if (!Array.isArray(collections)) {
+    throw new Error('Qdrant returned an unexpected collections response.');
+  }
 }
 
 async function pingEmbeddingProvider() {

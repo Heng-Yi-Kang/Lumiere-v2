@@ -5,6 +5,7 @@ import path from 'node:path';
 import mammoth from 'mammoth';
 import sanitizeHtml from 'sanitize-html';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
+import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 import { transcribeAudioFile } from '@/lib/stt';
 import { processVideoFile, type VideoRagSegment } from '@/lib/video-processing';
 import { describeImageFile } from '@/lib/vlm';
@@ -80,10 +81,7 @@ const require = createRequire(import.meta.url);
 let officeParserModulePromise: Promise<OfficeParserModule> | undefined;
 
 export class NotebookFileValidationError extends Error {}
-
-export function getNotebookUploadRoot() {
-  return process.env.NOTEBOOK_UPLOAD_ROOT || path.join(process.cwd(), 'public', 'uploads', 'notebooks');
-}
+export { getNotebookUploadRoot };
 
 export function buildNotebookStoredFileUrl(notebookId: string, sourcePath: string | null | undefined) {
   if (!sourcePath) {

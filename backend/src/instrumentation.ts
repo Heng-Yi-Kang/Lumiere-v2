@@ -1,9 +1,8 @@
-import { runStartupHealthCheckOnce } from '@/lib/startup-health';
-
 export async function register() {
-  if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== 'nodejs') {
+  if (process.env.NEXT_RUNTIME !== 'nodejs') {
     return;
   }
 
+  const { runStartupHealthCheckOnce } = await import('@/lib/startup-health');
   await runStartupHealthCheckOnce();
 }
