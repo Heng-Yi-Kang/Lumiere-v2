@@ -3,6 +3,7 @@ import { ArrowUpRight, Bot, FileText, Minimize2, Send, ShieldCheck, Sparkles, Tr
 import { getGroundedChatErrorMessage } from '../lib/apiErrors';
 import { askGroundedNotebookChat } from '../lib/notebooksApi';
 import { ChatGroundingScope, ChatMessage, GroundedChatRequest, Notebook } from '../types';
+import { ChatMarkdown } from './ChatMarkdown';
 
 interface StudyBuddyProps {
   activeGroundingScope?: ChatGroundingScope;
@@ -242,9 +243,13 @@ export default function StudyBuddy({
                     <span>{msg.timestamp}</span>
                   </div>
 
-                  <div className="whitespace-pre-wrap leading-relaxed space-y-1.5 font-semibold">
-                    {msg.text}
-                  </div>
+                  {msg.role === 'assistant' ? (
+                    <ChatMarkdown content={msg.text} />
+                  ) : (
+                    <div className="whitespace-pre-wrap leading-relaxed space-y-1.5 font-semibold">
+                      {msg.text}
+                    </div>
+                  )}
 
                   {msg.role === 'assistant' && msg.grounded === false && (
                     <div className="mt-2.5 rounded-lg border border-cta/20 bg-cta-subtle/50 px-2 py-1.5 text-[9px] font-bold text-cta">
