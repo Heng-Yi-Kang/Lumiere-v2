@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import { createRequire } from 'node:module';
-import path from 'node:path';
+import { randomUUID } from 'crypto';
+import { promises as fs } from 'fs';
+import { createRequire } from 'module';
+import path from 'path';
 import mammoth from 'mammoth';
 import sanitizeHtml from 'sanitize-html';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';

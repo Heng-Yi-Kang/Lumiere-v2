@@ -1,4 +1,4 @@
-import { promises as fs } from 'node:fs';
+import { promises as fs } from 'fs';
 
 const DEFAULT_VLM_TIMEOUT_MS = 45_000;
 

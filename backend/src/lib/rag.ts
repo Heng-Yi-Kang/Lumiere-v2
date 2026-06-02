@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from 'crypto';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { getEmbeddingModel, generateEmbedding } from '@/lib/embeddings';
 import { prisma } from '@/lib/prisma';
