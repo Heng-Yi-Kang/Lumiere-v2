@@ -200,7 +200,6 @@ export default function DashboardView({
               <span className="rounded-full border border-accent-border bg-accent-subtle px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-accent-hover">
                 Lumiere Workspace
               </span>
-              <span className="text-sm font-semibold text-text-secondary">Sem 2 Semester Student Portal</span>
             </div>
             <h1 className="text-3xl font-black tracking-tight font-display text-gradient">
               Welcome, {currentUserName}
