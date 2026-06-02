@@ -19,7 +19,7 @@ interface FloatingDockProps {
   currentPage: string;
   setCurrentPage: (page: string) => void;
   goals: Goal[];
-  onAddGoal: (text: string) => void;
+  onAddGoal: (text: string) => Promise<void>;
   onToggleGoal: (id: string) => void;
   onSetPriorityGoal: (id: string) => void;
   onDeleteGoal: (id: string) => void;
@@ -36,6 +36,8 @@ export default function FloatingDock({
 }: FloatingDockProps) {
   const [isManageGoalsOpen, setIsManageGoalsOpen] = useState(false);
   const [newGoalText, setNewGoalText] = useState('');
+  const [goalCreateError, setGoalCreateError] = useState('');
+  const [isCreatingGoal, setIsCreatingGoal] = useState(false);
   const [isDockHovered, setIsDockHovered] = useState(false);
 
   const menuItems = [
@@ -48,11 +50,25 @@ export default function FloatingDock({
   const completedCount = goals.filter(g => g.completed).length;
   const progressPercent = goals.length > 0 ? Math.round((completedCount / goals.length) * 100) : 0;
 
-  const handleCreateGoal = (e: React.FormEvent) => {
+  const handleCreateGoal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGoalText.trim()) return;
-    onAddGoal(newGoalText.trim());
-    setNewGoalText('');
+    const text = newGoalText.trim();
+
+    if (!text || isCreatingGoal) {
+      return;
+    }
+
+    setGoalCreateError('');
+    setIsCreatingGoal(true);
+
+    try {
+      await onAddGoal(text);
+      setNewGoalText('');
+    } catch (error) {
+      setGoalCreateError(error instanceof Error ? error.message : 'Failed to create goal.');
+    } finally {
+      setIsCreatingGoal(false);
+    }
   };
 
   const renderDockOverlay = (label: string, isVisible = false) => (
@@ -186,16 +202,28 @@ export default function FloatingDock({
                 required
                 placeholder="e.g. Ace the WIX1001 Midterm exam"
                 value={newGoalText}
-                onChange={(e) => setNewGoalText(e.target.value)}
+                onChange={(e) => {
+                  setNewGoalText(e.target.value);
+                  if (goalCreateError) {
+                    setGoalCreateError('');
+                  }
+                }}
+                disabled={isCreatingGoal}
                 className="premium-focus flex-1 rounded-2xl border border-border-default bg-bg-elevated/80 px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent"
               />
               <button 
                 type="submit"
-                className="premium-focus flex items-center justify-center rounded-2xl bg-accent px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-accent-hover shadow-lg shadow-indigo-500/20"
+                disabled={isCreatingGoal}
+                className="premium-focus flex items-center justify-center rounded-2xl bg-accent px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus className="h-4 w-4" />
               </button>
             </form>
+            {goalCreateError && (
+              <p className="rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-xs font-medium text-error">
+                {goalCreateError}
+              </p>
+            )}
 
             {/* List of goals */}
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">

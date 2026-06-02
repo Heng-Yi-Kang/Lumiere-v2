@@ -475,10 +475,17 @@ export default function App() {
   }, [navigate]);
 
   // Goals CRUD functions
-  const handleAddGoal = (text: string) => {
-    void createGoal(text)
-      .then((goal) => setGoals((prev) => [...prev, goal]))
-      .catch((error) => setGoalLoadError(error instanceof Error ? error.message : 'Failed to create goal.'));
+  const handleAddGoal = async (text: string) => {
+    setGoalLoadError('');
+
+    try {
+      const goal = await createGoal(text);
+      setGoals((prev) => [...prev, goal]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create goal.';
+      setGoalLoadError(message);
+      throw new Error(message);
+    }
   };
 
   const handleToggleGoal = (id: string) => {
