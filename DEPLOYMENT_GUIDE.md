@@ -1,36 +1,10 @@
 # Production Docker Deployment Setup
 
-This guide is for a coding agent setting up Lumiere on a deployment server.
-The tracked Docker template lives in `example_docker/`. The deploy server uses a
-local `production_docker/` copy, which is intentionally ignored by git so server
-`.env`, logs, upload data, and deployment-only edits do not enter the repository.
+This guide is for deploying Lumiere with the local `production_docker/` Compose
+stack. The stack runs the Vite frontend, Next.js backend, PostgreSQL, and Qdrant
+on one Linux host.
 
-## 1. Create The Deployment Folder
-
-From the repository root on the deployment server:
-
-```bash
-rm -rf production_docker
-cp -a example_docker production_docker
-```
-
-Rewrite internal paths so Compose builds from `production_docker/`:
-
-```bash
-perl -pi -e 's#example_docker/Dockerfile.frontend#production_docker/Dockerfile.frontend#g' production_docker/docker-compose.yml
-perl -pi -e 's#example_docker/Dockerfile.backend#production_docker/Dockerfile.backend#g' production_docker/docker-compose.yml
-perl -pi -e 's#example_docker/backend-entrypoint.sh#production_docker/backend-entrypoint.sh#g' production_docker/Dockerfile.backend
-perl -pi -e 's#example_docker/nginx/templates#production_docker/nginx/templates#g' production_docker/Dockerfile.frontend
-perl -pi -e 's#example_docker/#production_docker/#g; s#cd example_docker#cd production_docker#g' production_docker/README.md production_docker/DEPLOYMENT_GUIDE.md production_docker/start_docker.sh 2>/dev/null || true
-```
-
-Clean copied runtime artifacts:
-
-```bash
-rm -rf production_docker/logs production_docker/data production_docker/.env
-```
-
-## 2. Configure Environment
+## 1. Configure Environment
 
 Create the server-local environment file:
 
@@ -48,7 +22,7 @@ Before a public deployment, edit `.env` and set at least:
 - `EMBEDDING_API_KEY`
 - `EMBEDDING_MODEL`
 
-Keep these defaults unless there is a specific reason to change them:
+Recommended defaults:
 
 - `FRONTEND_BIND_ADDRESS=127.0.0.1` when a host-level reverse proxy terminates public traffic and forwards to this stack.
 - `FRONTEND_BIND_ADDRESS=0.0.0.0` only when the container Nginx port should be reachable directly from remote clients.
@@ -58,7 +32,7 @@ Keep these defaults unless there is a specific reason to change them:
 - `QDRANT_URL=http://qdrant:6333` because the backend runs inside Compose.
 - `PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium` for web-link scraping.
 
-## 3. Start The Stack
+## 2. Start The Stack
 
 Use the helper script:
 
@@ -82,10 +56,30 @@ http://localhost:8080
 ```
 
 Put TLS termination in front of that port for public traffic. If the TLS proxy
-runs on the same host, set `FRONTEND_BIND_ADDRESS=127.0.0.1` and have the proxy
+runs on the same host, keep `FRONTEND_BIND_ADDRESS=127.0.0.1` and have the proxy
 forward to `http://127.0.0.1:8080`. If remote clients should connect directly to
 the container Nginx without an outer proxy, set `FRONTEND_BIND_ADDRESS=0.0.0.0`
 and restrict access at the firewall as needed.
+
+The Nginx template preserves incoming `X-Forwarded-Host`,
+`X-Forwarded-Proto`, and `X-Forwarded-Port` headers when an outer proxy sends
+them, so backend requests still see the public host and scheme.
+
+## 3. Database Migrations
+
+The backend entrypoint runs Prisma migrations by default:
+
+```env
+RUN_PRISMA_MIGRATIONS=true
+```
+
+Set it to `false` only when migrations are handled by another release step.
+For manual migration deployment:
+
+```bash
+cd production_docker
+docker compose run --rm backend pnpm exec prisma migrate deploy
+```
 
 ## 4. Persistence
 
@@ -152,9 +146,9 @@ docker compose exec backend test -x "$PUPPETEER_EXECUTABLE_PATH"
 
 ## 7. Security Notes
 
-- Keep `production_docker/` ignored and do not commit it.
 - Keep `production_docker/.env` server-local.
 - Replace default database credentials before public exposure.
 - Keep PostgreSQL and Qdrant off public networks.
 - Keep direct backend binding on `127.0.0.1` unless there is a controlled reason to expose it.
 - Review the default admin bootstrap behavior before broad production use.
+- The web-link scraper blocks private network targets, but the backend still needs outbound HTTP/HTTPS access for public pages.
