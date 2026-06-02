@@ -413,27 +413,27 @@ export default function DashboardView({
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cta/20 border border-cta/30 text-cta font-extrabold font-mono text-xs">
                   <Flame className="h-3.5 w-3.5 fill-cta" />
-                  {streak?.currentStreak || 12} Days
+                  {streak?.currentStreak ?? 0} Days
                 </span>
                 <span className="text-[10px] font-bold text-text-secondary uppercase font-mono tracking-wider">
-                  Streak Active!
+                  {streak?.currentStreak ? 'Streak Active!' : 'No streak yet'}
                 </span>
               </div>
               <span className="text-[10px] font-black tracking-wider text-cta uppercase font-mono">
-                {streak?.malaysianTier || "Dean's Runner"}
+                {streak?.malaysianTier || 'Faithful Student'}
               </span>
             </div>
 
             {/* 7-Day progress calendar status bubble */}
             <div className="flex justify-between gap-1.5 pb-1">
               {(streak?.weeklyProgress || [
-                { day: 'Mon', active: true, minutes: 45 },
-                { day: 'Tue', active: true, minutes: 30 },
-                { day: 'Wed', active: true, minutes: 60 },
-                { day: 'Thu', active: true, minutes: 0 },
-                { day: 'Fri', active: true, minutes: 50 },
-                { day: 'Sat', active: true, minutes: 20 },
-                { day: 'Sun', active: true, minutes: 15 }
+                { day: 'Mon', active: false },
+                { day: 'Tue', active: false },
+                { day: 'Wed', active: false },
+                { day: 'Thu', active: false },
+                { day: 'Fri', active: false },
+                { day: 'Sat', active: false },
+                { day: 'Sun', active: false }
               ]).map((dayProgress, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1 flex-1">
                   <span className="text-[9px] text-text-muted font-bold font-mono uppercase">{dayProgress.day}</span>
@@ -443,7 +443,7 @@ export default function DashboardView({
                         ? 'bg-cta/25 border border-cta/40 text-cta shadow-sm' 
                         : 'bg-bg-elevated border border-border-subtle text-text-muted'
                     }`} 
-                    title={dayProgress.active ? `${dayProgress.minutes} mins study duration` : 'Inactive'}
+                    title={dayProgress.active ? 'Active' : 'Inactive'}
                   >
                     {dayProgress.active ? <Check className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
                   </div>
@@ -452,8 +452,8 @@ export default function DashboardView({
             </div>
 
             <div className="flex items-center justify-between border-t border-border-subtle pt-3 text-[10px] text-text-muted">
-              <span>Personal Peak: <strong className="text-text-primary">{streak?.bestStreak || 24} Days</strong></span>
-              <span>Last active: <strong className="text-cta font-mono">Today</strong></span>
+              <span>Personal Peak: <strong className="text-text-primary">{streak?.bestStreak ?? 0} Days</strong></span>
+              <span>Last active: <strong className="text-cta font-mono">{streak?.lastActive || 'Not yet'}</strong></span>
             </div>
           </div>
 

@@ -126,7 +126,7 @@ export interface StudyStreak {
   currentStreak: number;
   bestStreak: number;
   lastActive: string;
-  weeklyProgress: { day: string; active: boolean; minutes: number }[];
+  weeklyProgress: { day: string; active: boolean; minutes?: number }[];
   malaysianTier: 'Faithful Student' | 'Kopi Beng Devotee' | 'Dean\'s Runner' | 'Royal Award Winner';
 }
 

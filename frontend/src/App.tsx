@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { DEFAULT_COURSES, DEFAULT_KNOWLEDGE_GRAPH, MOCK_STREAK } from './data/mockData';
-import { AuthUser, ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
+import { DEFAULT_COURSES, DEFAULT_KNOWLEDGE_GRAPH } from './data/mockData';
+import { AuthUser, ChatGroundingScope, GroundedChatRequest, Notebook, Goal, StudyStreak } from './types';
 import FloatingDock from './components/FloatingDock';
 import Header from './components/Header';
 import PriorityGoalBox from './components/PriorityGoalBox';
@@ -16,6 +16,7 @@ import { createNotebook, createNotebookFile, deleteNotebook, deleteNotebookFile,
 import { getRetryLaterUploadMessage, isRetryLaterUploadError } from './lib/apiErrors';
 import { fetchCurrentUser, logout as logoutCurrentUser } from './lib/authApi';
 import { createGoal, deleteGoal, fetchGoals, updateGoal as updateGoalApi } from './lib/goalsApi';
+import { recordStudyActivity } from './lib/streakApi';
 
 const pageToPath = {
   Admin: '/admin',
@@ -53,6 +54,8 @@ export default function App() {
 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [goalLoadError, setGoalLoadError] = useState('');
+  const [studyStreak, setStudyStreak] = useState<StudyStreak | undefined>(undefined);
+  const [streakLoadError, setStreakLoadError] = useState('');
 
   useEffect(() => {
     let isActive = true;
@@ -144,6 +147,40 @@ export default function App() {
       isActive = false;
     };
   }, [authUser]);
+
+  useEffect(() => {
+    if (!authUser) {
+      setStudyStreak(undefined);
+      setStreakLoadError('');
+      return;
+    }
+
+    if (currentPage !== 'Dashboard') {
+      return;
+    }
+
+    let isActive = true;
+
+    void recordStudyActivity()
+      .then((streak) => {
+        if (!isActive) {
+          return;
+        }
+
+        setStudyStreak(streak);
+        setStreakLoadError('');
+      })
+      .catch((error) => {
+        if (isActive) {
+          setStudyStreak(undefined);
+          setStreakLoadError(error instanceof Error ? error.message : 'Failed to load study streak.');
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [authUser, currentPage]);
 
   const curNotebooksList = notebooks;
   const curGraphData = DEFAULT_KNOWLEDGE_GRAPH;
@@ -491,8 +528,8 @@ export default function App() {
                   onEditNotebook={(entry) => setEditingNotebook(entry)}
                   onDeleteNotebook={handleDeleteNotebook}
                   onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
-                  streak={MOCK_STREAK}
-                  notebookError={notebookLoadError || goalLoadError}
+                  streak={studyStreak}
+                  notebookError={notebookLoadError || goalLoadError || streakLoadError}
                 />
               )}
             />

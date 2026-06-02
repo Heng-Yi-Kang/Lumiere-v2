@@ -18,6 +18,7 @@ export const openApiDocument = {
     { name: 'Files' },
     { name: 'Notes' },
     { name: 'RAG' },
+    { name: 'Streak' },
   ],
   paths: {
     '/api': {
@@ -410,6 +411,30 @@ export const openApiDocument = {
         },
       },
     },
+    '/api/streak/activity': {
+      post: {
+        tags: ['Streak'],
+        summary: 'Record today as an active study day',
+        responses: {
+          '200': {
+            description: 'Updated study streak for the authenticated user',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/StudyStreakResponse' },
+              },
+            },
+          },
+          '401': {
+            description: 'Authentication is required',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   components: {
     parameters: {
@@ -597,6 +622,38 @@ export const openApiDocument = {
         properties: {
           title: { type: 'string' },
           body: { type: 'string' },
+        },
+      },
+      StudyStreakResponse: {
+        type: 'object',
+        required: ['streak'],
+        properties: {
+          streak: { $ref: '#/components/schemas/StudyStreak' },
+        },
+      },
+      StudyStreak: {
+        type: 'object',
+        required: ['currentStreak', 'bestStreak', 'lastActive', 'weeklyProgress', 'malaysianTier'],
+        properties: {
+          currentStreak: { type: 'integer', minimum: 0 },
+          bestStreak: { type: 'integer', minimum: 0 },
+          lastActive: { type: 'string' },
+          weeklyProgress: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/StudyStreakDay' },
+          },
+          malaysianTier: {
+            type: 'string',
+            enum: ['Faithful Student', 'Kopi Beng Devotee', "Dean's Runner", 'Royal Award Winner'],
+          },
+        },
+      },
+      StudyStreakDay: {
+        type: 'object',
+        required: ['day', 'active'],
+        properties: {
+          day: { type: 'string', enum: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+          active: { type: 'boolean' },
         },
       },
       RagSearchRequest: {
