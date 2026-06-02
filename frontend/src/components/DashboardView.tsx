@@ -3,10 +3,8 @@ import { Notebook } from '../types';
 import { 
   ArrowUpRight,
   Plus, 
-  FolderLock, 
   UploadCloud, 
   BookMarked, 
-  Clock, 
   Sparkles, 
   ArrowRight,
   FileText,
@@ -58,6 +56,7 @@ export default function DashboardView({
   const [uploadError, setUploadError] = useState('');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const totalFileCount = notebooks.reduce((sum, notebook) => sum + (notebook.fileCount ?? notebook.files.length), 0);
 
   useEffect(() => {
     if (notebooks.length === 0) {
@@ -217,16 +216,16 @@ export default function DashboardView({
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-2xl border border-border-default bg-bg-elevated/60 p-3.5 flex flex-col leading-none">
-              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted font-mono">Materials</span>
-              <span className="text-lg font-black text-text-primary mt-1.5">14 Files</span>
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted font-mono">Notebooks</span>
+              <span className="text-lg font-black text-text-primary mt-1.5">
+                {notebooks.length} {notebooks.length === 1 ? 'Notebook' : 'Notebooks'}
+              </span>
             </div>
             <div className="rounded-2xl border border-border-default bg-bg-elevated/60 p-3.5 flex flex-col leading-none">
-              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted font-mono">Concept Splits</span>
-              <span className="text-lg font-black text-success mt-1.5">26 Linked</span>
-            </div>
-            <div className="rounded-2xl border border-border-default bg-bg-elevated/60 p-3.5 flex flex-col leading-none">
-              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted font-mono">Studied Today</span>
-              <span className="text-lg font-black text-accent-hover mt-1.5">45 mins</span>
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted font-mono">Files</span>
+              <span className="text-lg font-black text-success mt-1.5">
+                {totalFileCount} {totalFileCount === 1 ? 'File' : 'Files'}
+              </span>
             </div>
           </div>
         </div>
@@ -481,21 +480,6 @@ export default function DashboardView({
             <div className="flex items-center justify-between border-t border-border-subtle pt-3 text-[10px] text-text-muted">
               <span>Personal Peak: <strong className="text-text-primary">{streak?.bestStreak ?? 0} Days</strong></span>
               <span>Last active: <strong className="text-cta font-mono">{streak?.lastActive || 'Not yet'}</strong></span>
-            </div>
-          </div>
-
-          {/* Mini secondary stats metrics row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-border-subtle bg-bg-elevated/30 p-3 text-left">
-              <Clock className="h-4 w-4 text-success mb-1" />
-              <div className="text-[10px] text-text-muted font-semibold uppercase leading-none">Focus duration</div>
-              <div className="text-sm font-black text-text-primary mt-1">470 min</div>
-            </div>
-
-            <div className="rounded-xl border border-border-subtle bg-bg-elevated/30 p-3 text-left">
-              <FolderLock className="h-4 w-4 text-accent-hover mb-1" />
-              <div className="text-[10px] text-text-muted font-semibold uppercase leading-none">CGPA target</div>
-              <div className="text-sm font-black text-text-primary mt-1">3.91 A-</div>
             </div>
           </div>
 
