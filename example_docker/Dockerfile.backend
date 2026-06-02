@@ -1,0 +1,46 @@
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache libc6-compat openssl \
+  && corepack enable \
+  && corepack prepare pnpm@10.33.2 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY backend/package.json ./backend/package.json
+
+RUN pnpm install --frozen-lockfile --filter backend...
+
+COPY backend ./backend
+
+ENV DATABASE_URL=postgresql://lumiere:lumiere@localhost:5432/lumiere?schema=public \
+  NEXT_TELEMETRY_DISABLED=1
+
+RUN pnpm --dir backend prisma:generate \
+  && pnpm --dir backend build
+
+FROM node:22-alpine AS runtime
+
+WORKDIR /app
+
+ENV NODE_ENV=production \
+  NEXT_TELEMETRY_DISABLED=1 \
+  HOSTNAME=0.0.0.0 \
+  PORT=3001
+
+RUN apk add --no-cache ffmpeg libc6-compat openssl \
+  && corepack enable \
+  && corepack prepare pnpm@10.33.2 --activate
+
+COPY --from=builder /app /app
+COPY example_docker/backend-entrypoint.sh /usr/local/bin/backend-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/backend-entrypoint.sh \
+  && mkdir -p /app/backend/public/uploads/notebooks
+
+WORKDIR /app/backend
+
+EXPOSE 3001
+
+ENTRYPOINT ["backend-entrypoint.sh"]
+CMD ["pnpm", "start"]

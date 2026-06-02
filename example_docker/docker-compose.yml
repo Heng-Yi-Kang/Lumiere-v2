@@ -6,14 +6,14 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     image: lumiere-frontend-nginx:latest
-    container_name: lumiere-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     environment:
-      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://host.docker.internal:3001}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:3001}
+    depends_on:
+      backend:
+        condition: service_healthy
     volumes:
       - ./logs/nginx:/var/log/nginx
     healthcheck:
@@ -24,6 +24,89 @@ services:
       start_period: 10s
     networks:
       - lumiere-deployment
+
+  backend:
+    build:
+      context: ..
+      dockerfile: example_docker/Dockerfile.backend
+    image: lumiere-backend-next:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    ports:
+      - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://lumiere:lumiere@postgres:5432/lumiere?schema=public}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-notebook_chunks}
+      NOTEBOOK_UPLOAD_ROOT: /app/backend/public/uploads/notebooks
+      RUN_PRISMA_MIGRATIONS: ${RUN_PRISMA_MIGRATIONS:-true}
+      CHAT_API_KEY: ${CHAT_API_KEY:-}
+      CHAT_API_BASE_URL: ${CHAT_API_BASE_URL:-}
+      CHAT_MODEL: ${CHAT_MODEL:-}
+      EMBEDDING_API_BASE: ${EMBEDDING_API_BASE:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-vl-embedding-8b}
+      ENABLE_RERANKING: ${ENABLE_RERANKING:-false}
+      RERANKER_API_BASE: ${RERANKER_API_BASE:-}
+      RERANKER_API_KEY: ${RERANKER_API_KEY:-}
+      RERANKER_MODEL: ${RERANKER_MODEL:-Qwen/Qwen3-Reranker-8B}
+      STT_API_BASE: ${STT_API_BASE:-}
+      STT_API_KEY: ${STT_API_KEY:-}
+      STT_MODEL: ${STT_MODEL:-qwen3-asr-1.7b}
+      VLM_API_BASE_URL: ${VLM_API_BASE_URL:-}
+      VLM_API_BASE: ${VLM_API_BASE:-}
+      VLM_API_KEY: ${VLM_API_KEY:-}
+      VLM_MODEL: ${VLM_MODEL:-}
+      VIDEO_SEGMENT_SECONDS: ${VIDEO_SEGMENT_SECONDS:-30}
+      VIDEO_MAX_FRAMES: ${VIDEO_MAX_FRAMES:-60}
+    volumes:
+      - backend_uploads:/app/backend/public/uploads/notebooks
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - lumiere-deployment
+
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lumiere}
+      POSTGRES_USER: ${POSTGRES_USER:-lumiere}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumiere}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lumiere} -d ${POSTGRES_DB:-lumiere}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - lumiere-deployment
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - lumiere-deployment
+
+volumes:
+  backend_uploads:
+  postgres_data:
+  qdrant_data:
 
 networks:
   lumiere-deployment:

@@ -1,16 +1,18 @@
 # Lumiere Example Docker Deployment
 
-This folder is a single-host Docker Compose example for deploying the Lumiere frontend behind Nginx.
+This folder is a single-host Docker Compose example for deploying Lumiere with frontend, backend, PostgreSQL, and Qdrant services.
 
-It is adapted from `docs/EXAMPLE_DOCKER_DEPLOYMENT_STUDY.md`, but this repository is different from that study project: the deployable frontend is a Vite static build, so Nginx serves the compiled assets directly.
+The deployable frontend is a Vite static build served by Nginx. The backend is a production Next.js server. PostgreSQL stores notebook metadata and Qdrant stores retrieval vectors.
 
 ## Runtime Shape
 
 - `frontend`: builds `frontend/` with pnpm and serves `dist/` through Nginx.
-- Nginx exposes the public HTTP port and serves React Router routes with `index.html` fallback.
-- Nginx proxies `/api/` and `/uploads/` to `BACKEND_UPSTREAM`.
+- `backend`: builds `backend/`, runs Prisma migrations, and starts Next.js on port `3001`.
+- `postgres`: stores metadata and enables the `pgvector` extension at first initialization.
+- `qdrant`: stores vector retrieval data.
+- Nginx exposes the public HTTP port, serves React Router routes with `index.html` fallback, and proxies `/api/` and `/uploads/` to `BACKEND_UPSTREAM`.
 
-By default, `BACKEND_UPSTREAM` is `http://host.docker.internal:3001`, matching the backend port used by this repo's backend workspace scripts.
+By default, `BACKEND_UPSTREAM` is `http://backend:3001`, which keeps API traffic on the internal Compose network.
 
 ## Quick Start
 
@@ -39,23 +41,49 @@ cp .env.example .env
 Important settings:
 
 - `FRONTEND_PORT`: host port exposed by Nginx.
-- `BACKEND_UPSTREAM`: Nginx upstream for `/api/` and `/uploads/`.
+- `BACKEND_BIND_ADDRESS` and `BACKEND_PORT`: optional host binding for direct API access. The default binds only to localhost.
+- `POSTGRES_*`: PostgreSQL database, username, and password.
+- `DATABASE_URL`: backend Prisma database URL. Use the Compose service hostname `postgres`.
+- `QDRANT_URL`: backend Qdrant URL. Use the Compose service hostname `qdrant`.
+- `BACKEND_UPSTREAM`: Nginx upstream for `/api/` and `/uploads/`. Keep `http://backend:3001` for this Compose stack.
 - `VITE_API_BASE_URL`: optional build-time browser API base URL.
+- `EMBEDDING_API_BASE`, `EMBEDDING_API_KEY`, and `EMBEDDING_MODEL`: required for backend startup health and retrieval.
+- `CHAT_*`, `STT_*`, `VLM_*`, and `RERANKER_*`: provider configuration for chat, media processing, and optional reranking.
 
 Leave `VITE_API_BASE_URL` empty for the recommended same-origin deployment. In that mode, browser requests go to `/api/...` on the frontend origin and Nginx forwards them to `BACKEND_UPSTREAM`.
 
-## Backend Upstream Examples
+`./start_docker.sh` fails fast when required embedding settings are blank. `docker compose up` will also fail backend startup health if those values are missing or unreachable.
 
-Backend running on the Docker host:
+## Backend and Database
 
-```env
-BACKEND_UPSTREAM=http://host.docker.internal:3001
+The backend container runs this before starting:
+
+```bash
+pnpm exec prisma migrate deploy
 ```
 
-Backend running as another Compose service on the same Docker network:
+Set `RUN_PRISMA_MIGRATIONS=false` only if migrations are handled separately.
+
+Persistent data is stored in Docker volumes:
+
+- `postgres_data`: PostgreSQL database files.
+- `qdrant_data`: Qdrant vector storage.
+- `backend_uploads`: uploaded notebook files.
+
+PostgreSQL and Qdrant are intentionally not published to the host. Use `docker compose exec postgres ...` or `docker compose exec qdrant ...` for local administration, or add temporary host port mappings only on trusted networks.
+
+## Alternate Backend Upstreams
+
+The included stack uses:
 
 ```env
 BACKEND_UPSTREAM=http://backend:3001
+```
+
+If you intentionally run the backend outside this Compose stack, point Nginx to that backend:
+
+```env
+BACKEND_UPSTREAM=http://host.docker.internal:3001
 ```
 
 Public backend URL reachable directly by the browser:
@@ -70,5 +98,6 @@ Use the public backend URL mode only when you intentionally do not want Nginx to
 
 - Put TLS termination in front of this Nginx container or extend the Nginx template with certificates.
 - Keep `.env` server-local; do not commit secrets or environment-specific values.
+- Replace default database credentials before any public deployment.
 - If the folder is renamed, update `dockerfile: example_docker/Dockerfile.frontend` in `docker-compose.yml`.
-- Run `docker compose logs -f frontend` from this folder to inspect Nginx output.
+- Run `docker compose logs -f frontend backend postgres qdrant` from this folder to inspect runtime output.
