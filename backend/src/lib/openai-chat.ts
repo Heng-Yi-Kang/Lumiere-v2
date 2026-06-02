@@ -12,7 +12,7 @@ type ChatCompletionResponse = {
 
 export class ChatCompletionError extends Error {}
 
-const DEFAULT_CHAT_COMPLETION_TIMEOUT_MS = 45_000;
+const DEFAULT_CHAT_COMPLETION_TIMEOUT_MS = 120_000;
 
 function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();

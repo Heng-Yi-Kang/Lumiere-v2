@@ -99,6 +99,7 @@ Useful production settings:
 - `QDRANT_API_KEY=...` if your Qdrant instance requires it
 - `BACKEND_LOG_LEVEL=info`
 - `STARTUP_HEALTH_PROVIDER_TIMEOUT_MS=15000`
+- `CHAT_API_TIMEOUT_MS=120000` for grounded chat generation
 - `SUMMARY_REQUEST_TIMEOUT_MS=...` if summaries need a longer timeout
 - `VIDEO_SEGMENT_SECONDS=30`
 - `VIDEO_MAX_FRAMES=60`

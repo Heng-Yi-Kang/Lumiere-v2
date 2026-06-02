@@ -24,7 +24,7 @@ export function getRetryLaterUploadMessage() {
 
 export function getGroundedChatErrorMessage(error: unknown) {
   if (isNetworkFetchError(error)) {
-    return 'The grounded chat request lost connection before the response reached the browser. The backend may still finish processing; try again, or ask a narrower question if it keeps taking over a minute.';
+    return 'The grounded chat request lost connection before the response reached the browser. The backend may still finish processing; try again, or ask a narrower question if it keeps taking over two minutes.';
   }
 
   return error instanceof Error ? error.message : 'Grounded chat failed.';
