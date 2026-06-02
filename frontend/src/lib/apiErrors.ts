@@ -1,6 +1,6 @@
 const FRAME_DESCRIPTION_FAILURE_PATTERN = /frame description failed/i;
 const RATE_LIMIT_PATTERN = /(?:\b429\b|rate-?limited)/i;
-const NETWORK_FETCH_FAILURE_PATTERN = /networkerror when attempting to fetch resource/i;
+const NETWORK_FETCH_FAILURE_PATTERN = /(?:networkerror when attempting to fetch resource|failed to fetch|load failed)/i;
 const RETRY_LATER_MESSAGE_PATTERN = /(?:temporarily unavailable|try again later)/i;
 
 export function isNetworkFetchError(error: unknown) {
@@ -13,8 +13,7 @@ export function isRetryLaterUploadError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '');
 
   return (
-    isNetworkFetchError(error)
-    || RETRY_LATER_MESSAGE_PATTERN.test(message)
+    RETRY_LATER_MESSAGE_PATTERN.test(message)
     || (FRAME_DESCRIPTION_FAILURE_PATTERN.test(message) && RATE_LIMIT_PATTERN.test(message))
   );
 }

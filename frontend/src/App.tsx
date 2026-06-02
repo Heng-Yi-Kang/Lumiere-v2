@@ -13,7 +13,7 @@ import CreateNotebookModal from './components/CreateNotebookModal';
 import AuthPage from './components/AuthPage';
 import AdminConsoleView from './components/AdminConsoleView';
 import { createNotebook, createNotebookFile, createNotebookLink, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
-import { getRetryLaterUploadMessage, isRetryLaterUploadError } from './lib/apiErrors';
+import { getRetryLaterUploadMessage, isNetworkFetchError, isRetryLaterUploadError } from './lib/apiErrors';
 import { fetchCurrentUser, logout as logoutCurrentUser } from './lib/authApi';
 import { createGoal, deleteGoal, fetchGoals, updateGoal as updateGoalApi } from './lib/goalsApi';
 import { recordStudyActivity } from './lib/streakApi';
@@ -28,6 +28,14 @@ const pageToPath = {
 const pathToPage = Object.fromEntries(
   Object.entries(pageToPath).map(([page, path]) => [path, page]),
 ) as Record<string, string>;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function countNotebookFilesNamed(notebook: Notebook | undefined, fileName: string) {
+  return notebook?.files.filter((entry) => entry.name === fileName).length ?? 0;
+}
 
 export default function App() {
   const location = useLocation();
@@ -257,11 +265,26 @@ export default function App() {
 
   const handleAddNewFile = async (notebookId: string, file: File) => {
     notebookLoadRequestIdRef.current += 1;
+    const previousMatchingFileCount = countNotebookFilesNamed(
+      notebooks.find((entry) => entry.id === notebookId),
+      file.name,
+    );
     let notebook: Notebook;
 
     try {
       notebook = await createNotebookFile(notebookId, file);
     } catch (error) {
+      if (isNetworkFetchError(error)) {
+        const recoveredNotebook = await recoverNotebookAfterLostUploadResponse(
+          notebookId,
+          file,
+          previousMatchingFileCount,
+        );
+        if (recoveredNotebook) {
+          return;
+        }
+      }
+
       if (isRetryLaterUploadError(error)) {
         const message = getRetryLaterUploadMessage();
         setRateLimitDialogMessage(message);
@@ -272,6 +295,34 @@ export default function App() {
     }
 
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+  };
+
+  const recoverNotebookAfterLostUploadResponse = async (
+    notebookId: string,
+    file: File,
+    previousMatchingFileCount: number,
+  ) => {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      if (attempt > 0) {
+        await sleep(1500);
+      }
+
+      const requestId = ++notebookLoadRequestIdRef.current;
+      const loadedNotebooks = await fetchNotebooks().catch(() => null);
+      if (!loadedNotebooks || requestId !== notebookLoadRequestIdRef.current) {
+        continue;
+      }
+
+      const refreshedNotebook = loadedNotebooks.find((entry) => entry.id === notebookId);
+      setNotebooks(loadedNotebooks);
+      setNotebookLoadError('');
+
+      if (countNotebookFilesNamed(refreshedNotebook, file.name) > previousMatchingFileCount) {
+        return refreshedNotebook;
+      }
+    }
+
+    return null;
   };
 
   const handleAddNewLink = async (notebookId: string, url: string) => {
