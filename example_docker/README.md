@@ -57,6 +57,17 @@ Leave `VITE_API_BASE_URL` empty for the recommended same-origin deployment. In t
 
 `./start_docker.sh` fails fast when required embedding settings are blank. `docker compose up` will also fail backend startup health if those values are missing or unreachable.
 
+For frontend-only UI updates, rebuild and recreate the Docker service:
+
+```bash
+cd example_docker
+docker compose build --no-cache frontend
+docker compose up -d --force-recreate --no-deps frontend
+```
+
+`pnpm build:frontend` only updates local `frontend/dist/`; this Docker stack
+does not mount that folder into Nginx.
+
 ## Remote Reverse Proxy Use
 
 For direct remote access to this container's Nginx, keep:

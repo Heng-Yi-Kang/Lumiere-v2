@@ -38,8 +38,7 @@ fi
 
 mkdir -p logs/nginx "${NOTEBOOK_UPLOAD_HOST_DIR:-./data/uploads/notebooks}"
 
-docker compose build
-docker compose up -d
+docker compose up -d --build --force-recreate
 
 echo
 echo "Lumiere stack is starting."
