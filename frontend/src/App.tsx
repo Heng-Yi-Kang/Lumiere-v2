@@ -295,6 +295,17 @@ export default function App() {
     }
 
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+
+    try {
+      const requestId = ++notebookLoadRequestIdRef.current;
+      const loadedNotebooks = await fetchNotebooks();
+      if (requestId === notebookLoadRequestIdRef.current) {
+        setNotebooks(loadedNotebooks);
+        setNotebookLoadError('');
+      }
+    } catch (error) {
+      setNotebookLoadError(error instanceof Error ? error.message : 'Failed to refresh notebooks.');
+    }
   };
 
   const recoverNotebookAfterLostUploadResponse = async (
