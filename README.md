@@ -36,6 +36,15 @@ Lumiere is an AI-assisted study workspace for organizing course notebooks, uploa
 7. Run the frontend:
    `pnpm dev:frontend`
 
+## Default Admin Login
+
+The backend creates the default admin account automatically on startup and during admin login for local/demo workflows:
+
+- Email: `admin@lumiere.my`
+- Password: `admin1234`
+
+Use this account to access the admin console at `http://localhost:3000/admin`. Replace or harden this default before any public deployment.
+
 ## Test Scripts
 
 Workspace-level test and verification commands from the repository root:

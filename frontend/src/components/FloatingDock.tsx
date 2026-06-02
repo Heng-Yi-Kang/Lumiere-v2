@@ -248,7 +248,35 @@ export default function FloatingDock({
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-text-muted text-sm">No goals added yet. Define your first focus target above.</div>
+                <div className="rounded-2xl border border-dashed border-border-default bg-bg-elevated/35 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cta/15 text-cta">
+                      <Target className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 space-y-3">
+                      <div>
+                        <p className="text-sm font-bold text-text-primary">Set up your first study goal</p>
+                        <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                          Write one concrete target you can finish or measure, like a chapter, quiz, or exam prep milestone.
+                        </p>
+                      </div>
+                      <div className="grid gap-2 text-xs text-text-secondary">
+                        <div className="flex gap-2">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-bg-overlay text-[10px] font-bold text-text-primary">1</span>
+                          <span>Add the goal in the field above and press the plus button.</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Star className="mt-0.5 h-4 w-4 shrink-0 text-cta" />
+                          <span>Star the goal that matters most right now.</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                          <span>Mark goals complete as you finish them to track progress.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
