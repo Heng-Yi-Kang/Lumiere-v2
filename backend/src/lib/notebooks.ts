@@ -16,9 +16,11 @@ export function serializeNotebook(notebook: NotebookWithFiles) {
     files: notebook.files.map((file) => ({
       id: file.id,
       name: file.name,
-      type: file.type as 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image',
+      type: file.type as 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image' | 'link',
       mimeType: file.mimeType,
       size: file.size,
+      siteName: file.siteName ?? undefined,
+      sourceUrl: file.sourceUrl ?? undefined,
       uploadDate: file.uploadDate,
       status: file.status as 'processing' | 'ready',
       summary: file.summary ?? undefined,

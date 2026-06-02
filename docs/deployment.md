@@ -42,6 +42,7 @@ Recommended server baseline:
 - PostgreSQL
 - Qdrant
 - `ffmpeg` and `ffprobe` if you want video uploads
+- Chromium or Chrome if you want web-link scraping; set `PUPPETEER_EXECUTABLE_PATH` when Puppeteer cannot use a bundled browser
 
 The backend startup health checks can fail boot when required dependencies are missing or unreachable.
 
@@ -286,6 +287,7 @@ A practical release flow looks like this:
 
 1. Provision PostgreSQL, Qdrant, and the upload directory.
 2. Install `ffmpeg` and `ffprobe` if video uploads are required.
+3. Install Chromium or Chrome and set `PUPPETEER_EXECUTABLE_PATH` if web-link scraping is required.
 3. Copy the repo to the server.
 4. Create `backend/.env` from `backend/.env.example` and fill the real values.
 5. Run `pnpm install`.

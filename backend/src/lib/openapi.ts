@@ -199,6 +199,35 @@ export const openApiDocument = {
         },
       },
     },
+    '/api/notebooks/{notebookId}/links': {
+      post: {
+        tags: ['Files'],
+        summary: 'Add a web link to a notebook',
+        parameters: [{ $ref: '#/components/parameters/NotebookId' }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateNotebookLinkRequest' },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Web link scraped, persisted, and indexed when readable text is available',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/NotebookResponse' },
+              },
+            },
+          },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '409': { $ref: '#/components/responses/Conflict' },
+          '500': { $ref: '#/components/responses/InternalError' },
+        },
+      },
+    },
     '/api/notebooks/{notebookId}/files/{fileId}': {
       get: {
         tags: ['Files'],
@@ -482,6 +511,14 @@ export const openApiDocument = {
           },
         },
       },
+      Conflict: {
+        description: 'Resource already exists',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorResponse' },
+          },
+        },
+      },
       InternalError: {
         description: 'Unexpected server error',
         content: {
@@ -533,11 +570,13 @@ export const openApiDocument = {
           name: { type: 'string' },
           type: {
             type: 'string',
-            enum: ['pdf', 'docx', 'pptx', 'txt', 'audio', 'video', 'image'],
+            enum: ['pdf', 'docx', 'pptx', 'txt', 'audio', 'video', 'image', 'link'],
           },
           mimeType: { type: ['string', 'null'] },
-          size: { type: 'integer' },
-          uploadDate: { type: 'string', format: 'date-time' },
+          size: { type: 'string' },
+          siteName: { type: 'string' },
+          sourceUrl: { type: 'string' },
+          uploadDate: { type: 'string' },
           status: { type: 'string', enum: ['processing', 'ready'] },
           summary: { type: 'string' },
           summaryError: { type: 'string' },
@@ -561,6 +600,13 @@ export const openApiDocument = {
           courseCode: { type: 'string' },
           color: { type: 'string', default: 'blue' },
           description: { type: 'string' },
+        },
+      },
+      CreateNotebookLinkRequest: {
+        type: 'object',
+        required: ['url'],
+        properties: {
+          url: { type: 'string', format: 'uri' },
         },
       },
       UpdateNotebookRequest: {
@@ -588,6 +634,7 @@ export const openApiDocument = {
           name: { type: 'string' },
           previewContent: { type: 'string' },
           previewFormat: { type: 'string' },
+          siteName: { type: 'string' },
           sourceUrl: { type: 'string' },
           summary: { type: 'string' },
           summaryError: { type: 'string' },

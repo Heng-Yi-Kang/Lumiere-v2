@@ -1,5 +1,15 @@
 # Web Link Processing
 
+## Lumiere-v2 Notebook Implementation
+
+In this repository, web links are notebook materials, not subject textbooks. Users add a public web page through `POST /api/notebooks/:notebookId/links` from the Notebook View or Dashboard Add Link modal.
+
+The backend validates `http`/`https`, rejects localhost/private-network targets, uses Puppeteer to render the submitted page, extracts readable text with DOM/readability parsing, stores the result as a `NotebookFile` with `type: "link"`, `sourceUrl`, optional `siteName`, text preview, and extracted text, then indexes the text through the existing notebook RAG path when enough readable text is available. Short pages still create a metadata/preview-only material but skip RAG indexing and summary generation.
+
+The link flow is synchronous, matching current notebook file uploads. Production deployments need Chromium or Chrome available to Puppeteer; set `PUPPETEER_EXECUTABLE_PATH` if a system browser should be used.
+
+## Legacy AIClassroom Notes
+
 This note documents how teacher-submitted web links move through AIClassroom, from frontend URL entry to scraping, embedding, textbook metadata updates, summaries, and notifications.
 
 ## Entry Points

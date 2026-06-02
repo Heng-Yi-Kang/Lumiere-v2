@@ -99,6 +99,22 @@ export async function createNotebookFile(
   return payload.notebook;
 }
 
+export async function createNotebookLink(
+  notebookId: string,
+  url: string,
+) {
+  const payload = await requestJson<NotebookResponse>(`/api/notebooks/${encodeURIComponent(notebookId)}/links`, {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+
+  if (!payload.notebook) {
+    throw new Error('Notebook update was not returned by the API');
+  }
+
+  return payload.notebook;
+}
+
 export async function fetchNotebookFilePreview(notebookId: string, fileId: string) {
   const payload = await requestJson<NotebookPreviewResponse>(
     `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}`,

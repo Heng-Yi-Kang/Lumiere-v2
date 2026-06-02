@@ -12,7 +12,7 @@ import KnowledgeGraphView from './components/KnowledgeGraphView';
 import CreateNotebookModal from './components/CreateNotebookModal';
 import AuthPage from './components/AuthPage';
 import AdminConsoleView from './components/AdminConsoleView';
-import { createNotebook, createNotebookFile, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
+import { createNotebook, createNotebookFile, createNotebookLink, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
 import { getRetryLaterUploadMessage, isRetryLaterUploadError } from './lib/apiErrors';
 import { fetchCurrentUser, logout as logoutCurrentUser } from './lib/authApi';
 import { createGoal, deleteGoal, fetchGoals, updateGoal as updateGoalApi } from './lib/goalsApi';
@@ -274,6 +274,13 @@ export default function App() {
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
 
+  const handleAddNewLink = async (notebookId: string, url: string) => {
+    notebookLoadRequestIdRef.current += 1;
+    const notebook = await createNotebookLink(notebookId, url);
+
+    setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+  };
+
   const handleDeleteFile = async (notebookId: string, fileId: string) => {
     notebookLoadRequestIdRef.current += 1;
     const notebook = await deleteNotebookFile(notebookId, fileId);
@@ -525,6 +532,7 @@ export default function App() {
                   notebooks={curNotebooksList}
                   onOpenNotebook={openNotebook}
                   onUploadFile={handleAddNewFile}
+                  onAddLink={handleAddNewLink}
                   onEditNotebook={(entry) => setEditingNotebook(entry)}
                   onDeleteNotebook={handleDeleteNotebook}
                   onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
@@ -543,6 +551,7 @@ export default function App() {
                   onBackToDashboard={() => setCurrentPage('Dashboard')}
                   onAskInChat={handleAskInChat}
                   onUploadFile={handleAddNewFile}
+                  onAddLink={handleAddNewLink}
                   onDeleteFile={handleDeleteFile}
                   onEditNotebook={(entry) => setEditingNotebook(entry)}
                   onDeleteNotebook={handleDeleteNotebook}

@@ -20,17 +20,21 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "@prisma/client": "^6.0.0",
     "@qdrant/js-client-rest": "^1.18.0",
     "dotenv": "^17.2.3",
+    "jsdom": "^29.1.1",
     "mammoth": "^1.12.0",
     "next": "^15.0.0",
     "officeparser": "^7.1.0",
+    "puppeteer": "^25.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sanitize-html": "^2.17.4"
   },
   "devDependencies": {
+    "@types/jsdom": "^28.0.3",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

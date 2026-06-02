@@ -10,6 +10,7 @@ import {
   FileText,
   FolderOpen,
   Image,
+  Link as LinkIcon,
   ListChecks,
   LoaderCircle,
   MessageSquare,
@@ -33,6 +34,7 @@ import { ChatMarkdown } from './ChatMarkdown';
 import { useFileNotes } from '../hooks/useFileNotes';
 import FileNotesPanel from './FileNotesPanel';
 import NotebookChatPanel from './NotebookChatPanel';
+import AddLinkModal from './AddLinkModal';
 
 interface NotebookViewProps {
   notebook: Notebook | null;
@@ -40,6 +42,7 @@ interface NotebookViewProps {
   onSelectNotebook: (id: string | null) => void;
   onBackToDashboard: () => void;
   onAskInChat: (question: string, scope?: ChatGroundingScope) => void;
+  onAddLink?: (notebookId: string, url: string) => Promise<void> | void;
   onUploadFile?: (notebookId: string, file: File) => Promise<void> | void;
   onDeleteFile?: (notebookId: string, fileId: string) => Promise<void> | void;
   onEditNotebook?: (notebook: Notebook) => void;
@@ -63,6 +66,8 @@ function getFileIcon(type: FileItem['type']) {
       return <MonitorPlay className="h-5 w-5 text-cta" />;
     case 'image':
       return <Image className="h-5 w-5 text-success" />;
+    case 'link':
+      return <LinkIcon className="h-5 w-5 text-accent-hover" />;
     default:
       return <FileText className="h-5 w-5 text-text-muted" />;
   }
@@ -97,6 +102,7 @@ export default function NotebookView({
   onSelectNotebook,
   onBackToDashboard,
   onAskInChat,
+  onAddLink,
   onUploadFile,
   onDeleteFile,
   onEditNotebook,
@@ -120,6 +126,7 @@ export default function NotebookView({
   const [isFileChatTyping, setIsFileChatTyping] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [fileDetailTab, setFileDetailTab] = useState<'chat' | 'notes'>('chat');
+  const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -226,6 +233,7 @@ export default function NotebookView({
   const isAudioPreview = selectedMaterial?.type === 'audio';
   const isVideoPreview = selectedMaterial?.type === 'video';
   const isImagePreview = selectedMaterial?.type === 'image';
+  const isLinkPreview = selectedMaterial?.type === 'link';
   const summaryStatus = activePreview?.summaryStatus || selectedMaterial?.summaryStatus || 'idle';
   const summaryError = activePreview?.summaryError || selectedMaterial?.summaryError;
   const summaryText = activePreview?.summary || selectedMaterial?.summary;
@@ -365,6 +373,15 @@ export default function NotebookView({
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  const handleAddLink = async (url: string) => {
+    if (!notebook || !onAddLink) {
+      return;
+    }
+
+    setUploadError('');
+    await Promise.resolve(onAddLink(notebook.id, url));
   };
 
   const handleDelete = async (file: FileItem) => {
@@ -706,6 +723,7 @@ export default function NotebookView({
                         <span>{file.type}</span>
                         <span>{file.size}</span>
                         <span>{file.uploadDate}</span>
+                        {file.siteName ? <span>{file.siteName}</span> : null}
                         {file.totalPages ? <span>{file.totalPages} pages</span> : null}
                         {file.summaryStatus === 'in-progress' ? <span>Generating description</span> : null}
                         {file.summaryStatus === 'error' ? <span>Description failed</span> : null}
@@ -731,7 +749,15 @@ export default function NotebookView({
               ))
             )}
           </div>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <button
+              onClick={() => setIsAddLinkModalOpen(true)}
+              disabled={uploadPhase !== 'idle' || !onAddLink}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+            >
+              <LinkIcon className="h-4 w-4" />
+              Add Link
+            </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadPhase !== 'idle'}
@@ -778,6 +804,17 @@ export default function NotebookView({
                     <p className="text-[10px] text-text-muted">
                       {selectedMaterial.size} - Uploaded {selectedMaterial.uploadDate}
                     </p>
+                    {selectedMaterial.sourceUrl ? (
+                      <a
+                        href={selectedMaterial.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-flex max-w-full items-center gap-1.5 text-[10px] font-bold text-accent-hover transition hover:text-accent"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{selectedMaterial.siteName || selectedMaterial.sourceUrl}</span>
+                      </a>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -851,6 +888,18 @@ export default function NotebookView({
                       <div className="text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
                         {isVideoPreview ? 'Timestamped transcript' : 'Transcript'}
                       </div>
+                    ) : null}
+
+                    {isLinkPreview && activePreview.sourceUrl ? (
+                      <a
+                        href={activePreview.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl border border-border-default bg-bg-elevated/50 px-3 py-2 text-xs font-bold text-accent-hover transition hover:bg-bg-elevated/70"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Open original page
+                      </a>
                     ) : null}
 
                     {isImagePreview && selectedViewerUrl ? (
@@ -1188,6 +1237,14 @@ export default function NotebookView({
           </div>
         </div>
       )}
+
+      {isAddLinkModalOpen && notebook ? (
+        <AddLinkModal
+          notebookName={notebook.name}
+          onClose={() => setIsAddLinkModalOpen(false)}
+          onSubmit={handleAddLink}
+        />
+      ) : null}
     </div>
   );
 }

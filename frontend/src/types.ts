@@ -10,6 +10,8 @@ export interface FileItem {
   name: string;
   type: 'pdf' | 'docx' | 'pptx' | 'txt' | 'video' | 'audio' | 'image' | 'link';
   mimeType?: string;
+  siteName?: string;
+  sourceUrl?: string;
   size: string;
   uploadDate: string;
   status: 'processing' | 'ready';
@@ -24,8 +26,9 @@ export interface FileItem {
 export interface NotebookFilePreview {
   id: string;
   name: string;
-  type: 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image';
+  type: 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image' | 'link';
   mimeType?: string;
+  siteName?: string;
   sourceUrl?: string;
   previewFormat?: 'pdf' | 'html' | 'text';
   previewContent?: string;

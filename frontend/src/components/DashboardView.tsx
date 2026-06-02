@@ -14,18 +14,21 @@ import {
   Edit3,
   Trash2,
   Flame,
-  Lightbulb
+  Lightbulb,
+  Link as LinkIcon
 } from 'lucide-react';
 
 import { StudyStreak } from '../types';
 import { NOTEBOOK_UPLOAD_ACCEPT, isSupportedNotebookExtension, validateNotebookUpload } from '../lib/notebookUpload';
 import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
+import AddLinkModal from './AddLinkModal';
 
 interface DashboardViewProps {
   currentUserName: string;
   notebooks: Notebook[];
   onOpenNotebook: (notebookId: string) => void;
+  onAddLink: (notebookId: string, url: string) => Promise<void> | void;
   onUploadFile: (notebookId: string, file: File) => Promise<void> | void;
   onEditNotebook?: (notebook: Notebook) => void;
   onDeleteNotebook?: (notebookId: string) => Promise<void> | void;
@@ -38,6 +41,7 @@ export default function DashboardView({
   currentUserName,
   notebooks, 
   onOpenNotebook, 
+  onAddLink,
   onUploadFile,
   onEditNotebook,
   onDeleteNotebook,
@@ -52,6 +56,7 @@ export default function DashboardView({
   const [selectedFileName, setSelectedFileName] = useState('');
   const [selectedFileType, setSelectedFileType] = useState<SupportedNotebookExtension>('pdf');
   const [uploadError, setUploadError] = useState('');
+  const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -138,6 +143,17 @@ export default function DashboardView({
 
   const triggerUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const selectedNotebook = notebooks.find((notebook) => notebook.id === selectedNotebookId);
+
+  const executeAddLink = async (url: string) => {
+    if (!selectedNotebookId) {
+      throw new Error('Select a notebook before adding a web link.');
+    }
+
+    setUploadError('');
+    await Promise.resolve(onAddLink(selectedNotebookId, url));
   };
 
   const uploadProgress = uploadPhase === 'validating'
@@ -311,15 +327,26 @@ export default function DashboardView({
               <label htmlFor="simulate-file-btn" className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1.5 font-mono">
                 Virtual Device:
               </label>
-              <button
-                id="simulate-file-btn"
-                onClick={triggerUploadClick}
-                disabled={uploadPhase !== 'idle' || notebooks.length === 0}
-                className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
-              >
-                <Plus className="h-3.5 w-3.5 text-accent-hover" />
-                Select File
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  id="simulate-file-btn"
+                  onClick={triggerUploadClick}
+                  disabled={uploadPhase !== 'idle' || notebooks.length === 0}
+                  className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5 text-accent-hover" />
+                  File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddLinkModalOpen(true)}
+                  disabled={uploadPhase !== 'idle' || notebooks.length === 0}
+                  className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                >
+                  <LinkIcon className="h-3.5 w-3.5 text-accent-hover" />
+                  Link
+                </button>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -580,6 +607,15 @@ export default function DashboardView({
           })}
         </div>
       </div>
+
+      {isAddLinkModalOpen ? (
+        <AddLinkModal
+          disabled={!selectedNotebookId}
+          notebookName={selectedNotebook?.name}
+          onClose={() => setIsAddLinkModalOpen(false)}
+          onSubmit={executeAddLink}
+        />
+      ) : null}
     </div>
   );
 }

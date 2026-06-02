@@ -100,6 +100,8 @@ model NotebookFile {
   summaryGeneratedAt DateTime?
   totalPages         Int?
   sourcePath         String?
+  sourceUrl          String?
+  siteName           String?
   previewFormat      String?
   previewContent     String?
   extractedText      String?
@@ -111,6 +113,7 @@ model NotebookFile {
   notes       FileNote[]
 
   @@index([notebookId])
+  @@unique([notebookId, sourceUrl])
 }
 
 model FileNote {
