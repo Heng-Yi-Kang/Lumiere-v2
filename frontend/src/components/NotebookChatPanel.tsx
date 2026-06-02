@@ -105,7 +105,7 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
   };
 
   return (
-    <div className={`surface-card rounded-3xl p-5 md:p-6 flex flex-col h-full min-h-[520px] ${colorTone?.borderGlow || ''}`}>
+    <div className={`surface-card flex h-[38rem] min-h-0 flex-col rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow || ''}`}>
       <div className="flex items-center justify-between border-b border-border-subtle pb-4">
         <div className="flex items-center gap-2">
           <div className={`flex h-8 w-8 items-center justify-center rounded-xl border ${colorTone?.subtleBlock || 'border-cta/25 bg-cta-subtle text-cta'}`}>
@@ -128,7 +128,7 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 my-3 rounded-2xl border border-border-default bg-bg-base/35"
+        className="my-3 min-h-0 flex-1 space-y-3 overflow-y-scroll rounded-2xl border border-border-default bg-bg-base/35 p-3"
       >
         {messages.map((msg) => (
           <div

@@ -974,7 +974,7 @@ export default function NotebookView({
                 </button>
               </div>
 
-              <div className="mt-3 flex flex-1 flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-base/35">
+              <div className="mt-3 flex h-[28rem] flex-none flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-base/35 xl:h-[32rem]">
                 {fileDetailTab === 'chat' ? (
                   <>
                     <div className="flex items-center justify-between gap-3 border-b border-border-subtle bg-bg-elevated/40 px-4 py-3">
@@ -994,7 +994,7 @@ export default function NotebookView({
 
                     <div
                       ref={fileChatScrollRef}
-                      className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3"
+                      className="min-h-0 flex-1 space-y-3 overflow-y-scroll p-3"
                     >
                       {activeFileChatMessages.map((message) => (
                         <div
