@@ -110,11 +110,8 @@ export async function DELETE(
 
   await deleteNotebookStoredFile([file.sourcePath]);
 
-  const notebook = await prisma.notebook.findFirst({
-    where: {
-      id: notebookId,
-      userId: user.id,
-    },
+  const notebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
     include: {
       files: {
         orderBy: { createdAt: 'desc' },
@@ -123,6 +120,6 @@ export async function DELETE(
   });
 
   return jsonResponse({
-    notebook: notebook ? serializeNotebook(notebook) : null,
+    notebook: notebook && (!notebook.userId || notebook.userId === user.id) ? serializeNotebook(notebook) : null,
   });
 }

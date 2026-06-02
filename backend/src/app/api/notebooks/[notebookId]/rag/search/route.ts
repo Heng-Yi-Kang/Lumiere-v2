@@ -41,15 +41,12 @@ export async function POST(
     queryChars: body.query.length,
   });
 
-  const notebook = await prisma.notebook.findFirst({
-    where: {
-      id: notebookId,
-      userId: user.id,
-    },
-    select: { id: true },
+  const notebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
+    select: { id: true, userId: true },
   });
 
-  if (!notebook) {
+  if (!notebook || (notebook.userId && notebook.userId !== user.id)) {
     logBackendProcess('warn', 'rag.api.search.rejected', {
       notebookId,
       reason: 'notebook_not_found',

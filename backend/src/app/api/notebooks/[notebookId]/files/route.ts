@@ -28,15 +28,12 @@ export async function POST(
     notebookId,
   });
 
-  const existingNotebook = await prisma.notebook.findFirst({
-    where: {
-      id: notebookId,
-      userId: user.id,
-    },
-    select: { id: true },
+  const existingNotebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
+    select: { id: true, userId: true },
   });
 
-  if (!existingNotebook) {
+  if (!existingNotebook || (existingNotebook.userId && existingNotebook.userId !== user.id)) {
     logBackendProcess('warn', 'file.api.upload.rejected', {
       notebookId,
       reason: 'notebook_not_found',

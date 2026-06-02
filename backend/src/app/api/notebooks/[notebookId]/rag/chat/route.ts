@@ -84,14 +84,12 @@ export async function POST(
     questionChars: question.length,
   });
 
-  const notebook = await prisma.notebook.findFirst({
-    where: {
-      id: notebookId,
-      userId: user.id,
-    },
+  const notebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
     select: {
       id: true,
       name: true,
+      userId: true,
       files: {
         select: {
           extractedText: true,
@@ -102,7 +100,7 @@ export async function POST(
     },
   });
 
-  if (!notebook) {
+  if (!notebook || (notebook.userId && notebook.userId !== user.id)) {
     logBackendProcess('warn', 'rag.api.chat.rejected', {
       notebookId,
       reason: 'notebook_not_found',

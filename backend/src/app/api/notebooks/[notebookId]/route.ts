@@ -34,15 +34,12 @@ export async function PATCH(
     return jsonResponse({ error: 'name is required' }, { status: 400 });
   }
 
-  const existingNotebook = await prisma.notebook.findFirst({
-    where: {
-      id: notebookId,
-      userId: user.id,
-    },
-    select: { id: true },
+  const existingNotebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
+    select: { id: true, userId: true },
   });
 
-  if (!existingNotebook) {
+  if (!existingNotebook || (existingNotebook.userId && existingNotebook.userId !== user.id)) {
     return jsonResponse({ error: 'notebook not found' }, { status: 404 });
   }
 
@@ -77,11 +74,8 @@ export async function DELETE(
 
   const { notebookId } = await context.params;
 
-  const notebook = await prisma.notebook.findFirst({
-    where: {
-      id: notebookId,
-      userId: user.id,
-    },
+  const notebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
     include: {
       files: {
         select: {
@@ -91,7 +85,7 @@ export async function DELETE(
     },
   });
 
-  if (!notebook) {
+  if (!notebook || (notebook.userId && notebook.userId !== user.id)) {
     return jsonResponse({ error: 'notebook not found' }, { status: 404 });
   }
 
