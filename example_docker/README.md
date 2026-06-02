@@ -47,6 +47,7 @@ Important settings:
 - `QDRANT_URL`: backend Qdrant URL. Use the Compose service hostname `qdrant`.
 - `BACKEND_UPSTREAM`: Nginx upstream for `/api/` and `/uploads/`. Keep `http://backend:3001` for this Compose stack.
 - `VITE_API_BASE_URL`: optional build-time browser API base URL.
+- `NOTEBOOK_UPLOAD_HOST_DIR`: host folder for user-uploaded notebook files. The default is `./data/uploads/notebooks` inside this deployment folder.
 - `EMBEDDING_API_BASE`, `EMBEDDING_API_KEY`, and `EMBEDDING_MODEL`: required for backend startup health and retrieval.
 - `CHAT_*`, `STT_*`, `VLM_*`, and `RERANKER_*`: provider configuration for chat, media processing, and optional reranking.
 
@@ -64,11 +65,18 @@ pnpm exec prisma migrate deploy
 
 Set `RUN_PRISMA_MIGRATIONS=false` only if migrations are handled separately.
 
-Persistent data is stored in Docker volumes:
+Persistent database and vector data is stored in Docker volumes:
 
 - `postgres_data`: PostgreSQL database files.
 - `qdrant_data`: Qdrant vector storage.
-- `backend_uploads`: uploaded notebook files.
+
+User-uploaded notebook files are stored in the host folder configured by `NOTEBOOK_UPLOAD_HOST_DIR`, bind-mounted to `/app/backend/public/uploads/notebooks` in the backend container. By default this is:
+
+```text
+example_docker/data/uploads/notebooks
+```
+
+Back up this folder together with the PostgreSQL and Qdrant volumes when preserving user data.
 
 PostgreSQL and Qdrant are intentionally not published to the host. Use `docker compose exec postgres ...` or `docker compose exec qdrant ...` for local administration, or add temporary host port mappings only on trusted networks.
 

@@ -36,7 +36,7 @@ if [ -n "$missing_required" ]; then
   exit 1
 fi
 
-mkdir -p logs/nginx
+mkdir -p logs/nginx "${NOTEBOOK_UPLOAD_HOST_DIR:-./data/uploads/notebooks}"
 
 docker compose build
 docker compose up -d
