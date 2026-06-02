@@ -121,7 +121,7 @@ describe('persistNotebookUpload', () => {
     );
   });
 
-  it('transcribes audio uploads and stores the transcript as text preview content', async () => {
+  it('transcribes audio uploads and stores a timestamped transcript as text preview content', async () => {
     process.env.STT_API_BASE = 'https://stt.example.test/v1';
     process.env.STT_API_KEY = 'test-key';
     process.env.STT_MODEL = 'qwen3-asr-1.7b';
@@ -138,8 +138,24 @@ describe('persistNotebookUpload', () => {
 
     expect(result.type).toBe('audio');
     expect(result.previewFormat).toBe('text');
-    expect(result.previewContent).toBe('Audio transcript for indexing.');
+    expect(result.previewContent).toBe([
+      'Timestamped transcript',
+      '',
+      '[00:00 - 00:30]',
+      'Audio transcript for indexing.',
+    ].join('\n'));
     expect(result.extractedText).toBe('Audio transcript for indexing.');
+    expect(result.ragChunks).toEqual([
+      expect.objectContaining({
+        content: expect.stringContaining('Timestamp: 00:00 - 00:30'),
+        metadata: expect.objectContaining({
+          fileType: 'audio',
+          timestampEnd: 30,
+          timestampStart: 0,
+          transcript: 'Audio transcript for indexing.',
+        }),
+      }),
+    ]);
     expect(fetchMock).toHaveBeenCalledWith(
       'https://stt.example.test/v1/audio/transcriptions',
       expect.objectContaining({

@@ -178,7 +178,7 @@ Summaries and previews are separate:
 
 Examples:
 
-- audio preview: full transcript
+- audio preview: timestamped transcript
 - video preview: timestamped transcript
 - image preview: generated image description
 - image summary: the same generated image description

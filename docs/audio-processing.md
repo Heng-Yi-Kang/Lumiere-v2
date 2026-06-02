@@ -67,13 +67,12 @@ Summary generation is not inline with the upload response. It starts afterward i
 For audio files, `persistNotebookUpload()` calls `buildAudioPreview()`, which:
 
 1. stores the uploaded file under `backend/public/uploads/notebooks/<notebookId>/`
-2. sends the file to the STT provider with `transcribeAudioFile()`
-3. stores the returned plain transcript in both:
-   - `NotebookFile.extractedText`
-   - `NotebookFile.previewContent`
-4. persists the file record
-5. indexes transcript text into `NotebookFileChunk` and Qdrant via `indexNotebookFileForRag()`
-6. starts `startNotebookFileSummaryJob()` if extracted text is non-empty
+2. sends the file to the STT provider through `processAudioFile()`
+3. stores the returned plain transcript in `NotebookFile.extractedText`
+4. stores a timestamped transcript preview in `NotebookFile.previewContent`
+5. persists the file record
+6. indexes timestamped transcript chunks into `NotebookFileChunk` and Qdrant via `indexNotebookFileForRag()`
+7. starts `startNotebookFileSummaryJob()` if extracted text is non-empty
 
 There is no separate queue, polling worker, or transcript post-processing stage.
 
@@ -90,14 +89,14 @@ Behavior:
 - Expects a JSON response with a `text` field
 - Throws if the provider returns an error or empty text
 
-The current helper returns plain transcript text only. It does not request or store timestamp segments, diarization, or word timing.
+The STT helper returns plain transcript text only. Audio timestamping is synthesized after transcription by splitting transcript text evenly across detected media duration. If `ffprobe` cannot determine duration, the preview falls back to a single 30-second synthetic segment. It does not request or store provider-native timestamp segments, diarization, or word timing.
 
 ## Preview behavior
 
-Audio previews are plain text transcripts:
+Audio previews are timestamped text transcripts:
 
 - `previewFormat = "text"`
-- `previewContent = transcript`
+- `previewContent = timestamped transcript`
 - `extractedText = transcript`
 
 The frontend reads these values from:
@@ -116,7 +115,7 @@ Behavior:
 - Each chunk is embedded with the configured embedding provider
 - Chunks are stored in Qdrant and mirrored in PostgreSQL `NotebookFileChunk`
 
-For audio uploads, metadata is the generic notebook-file metadata rather than an audio-specific schema.
+For audio uploads, prebuilt chunks include synthetic `timestampStart` and `timestampEnd` metadata.
 
 ## Summary generation
 

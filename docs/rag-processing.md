@@ -72,7 +72,7 @@ Each Qdrant point payload includes:
 - `timestampEnd`
 - `embeddingModel`
 
-PDF, DOCX, PPTX, TXT, and audio chunks currently store `null` for page, slide, and timestamp fields. Video chunks map existing segment metadata into `timestampStart` and `timestampEnd`.
+PDF, DOCX, PPTX, and TXT chunks currently store `null` for page, slide, and timestamp fields. Audio and video chunks map segment metadata into `timestampStart` and `timestampEnd`.
 
 ## Embedding Service
 

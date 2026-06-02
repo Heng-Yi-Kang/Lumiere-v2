@@ -4,11 +4,12 @@ import { createRequire } from 'module';
 import path from 'path';
 import mammoth from 'mammoth';
 import sanitizeHtml from 'sanitize-html';
+import { processAudioFile } from '@/lib/audio-processing';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
-import { transcribeAudioFile } from '@/lib/stt';
 import { processVideoFile, type VideoRagSegment } from '@/lib/video-processing';
 import { describeImageFile } from '@/lib/vlm';
+import type { RagIndexChunk } from '@/lib/rag';
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
@@ -60,7 +61,7 @@ type UploadResult = {
   name: string;
   previewContent?: string;
   previewFormat?: PreviewFormat;
-  ragChunks?: VideoRagSegment[];
+  ragChunks?: RagIndexChunk[];
   size: string;
   sourcePath: string;
   totalPages?: number;
@@ -231,18 +232,19 @@ async function buildTxtPreview(filePath: string) {
   } satisfies DerivedPreview;
 }
 
-async function buildAudioPreview(filePath: string, fileName: string, mimeType: string): Promise<DerivedPreview> {
-  const transcript = await transcribeAudioFile({
+async function buildAudioPreview(filePath: string, fileName: string, mimeType: string): Promise<DerivedPreview & { ragChunks: RagIndexChunk[] }> {
+  const result = await processAudioFile({
     fileName,
     filePath,
     mimeType,
   });
 
   return {
-    extractedText: transcript,
-    previewContent: transcript,
+    extractedText: result.transcript,
+    previewContent: result.previewContent,
     previewFormat: 'text' as const,
-  } satisfies DerivedPreview;
+    ragChunks: result.ragSegments,
+  } satisfies DerivedPreview & { ragChunks: RagIndexChunk[] };
 }
 
 async function buildVideoPreview(filePath: string, fileName: string): Promise<DerivedPreview & { ragChunks: VideoRagSegment[] }> {
@@ -405,7 +407,7 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
       notebookId,
     });
 
-    const ragChunks = (preview as { ragChunks?: VideoRagSegment[] }).ragChunks;
+    const ragChunks = (preview as { ragChunks?: RagIndexChunk[] }).ragChunks;
 
     return {
       extractedText: preview.extractedText,
