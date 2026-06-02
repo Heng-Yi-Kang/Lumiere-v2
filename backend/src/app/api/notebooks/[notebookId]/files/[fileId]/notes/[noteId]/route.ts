@@ -1,4 +1,5 @@
-import { jsonResponse, noContentResponse, optionsResponse } from '@/lib/http';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { jsonResponse, noContentResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { prisma } from '@/lib/prisma';
 
 function serializeFileNote(note: {
@@ -19,13 +20,16 @@ function serializeFileNote(note: {
   };
 }
 
-async function getScopedNote(notebookId: string, fileId: string, noteId: string) {
+async function getScopedNote(notebookId: string, fileId: string, noteId: string, userId: string) {
   return prisma.fileNote.findFirst({
     where: {
       id: noteId,
       notebookFileId: fileId,
       notebookFile: {
         notebookId,
+        notebook: {
+          userId,
+        },
       },
     },
   });
@@ -39,8 +43,14 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ notebookId: string; fileId: string; noteId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const { fileId, notebookId, noteId } = await context.params;
-  const existingNote = await getScopedNote(notebookId, fileId, noteId);
+  const existingNote = await getScopedNote(notebookId, fileId, noteId, user.id);
 
   if (!existingNote) {
     return jsonResponse({ error: 'note not found' }, { status: 404 });
@@ -73,11 +83,17 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ notebookId: string; fileId: string; noteId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const { fileId, notebookId, noteId } = await context.params;
-  const existingNote = await getScopedNote(notebookId, fileId, noteId);
+  const existingNote = await getScopedNote(notebookId, fileId, noteId, user.id);
 
   if (!existingNote) {
     return jsonResponse({ error: 'note not found' }, { status: 404 });

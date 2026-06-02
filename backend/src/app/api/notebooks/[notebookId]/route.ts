@@ -1,5 +1,6 @@
 import { deleteNotebookStoredFile } from '@/lib/notebook-files';
-import { jsonResponse, noContentResponse, optionsResponse } from '@/lib/http';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { jsonResponse, noContentResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { deleteNotebookRagIndex } from '@/lib/rag';
 import { serializeNotebook } from '@/lib/notebooks';
 import { prisma } from '@/lib/prisma';
@@ -12,6 +13,12 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ notebookId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const { notebookId } = await context.params;
   const body = (await request.json().catch(() => null)) as
     | {
@@ -27,8 +34,11 @@ export async function PATCH(
     return jsonResponse({ error: 'name is required' }, { status: 400 });
   }
 
-  const existingNotebook = await prisma.notebook.findUnique({
-    where: { id: notebookId },
+  const existingNotebook = await prisma.notebook.findFirst({
+    where: {
+      id: notebookId,
+      userId: user.id,
+    },
     select: { id: true },
   });
 
@@ -56,13 +66,22 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ notebookId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const { notebookId } = await context.params;
 
-  const notebook = await prisma.notebook.findUnique({
-    where: { id: notebookId },
+  const notebook = await prisma.notebook.findFirst({
+    where: {
+      id: notebookId,
+      userId: user.id,
+    },
     include: {
       files: {
         select: {

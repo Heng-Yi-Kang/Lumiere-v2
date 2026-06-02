@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { DEFAULT_COURSES, DEFAULT_KNOWLEDGE_GRAPH, MOCK_STREAK } from './data/mockData';
-import { ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
+import { AuthUser, ChatGroundingScope, GroundedChatRequest, Notebook, Goal } from './types';
 import FloatingDock from './components/FloatingDock';
 import Header from './components/Header';
 import PriorityGoalBox from './components/PriorityGoalBox';
@@ -10,10 +10,15 @@ import NotebookView from './components/NotebookView';
 import StudyBuddy from './components/StudyBuddy';
 import KnowledgeGraphView from './components/KnowledgeGraphView';
 import CreateNotebookModal from './components/CreateNotebookModal';
+import AuthPage from './components/AuthPage';
+import AdminUsersView from './components/AdminUsersView';
 import { createNotebook, createNotebookFile, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
 import { getRetryLaterUploadMessage, isRetryLaterUploadError } from './lib/apiErrors';
+import { fetchCurrentUser, logout as logoutCurrentUser } from './lib/authApi';
+import { createGoal, deleteGoal, fetchGoals, updateGoal as updateGoalApi } from './lib/goalsApi';
 
 const pageToPath = {
+  AdminUsers: '/admin/users',
   Dashboard: '/dashboard',
   Notebooks: '/notebooks',
   KnowledgeGraph: '/knowledge-graph',
@@ -37,32 +42,57 @@ export default function App() {
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
   const [chatGroundingScope, setChatGroundingScope] = useState<ChatGroundingScope | undefined>(undefined);
   const [rateLimitDialogMessage, setRateLimitDialogMessage] = useState('');
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authLoadError, setAuthLoadError] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   // Notebook data is persisted in the backend database and shared across the workspace.
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [notebookLoadError, setNotebookLoadError] = useState<string>('');
   const notebookLoadRequestIdRef = useRef(0);
 
-  // Track goals with Local Storage persistence
-  const [goals, setGoals] = useState<Goal[]>(() => {
-    const saved = localStorage.getItem('lumiere_goals');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (_) {}
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalLoadError, setGoalLoadError] = useState('');
+
+  useEffect(() => {
+    let isActive = true;
+
+    void fetchCurrentUser()
+      .then((user) => {
+        if (!isActive) {
+          return;
+        }
+
+        setAuthUser(user);
+        setAuthLoadError('');
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
+
+        setAuthUser(null);
+        const message = error instanceof Error ? error.message : '';
+        setAuthLoadError(message && message !== 'authentication required' ? message : '');
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsAuthLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authUser) {
+      setNotebooks([]);
+      setNotebookLoadError('');
+      return;
     }
-    return [
-      { id: 'goal-1', text: 'Score 4.00 CGPA Flat this Semester', completed: false, isPriority: true },
-      { id: 'goal-2', text: 'Master Discrete Math Logic proofs with active recall', completed: false, isPriority: false },
-      { id: 'goal-3', text: 'Complete Java normalisation database assignment on time', completed: true, isPriority: false }
-    ];
-  });
 
-  useEffect(() => {
-    localStorage.setItem('lumiere_goals', JSON.stringify(goals));
-  }, [goals]);
-
-  useEffect(() => {
     const loadNotebooks = async () => {
       const requestId = ++notebookLoadRequestIdRef.current;
 
@@ -84,7 +114,36 @@ export default function App() {
     };
 
     void loadNotebooks();
-  }, []);
+  }, [authUser]);
+
+  useEffect(() => {
+    if (!authUser) {
+      setGoals([]);
+      setGoalLoadError('');
+      return;
+    }
+
+    let isActive = true;
+
+    void fetchGoals()
+      .then((loadedGoals) => {
+        if (!isActive) {
+          return;
+        }
+
+        setGoals(loadedGoals);
+        setGoalLoadError('');
+      })
+      .catch((error) => {
+        if (isActive) {
+          setGoalLoadError(error instanceof Error ? error.message : 'Failed to load goals.');
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [authUser]);
 
   const curNotebooksList = notebooks;
   const curGraphData = DEFAULT_KNOWLEDGE_GRAPH;
@@ -251,30 +310,71 @@ export default function App() {
     }
   };
 
+  const handleAuthenticated = useCallback((user: AuthUser) => {
+    setAuthUser(user);
+    setAuthLoadError('');
+    navigate(pageToPath.Dashboard, { replace: true });
+  }, [navigate]);
+
+  const handleLogout = useCallback(() => {
+    void logoutCurrentUser().finally(() => {
+      setAuthUser(null);
+      setGoals([]);
+      setNotebooks([]);
+      setPreFilledRequest(null);
+      setChatGroundingScope(undefined);
+      navigate('/auth', { replace: true });
+    });
+  }, [navigate]);
+
   // Goals CRUD functions
   const handleAddGoal = (text: string) => {
-    setGoals(prev => [
-      ...prev,
-      { id: `goal-${Date.now()}`, text, completed: false, isPriority: prev.length === 0 }
-    ]);
+    void createGoal(text)
+      .then((goal) => setGoals((prev) => [...prev, goal]))
+      .catch((error) => setGoalLoadError(error instanceof Error ? error.message : 'Failed to create goal.'));
   };
 
   const handleToggleGoal = (id: string) => {
+    const previousGoal = goals.find((goal) => goal.id === id);
+    if (!previousGoal) {
+      return;
+    }
+
     setGoals(prev => prev.map(g => g.id === id ? { ...g, completed: !g.completed } : g));
+    void updateGoalApi(id, { completed: !previousGoal.completed })
+      .catch((error) => {
+        setGoals((prev) => prev.map((goal) => goal.id === id ? previousGoal : goal));
+        setGoalLoadError(error instanceof Error ? error.message : 'Failed to update goal.');
+      });
   };
 
   const handleSetPriorityGoal = (id: string) => {
+    const previousGoals = goals;
     setGoals(prev => prev.map(g => ({ ...g, isPriority: g.id === id })));
+    void updateGoalApi(id, { isPriority: true })
+      .then((goal) => {
+        setGoals((prev) => prev.map((entry) => entry.id === goal.id ? goal : { ...entry, isPriority: false }));
+      })
+      .catch((error) => {
+        setGoals(previousGoals);
+        setGoalLoadError(error instanceof Error ? error.message : 'Failed to update goal.');
+      });
   };
 
   const handleDeleteGoal = (id: string) => {
+    const previousGoals = goals;
     setGoals(prev => {
       const updated = prev.filter(g => g.id !== id);
       if (prev.find(g => g.id === id)?.isPriority && updated.length > 0) {
-        updated[0].isPriority = true;
+        updated[0] = { ...updated[0], isPriority: true };
       }
       return updated;
     });
+    void deleteGoal(id)
+      .catch((error) => {
+        setGoals(previousGoals);
+        setGoalLoadError(error instanceof Error ? error.message : 'Failed to delete goal.');
+      });
   };
 
   const activeGroundingScope: ChatGroundingScope | undefined = activeNotebook
@@ -310,8 +410,35 @@ export default function App() {
     }
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="premium-dark flex min-h-screen items-center justify-center bg-bg-base text-text-secondary">
+        Loading workspace...
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <Routes>
+        <Route
+          path="/auth"
+          element={(
+            <AuthPage onAuthenticated={handleAuthenticated} />
+          )}
+        />
+        <Route path="*" element={<Navigate to="/auth" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="premium-dark min-h-screen flex font-sans relative overflow-hidden">
+      {authLoadError && (
+        <div className="fixed right-4 top-4 z-[100] rounded-2xl border border-error/20 bg-error-subtle px-4 py-3 text-sm font-semibold text-error">
+          {authLoadError}
+        </div>
+      )}
 
       {/* Floating Left Navigation Dock */}
       <FloatingDock 
@@ -330,7 +457,7 @@ export default function App() {
       {/* Main Layout Area */}
       <div className="flex-1 flex flex-col min-h-screen relative z-10 bg-transparent pl-20 md:pl-24">
         {/* Top Header bar with Picker & Streak ranks */}
-        <Header activeTab={currentPage} />
+        <Header activeTab={currentPage} currentUser={authUser} onLogout={handleLogout} />
 
         {/* Dynamic Context Canvas */}
         <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full pb-16 relative z-10">
@@ -340,6 +467,7 @@ export default function App() {
               path={pageToPath.Dashboard}
               element={(
                 <DashboardView
+                  currentUserName={authUser.name}
                   notebooks={curNotebooksList}
                   onOpenNotebook={openNotebook}
                   onUploadFile={handleAddNewFile}
@@ -347,7 +475,7 @@ export default function App() {
                   onDeleteNotebook={handleDeleteNotebook}
                   onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
                   streak={MOCK_STREAK}
-                  notebookError={notebookLoadError}
+                  notebookError={notebookLoadError || goalLoadError}
                 />
               )}
             />
@@ -378,6 +506,14 @@ export default function App() {
                   onAskInChat={handleAskInChat}
                   onOpenNotebookByCode={handleOpenNotebookByCode}
                 />
+              )}
+            />
+            <Route
+              path={pageToPath.AdminUsers}
+              element={authUser.role === 'ADMIN' ? (
+                <AdminUsersView currentUser={authUser} />
+              ) : (
+                <Navigate to={pageToPath.Dashboard} replace />
               )}
             />
             <Route path="*" element={<Navigate to={pageToPath.Dashboard} replace />} />

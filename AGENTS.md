@@ -29,6 +29,8 @@ Workspace:
 - `pnpm build:backend`: build the backend
 - `pnpm typecheck:frontend`: run frontend TypeScript checks
 - `pnpm typecheck:backend`: run backend TypeScript checks
+- `pnpm test:llm:backend`: run the backend LLM connectivity test script
+- `pnpm test:llm`: alias for `pnpm test:llm:backend`
 - `pnpm db:up`: start PostgreSQL, Qdrant, and pgAdmin with Docker Compose
 - `pnpm db:down`: stop Docker services
 
@@ -42,14 +44,19 @@ Frontend package:
 - `pnpm typecheck`: run the TypeScript compiler without emitting files
 - `pnpm check`: run type-checking and a production build
 - `pnpm clean`: remove generated build output
+- no dedicated frontend unit or integration test script is currently defined
 
 Backend package:
 
 - `pnpm dev`: start the local Next.js backend on port 3001
 - `pnpm build`: create the production backend build
+- `pnpm test`: run the backend Vitest suite
+- `pnpm test:llm`: run backend LLM connectivity checks
+- `pnpm test:llm:chat`: run only chat-provider connectivity checks
+- `pnpm test:llm:embeddings`: run only embeddings-provider connectivity checks
+- `pnpm test:vlm`: run the VLM connectivity Vitest file
 - `pnpm typecheck`: run backend TypeScript checks
 - `pnpm lint`: run backend TypeScript checks
-- `pnpm test`: run backend Vitest coverage
 - `pnpm prisma:migrate:dev`: apply Prisma migrations in development
 - `pnpm prisma:generate`: regenerate Prisma client after schema changes
 
@@ -77,12 +84,14 @@ The frontend uses React Router plus semantic page-name navigation. The source of
 
 - The backend uses PostgreSQL for notebook, file, and chunk-manifest metadata and Qdrant for vector retrieval storage.
 - Grounded notebook chat, file ingestion, retrieval, reranking, and cleanup behavior are documented in [`docs/rag-processing.md`](docs/rag-processing.md).
+- For the default local workflow, only PostgreSQL, Qdrant, and pgAdmin run in Docker while the backend runs on the host with `pnpm dev:backend`; keep `backend/.env` set to `QDRANT_URL=http://localhost:6333`.
+- Use `QDRANT_URL=http://qdrant:6333` only when the backend itself runs inside the same Docker Compose network. A host-run backend cannot resolve the `qdrant` Compose service name and will fail startup with `qdrant-connectivity`.
 - Video and image enrichment rely on VLM configuration in `backend/.env`; see [`docs/video-processing.md`](docs/video-processing.md) for the current flow.
 - Swagger UI is served from `/api` and the OpenAPI document from `/api/openapi.json`.
 - Startup health checks run during backend boot and can fail startup when required dependencies are unavailable.
 
 ## Testing Guidelines
-The frontend still uses `pnpm lint` or `pnpm check` as the baseline verification step. The backend has a dedicated Vitest suite; use `pnpm --dir backend test` for backend changes and `pnpm --dir backend typecheck` for server-side type verification. If you add tests, place them near the code they cover and use clear names that match the unit, route, or view under test.
+The frontend currently uses `pnpm lint` or `pnpm check` as the baseline verification step and does not yet define a dedicated test runner. The backend has a dedicated Vitest suite; use `pnpm --dir backend test` for backend changes and `pnpm --dir backend typecheck` for server-side type verification. Use `pnpm --dir backend test:llm`, `pnpm --dir backend test:llm:chat`, `pnpm --dir backend test:llm:embeddings`, and `pnpm --dir backend test:vlm` when you need provider-connectivity coverage in addition to the main test suite. If you add tests, place them near the code they cover and use clear names that match the unit, route, or view under test.
 
 ## Commit & Pull Request Guidelines
 Commit history is short and uses concise imperative messages, sometimes with a prefix such as `feat:`. Keep commits focused and descriptive, for example `feat: add notebook sidebar state`.

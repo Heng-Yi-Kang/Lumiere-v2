@@ -32,6 +32,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   const response = await fetch(buildNotebookApiUrl(path), {
     ...init,
+    credentials: 'include',
     headers,
   });
 

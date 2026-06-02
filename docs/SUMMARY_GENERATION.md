@@ -1,258 +1,208 @@
 # Uploaded File Summary Generation
 
+This document describes the current summary-generation flow for notebook uploads in `backend/`.
+
 ## Overview
 
-Uploaded source materials can receive an AI-generated summary stored on the subject textbook entry. The summary is not generated inline during the upload request. Upload endpoints create the textbook record and queue or trigger background processing. Once usable text exists, the backend calls `summarizeText()` and writes the result to `textbooks.$.summary`.
+Summaries are now generated per `NotebookFile`, not per subject textbook.
 
-The summary output is intended for secondary school learning material in Malaysia and has this shape:
+The current system has two behaviors:
 
-```json
-{
-  "keyTakeaways": ["concise bullet point"],
-  "learningObjectives": ["students will be able to..."],
-  "briefSummary": "2-3 sentence overview in plain language",
-  "difficultyLevel": "easy",
-  "suggestedFocusAreas": ["topic 1"]
-}
-```
+- image uploads complete with an inline VLM-generated description that is stored immediately as the file summary
+- all other supported file types start an asynchronous `setImmediate()` summary job after upload persistence and RAG indexing complete
 
-## Main Files
+The summary output is a single concise text string, not a structured JSON object.
+
+## Main files
 
 | Area | File | Role |
 | --- | --- | --- |
-| Upload routes | `apps/api/src/subjects/subject.routes.ts` | Defines upload, summary read, and regenerate endpoints. |
-| Upload controllers | `apps/api/src/subjects/subject.controller.ts` | Creates textbook records, summary placeholders, and direct `setImmediate` summary jobs for some source types. |
-| Queue worker | `apps/api/src/video-jobs/videoProcessor.ts` | Processes document/audio/video/web/text AI jobs, extracts text, embeds content, then starts summary generation. |
-| Summary utility | `apps/api/src/utils/summarize.ts` | Truncates text, builds the LLM prompt, retries calls, parses JSON output. |
-| Summary persistence | `apps/api/src/subjects/subject.service.ts` | Updates `textbooks.$.summary`. |
-| Subject schema | `apps/api/src/subjects/subject.model.ts` | Defines the `summary` subdocument. |
-| Teacher polling UI | `apps/web/src/app/teacher/components/subjects/useSubjectDetail.ts` | Polls in-progress summaries from the subject detail page. |
-| File viewer UI | `apps/web/src/components/FileViewer/hooks/useAISummary.ts` | Fetches and polls an individual textbook summary for display. |
-| Summary card | `apps/web/src/components/FileViewer/components/SummaryCard.tsx` | Renders loading and completed summaries. |
+| Upload route | `backend/src/app/api/notebooks/[notebookId]/files/route.ts` | Creates `NotebookFile`, indexes content, and starts async summary jobs. |
+| File extraction | `backend/src/lib/notebook-files.ts` | Produces `extractedText` and previews for each supported file type. |
+| Summary job | `backend/src/lib/notebook-file-summary-job.ts` | Loads file text, manages summary status transitions, and persists final output. |
+| Summary provider call | `backend/src/lib/file-summary.ts` | Calls chat completions, trims source text, and returns a plain summary string. |
+| Prisma schema | `backend/prisma/schema.prisma` | Defines `summary`, `summaryStatus`, `summaryError`, and `summaryGeneratedAt` on `NotebookFile`. |
+| File preview route | `backend/src/app/api/notebooks/[notebookId]/files/[fileId]/route.ts` | Returns preview content plus current summary state. |
+| Notebook serialization | `backend/src/lib/notebooks.ts` | Includes summary fields in notebook payloads. |
+| Frontend notebook UI | `frontend/src/components/NotebookView.tsx` | Shows summary loading, error, and completed states. |
 
-## Data Model
+## Data model
 
-Each textbook can contain a `summary` object:
+Summaries are stored directly on `NotebookFile`:
 
-```typescript
-interface ISummary {
-  content: string;
-  generatedAt: Date;
-  status: 'in-progress' | 'done' | 'error';
-  error?: string;
+```ts
+model NotebookFile {
+  summary            String?
+  summaryStatus      String   @default("idle")
+  summaryError       String?
+  summaryGeneratedAt DateTime?
 }
 ```
 
-The `content` field stores a JSON string of the `SummaryResult` object when generation succeeds. During generation it is empty. On failure it remains empty and `error` stores the failure message.
+Current status values:
 
-Summary status transitions:
+- `idle`
+- `in-progress`
+- `done`
+- `error`
 
-```text
-not present -> in-progress -> done
-                         \-> error
-```
-
-## Upload Entry Points
-
-| Endpoint | Source type | Initial behavior |
-| --- | --- | --- |
-| `POST /api/subjects/with-textbook` | New subject plus files/text/URLs | Creates subject and textbook entries. Documents and pasted text get `summary.status = in-progress`. |
-| `POST /api/subjects/:id/textbooks` | Single file upload | Creates an AI job. Documents get `summary.status = in-progress`; audio/video do not receive the placeholder until processing completes. |
-| `POST /api/subjects/:id/textbooks/batch` | Multi-file upload | Creates AI jobs for each file. Documents get `summary.status = in-progress`. |
-| `POST /api/subjects/:id/text` | Pasted text | Creates a `TEXT` AI job and `summary.status = in-progress`. |
-| `POST /api/subjects/:id/web-pages` | Web page URL | Creates a `WEB_PAGE` AI job for normal web pages. Document links use direct link resolution. |
-| `POST /api/subjects/:id/ingest-link` | Legacy link ingest route | Resolves and indexes a link, then uses `setImmediate` for summary generation if scraped text exists. |
-
-Supported uploaded file extensions are declared in `subject.uploads.ts`: `.pdf`, `.txt`, `.docx`, `.pptx`, audio files, `.mp4`, and common image extensions. Images are described and embedded, but current image processing does not call `summarizeText()`.
-
-## Backend Flow
-
-### Document uploads
-
-1. Upload controller creates a textbook record with `summary.status = in-progress`.
-2. Controller creates an `AIJob` with `fileType = DOCUMENT`.
-3. `startQueueWorker(10000)` in `apps/api/src/index.ts` polls queued jobs every 10 seconds.
-4. `processDocumentJob()` extracts text through `extractText()`.
-5. If extracted text is missing or shorter than 100 characters, the job completes without summary generation.
-6. Otherwise the content is embedded with `indexContent()`.
-7. The textbook processing status is updated.
-8. `fireAndForgetSummarize(job, extracted.text)` runs in `setImmediate`.
-9. Summary is written as `in-progress`, then `done` with JSON content, or `error`.
-
-### Audio uploads
-
-1. Upload controller creates an `AUDIO` AI job and a textbook with `transcriptionStatus = pending`.
-2. `processAudioJob()` reads metadata and transcribes audio with timestamps.
-3. If transcript text is shorter than 100 characters, the job completes without summary generation.
-4. Otherwise the transcript is embedded.
-5. Transcript fields are written back to the textbook.
-6. `fireAndForgetSummarize(job, transcriptionResult.text)` generates the summary.
-
-### Video uploads
-
-1. Upload controller creates a `VIDEO` AI job and a textbook with `transcriptionStatus = pending`.
-2. `processVideoJob()` extracts metadata, transcribes audio, extracts keyframes, describes frames, and embeds video content.
-3. If transcript text is shorter than 100 characters, the job completes without summary generation.
-4. Otherwise `fireAndForgetSummarize(job, job.transcript ?? '')` generates a summary from the transcript text.
-
-### Web page uploads
-
-There are two paths:
-
-- `WEB_PAGE` AI jobs scrape the page in `processWebPageJob()`, embed the scraped text, write `scrapedText` back to the textbook, then call `fireAndForgetSummarize()`.
-- Legacy link ingest resolves and indexes the page immediately, pushes the textbook entry, then starts a `setImmediate` summary job if scraped text is at least 100 characters.
-
-### Pasted text
-
-There are two paths:
-
-- `POST /api/subjects/:id/text` creates a `TEXT` AI job. `processTextJob()` reads `textContent` from the textbook, embeds it, and calls `fireAndForgetSummarize()`.
-- `POST /api/subjects/with-textbook` can process `textbookTexts` directly. It indexes the text and starts a controller-level `setImmediate` summary job.
-
-## Summary Utility Behavior
-
-`summarizeText(text, maxChars = 30000)` performs these steps:
-
-1. Applies lead-tail truncation with a default 30,000-character limit.
-2. Keeps the first 15,000 characters and last 15,000 characters when the input is too long.
-3. Inserts `[... CONTENT SNIPPED ...]` between the two retained sections.
-4. Sends a chat completion request to `${OPENAI_API_BASE_URL}/chat/completions`.
-5. Uses `OPENAI_MODEL`, `OPENAI_API_KEY`, and temperature `0.3`.
-6. Retries up to 3 times with exponential backoff: 1s, 2s, 4s.
-7. Strips markdown fences if the LLM returns them.
-8. Extracts the first JSON object from the response and parses it.
-
-Required environment variables:
+State transitions:
 
 ```text
-OPENAI_API_KEY
-OPENAI_API_BASE_URL
-OPENAI_MODEL
+idle -> in-progress -> done
+                    -> error
 ```
 
-If `OPENAI_API_KEY` or `OPENAI_API_BASE_URL` is missing, summary generation fails and the textbook summary is written with `status = error`.
+## Upload entry point
 
-## API Behavior
+All summary-producing uploads enter through:
 
-### Get summary
+- `POST /api/notebooks/:notebookId/files`
 
-```http
-GET /api/subjects/:id/textbooks/:textbookId/summary
-```
+The upload route:
 
-Responses:
+1. validates and stores the file
+2. extracts `extractedText` and `previewContent`
+3. creates a `NotebookFile`
+4. indexes chunks into Qdrant and `NotebookFileChunk`
+5. starts `startNotebookFileSummaryJob(fileId)` when appropriate
 
-| State | HTTP status | Body |
-| --- | --- | --- |
-| No subject/textbook | `404` | Error message. |
-| No summary field | `404` | `Summary not available for this textbook`. |
-| In progress | `202` | `{ "status": "in-progress", "generatedAt": "...", "message": "Summary is still being generated" }` |
-| Error | `200` | `{ "status": "error", "generatedAt": "...", "error": "..." }` |
-| Done | `200` | `{ "status": "done", "generatedAt": "...", ...summaryFields }` |
+There is no separate summary endpoint to trigger generation and no background queue worker.
 
-Teacher access is scoped to the authenticated teacher's subject. Non-teacher roles can read by subject id in the controller logic, although the route itself is under teacher middleware in `subject.routes.ts`.
+## Source text by file type
 
-### Regenerate summary
+Summary generation depends on `NotebookFile.extractedText`.
 
-```http
-POST /api/subjects/:id/textbooks/:textbookId/summary/regenerate
-```
+Current extraction sources:
 
-Regeneration uses already persisted text only:
+- `pdf`: parsed text from `officeparser`
+- `docx`: raw text from `mammoth`
+- `pptx`: parsed text from `officeparser`
+- `txt`: file contents
+- `audio`: STT transcript
+- `video`: STT transcript from extracted WAV audio
+- `image`: VLM-generated description
 
-```typescript
-textbook.transcriptText || textbook.scrapedText || textbook.textContent || ''
-```
+Image uploads are special: the generated description is stored immediately as both `extractedText` and `summary`, and `summaryStatus` is set to `done` during upload. No async summary job runs for images.
 
-If none of those fields exist, the endpoint returns `400` with `No text content available to summarize`.
+## Async summary job
 
-## Frontend Behavior
+The async job is implemented in [backend/src/lib/notebook-file-summary-job.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/notebook-file-summary-job.ts).
 
-### Teacher subject detail
+Behavior:
 
-`useSubjectDetail.ts` polls every 10 seconds when any visible textbook has:
+1. load the file by id
+2. if the file does not exist, log and stop
+3. if `extractedText` is empty, store:
+   - `summary = null`
+   - `summaryStatus = "error"`
+   - `summaryError = "No extracted text is available to summarize."`
+4. otherwise set:
+   - `summaryStatus = "in-progress"`
+   - `summaryError = null`
+5. call `generateNotebookFileSummary()`
+6. on success, store:
+   - `summary`
+   - `summaryStatus = "done"`
+   - `summaryGeneratedAt = new Date()`
+7. on failure, store:
+   - `summaryStatus = "error"`
+   - `summaryError = <message>`
 
-```typescript
-tb.summary?.status === "in-progress" || tb.vlmStatus === "pending"
-```
+The job is started with `setImmediate()`, so it is in-process only.
 
-For normal summaries, it calls:
+## Summary provider behavior
 
-```text
-/subjects/:subjectId/textbooks/:textbookId/summary
-```
+`generateNotebookFileSummary()` is implemented in [backend/src/lib/file-summary.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/file-summary.ts).
 
-When a summary returns `done` or `error`, it refreshes the subject so the source file list updates.
+Required config:
 
-### File viewer
+- `CHAT_API_KEY`
+- `CHAT_MODEL`
 
-`useAISummary.ts` first tries to parse `textbook.summary.content` from props. If the summary is already done, the viewer renders immediately without an API call.
+Optional config:
 
-If not, it fetches the summary endpoint and polls every 5 seconds while the server returns `in-progress`. It stops after 10 in-progress refetches and waits for parent data refresh.
+- `CHAT_API_BASE_URL`, default `https://api.openai.com/v1`
+- `SUMMARY_REQUEST_TIMEOUT_MS`, default `90000`
 
-`SummaryCard.tsx` hides summaries in `idle` and `error` states, shows a four-phase loading card while loading, and renders:
+Behavior:
 
-- `briefSummary`
-- `difficultyLevel`
-- `keyTakeaways`
-- `suggestedFocusAreas`
+- skips generation and returns `undefined` if `CHAT_API_KEY` or `CHAT_MODEL` is missing
+- normalizes whitespace in the extracted text
+- truncates the summary source to `12000` characters
+- sends a single chat completion request to `/chat/completions`
+- uses temperature `0.2`
+- requests a concise 3 to 5 sentence study summary
+- returns plain message content from the first choice
 
-`learningObjectives` are generated and returned by the backend but are not currently rendered in the summary card.
+The current system does not:
 
-## Maintenance Scripts
+- request JSON output
+- retry failed summary calls
+- persist intermediate prompt data
 
-| Script | Purpose |
-| --- | --- |
-| `node apps/api/scripts/check-subject-summaries.mjs` | Logs summary status for every textbook in all teacher subjects. |
-| `node apps/api/scripts/reset-summary.mjs` | Calls regenerate for summaries in `error` state when persisted text exists. |
+## API surface
 
-Both scripts use these optional environment variables:
+There is no dedicated summary read or regenerate route for notebook files.
 
-```text
-API_BASE_URL=http://localhost:5001/api
-TEACHER_EMAIL=teacher@kpsti.edu.my
-TEACHER_PASSWORD=password123
-```
+Summary state is exposed through:
 
-## Important Observations
+- `GET /api/notebooks/:notebookId/files/:fileId`
+- notebook payloads returned by the upload route
 
-1. Document text is extracted and embedded, but the full extracted text is not persisted on the textbook. If a PDF/TXT/DOCX/PPTX summary fails, `regenerateSummary` usually cannot retry it because it only checks `transcriptText`, `scrapedText`, and `textContent`.
-2. Audio, video, web page, and pasted text summaries are easier to regenerate because their transcript, scraped text, or pasted text is stored.
-3. Images are processed through VLM description and embedding, but no summary is generated by the current image job path.
-4. Summary generation is fire-and-forget. If the Node process stops after the AI job completes but before the `setImmediate` summary finishes, the summary can remain stuck as `in-progress`.
-5. Existing completed AI jobs can be reused for duplicate uploads, but summary reuse is limited by whether the textbook receives persisted usable content and whether `fireAndForgetSummarize()` is called for that path.
-6. `check-subject-summaries.mjs` previews `JSON.parse(summary.content || '{}')?.summary`, but the actual summary schema uses `briefSummary`, so the preview can fall back to raw JSON content.
+Preview response fields include:
 
-## End-to-End Sequence
+- `summary`
+- `summaryStatus`
+- `summaryError`
+- `summaryGeneratedAt`
 
-```text
-Teacher uploads source material
-        |
-        v
-Multer stores file or controller records URL/text
-        |
-        v
-Textbook entry added to Subject.textbooks
-        |
-        v
-AIJob queued for documents/audio/video/web/text
-        |
-        v
-Queue worker extracts usable text
-        |
-        v
-Content embedded for RAG
-        |
-        v
-fireAndForgetSummarize() starts
-        |
-        v
-summarizeText() truncates content and calls LLM
-        |
-        v
-Subject.textbooks.$.summary becomes done or error
-        |
-        v
-Frontend polling refreshes and displays summary
-```
+## Frontend behavior
 
+The notebook UI reads summary state from notebook/file payloads and the file preview route.
+
+Current behavior in [frontend/src/components/NotebookView.tsx](/home/arch_Kang/projects/Lumiere-v2/frontend/src/components/NotebookView.tsx):
+
+- `summaryStatus === "in-progress"` shows a generating state
+- `summaryStatus === "error"` shows the stored error
+- `summaryStatus === "done"` shows the summary text
+
+The app also checks whether any file in a notebook is still `in-progress` to drive refresh behavior.
+
+## Relationship to previews
+
+Summaries and previews are separate:
+
+- `previewContent` is the extracted/rendered file preview
+- `summary` is a short study-oriented description
+
+Examples:
+
+- audio preview: full transcript
+- video preview: timestamped transcript
+- image preview: generated image description
+- image summary: the same generated image description
+- document summary: separate concise text generated from `extractedText`
+
+## Operational requirements
+
+For async summaries on non-image files, the backend needs:
+
+- `CHAT_API_KEY`
+- `CHAT_MODEL`
+
+If those variables are missing:
+
+- uploads still succeed
+- file extraction and RAG indexing still succeed
+- the summary job moves the file to `error` because the provider returns no summary
+
+Chat-provider presence is treated as optional in startup health because grounded chat can still function without every file having a generated summary.
+
+## Current caveats
+
+1. Summary generation is fire-and-forget in-process work. If the server exits after upload succeeds, the summary can remain `in-progress` or never complete.
+2. There is no retry or regeneration endpoint for notebook-file summaries.
+3. There is no structured summary schema anymore; downstream consumers should treat `summary` as plain text.
+4. Non-image summary generation depends entirely on `extractedText`, so poor extraction quality directly degrades summary quality.
+5. Missing chat configuration does not block upload, but it does prevent successful summary completion.

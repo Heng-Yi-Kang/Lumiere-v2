@@ -24,8 +24,6 @@ const pageToPath = {
   Dashboard: '/dashboard',
   Notebooks: '/notebooks',
   KnowledgeGraph: '/knowledge-graph',
-  Revision: '/revision',
-  StudyLounge: '/study-lounge',
 } as const;
 ```
 
@@ -81,8 +79,6 @@ The actual route tree is also in `App.tsx`:
   <Route path={pageToPath.Dashboard} element={<DashboardView ... />} />
   <Route path={pageToPath.Notebooks} element={<NotebookView ... />} />
   <Route path={pageToPath.KnowledgeGraph} element={<KnowledgeGraphView ... />} />
-  <Route path={pageToPath.Revision} element={<RevisionView ... />} />
-  <Route path={pageToPath.StudyLounge} element={<SlangLounge />} />
   <Route path="*" element={<Navigate to={pageToPath.Dashboard} replace />} />
 </Routes>
 ```

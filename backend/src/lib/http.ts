@@ -4,6 +4,7 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': process.env.FRONTEND_ORIGIN || '*',
   'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Credentials': 'true',
 };
 
 export function jsonResponse(body: unknown, init?: ResponseInit) {
@@ -31,4 +32,12 @@ export function noContentResponse() {
     status: 204,
     headers: corsHeaders,
   });
+}
+
+export function unauthorizedResponse() {
+  return jsonResponse({ error: 'authentication required' }, { status: 401 });
+}
+
+export function forbiddenResponse() {
+  return jsonResponse({ error: 'forbidden' }, { status: 403 });
 }

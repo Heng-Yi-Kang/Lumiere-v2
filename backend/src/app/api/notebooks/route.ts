@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import { jsonResponse, optionsResponse } from '@/lib/http';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
 
 export async function OPTIONS() {
@@ -7,7 +8,16 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const notebooks = await prisma.notebook.findMany({
+    where: {
+      userId: user.id,
+    },
     orderBy: { updatedAt: 'desc' },
     include: {
       files: {
@@ -22,6 +32,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const body = (await request.json().catch(() => null)) as
     | {
         name?: string;
@@ -45,6 +61,7 @@ export async function POST(request: Request) {
       color: body.color?.trim() || 'blue',
       description: body.description?.trim() || '',
       conceptCount: 0,
+      userId: user.id,
     },
     include: {
       files: {

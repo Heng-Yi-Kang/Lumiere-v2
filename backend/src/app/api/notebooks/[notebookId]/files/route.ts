@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { deleteNotebookStoredFile, NotebookFileValidationError, persistNotebookUpload } from '@/lib/notebook-files';
-import { jsonResponse, optionsResponse } from '@/lib/http';
+import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
 import { indexNotebookFileForRag } from '@/lib/rag';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
@@ -15,14 +16,23 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ notebookId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const requestStartedAt = performance.now();
   const { notebookId } = await context.params;
   logBackendProcess('info', 'file.api.upload.started', {
     notebookId,
   });
 
-  const existingNotebook = await prisma.notebook.findUnique({
-    where: { id: notebookId },
+  const existingNotebook = await prisma.notebook.findFirst({
+    where: {
+      id: notebookId,
+      userId: user.id,
+    },
     select: { id: true },
   });
 

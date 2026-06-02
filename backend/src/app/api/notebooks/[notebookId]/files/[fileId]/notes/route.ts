@@ -1,4 +1,5 @@
-import { jsonResponse, optionsResponse } from '@/lib/http';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { prisma } from '@/lib/prisma';
 
 function serializeFileNote(note: {
@@ -19,11 +20,14 @@ function serializeFileNote(note: {
   };
 }
 
-async function getNotebookFile(notebookId: string, fileId: string) {
+async function getNotebookFile(notebookId: string, fileId: string, userId: string) {
   return prisma.notebookFile.findFirst({
     where: {
       id: fileId,
       notebookId,
+      notebook: {
+        userId,
+      },
     },
     select: {
       id: true,
@@ -36,11 +40,17 @@ export async function OPTIONS() {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ notebookId: string; fileId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const { fileId, notebookId } = await context.params;
-  const file = await getNotebookFile(notebookId, fileId);
+  const file = await getNotebookFile(notebookId, fileId, user.id);
 
   if (!file) {
     return jsonResponse({ error: 'file not found' }, { status: 404 });
@@ -64,8 +74,14 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ notebookId: string; fileId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const { fileId, notebookId } = await context.params;
-  const file = await getNotebookFile(notebookId, fileId);
+  const file = await getNotebookFile(notebookId, fileId, user.id);
 
   if (!file) {
     return jsonResponse({ error: 'file not found' }, { status: 404 });

@@ -1,5 +1,6 @@
 import { buildNotebookStoredFileUrl, deleteNotebookStoredFile } from '@/lib/notebook-files';
-import { jsonResponse, optionsResponse } from '@/lib/http';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { deleteNotebookFileRagIndex } from '@/lib/rag';
 import { serializeNotebook } from '@/lib/notebooks';
 import { prisma } from '@/lib/prisma';
@@ -9,15 +10,24 @@ export async function OPTIONS() {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ notebookId: string; fileId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const { fileId, notebookId } = await context.params;
 
   const file = await prisma.notebookFile.findFirst({
     where: {
       id: fileId,
       notebookId,
+      notebook: {
+        userId: user.id,
+      },
     },
     select: {
       id: true,
@@ -58,15 +68,24 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ notebookId: string; fileId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const { fileId, notebookId } = await context.params;
 
   const file = await prisma.notebookFile.findFirst({
     where: {
       id: fileId,
       notebookId,
+      notebook: {
+        userId: user.id,
+      },
     },
     select: {
       id: true,
@@ -91,8 +110,11 @@ export async function DELETE(
 
   await deleteNotebookStoredFile([file.sourcePath]);
 
-  const notebook = await prisma.notebook.findUnique({
-    where: { id: notebookId },
+  const notebook = await prisma.notebook.findFirst({
+    where: {
+      id: notebookId,
+      userId: user.id,
+    },
     include: {
       files: {
         orderBy: { createdAt: 'desc' },

@@ -1,12 +1,25 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, Shield, LogOut } from 'lucide-react';
+import { AuthUser } from '../types';
 
 interface HeaderProps {
   activeTab: string;
+  currentUser: AuthUser;
+  onLogout: () => void;
 }
 
-export default function Header({ activeTab }: HeaderProps) {
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .filter(Boolean)
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'LU';
+}
+
+export default function Header({ activeTab, currentUser, onLogout }: HeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -42,6 +55,16 @@ export default function Header({ activeTab }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">
+        {currentUser.role === 'ADMIN' && (
+          <button
+            type="button"
+            onClick={() => navigate('/admin/users')}
+            className="premium-focus hidden items-center gap-2 rounded-xl border border-border-default bg-bg-elevated/60 px-3 py-2 text-xs font-bold text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary md:inline-flex"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            Admin
+          </button>
+        )}
         {/* Notification bell */}
         <button 
           id="notif-bell"
@@ -54,13 +77,22 @@ export default function Header({ activeTab }: HeaderProps) {
         {/* Avatar block */}
         <div className="flex items-center gap-2.5 border-l border-border-default pl-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border-default bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-black text-white shadow-lg shadow-indigo-500/25">
-            YK
+            {getInitials(currentUser.name)}
           </div>
           <div className="hidden flex-col text-left xl:flex">
-            <span className="text-sm font-bold text-text-primary">Yi Kang</span>
-            <span className="text-[11px] text-text-muted font-mono">yikangheng@gmail.um</span>
+            <span className="text-sm font-bold text-text-primary">{currentUser.name}</span>
+            <span className="text-[11px] text-text-muted font-mono">{currentUser.email}</span>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="premium-focus rounded-full p-2.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          title="Log out"
+          aria-label="Log out"
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
       </div>
     </header>
   );

@@ -23,6 +23,7 @@ import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 
 interface DashboardViewProps {
+  currentUserName: string;
   notebooks: Notebook[];
   onOpenNotebook: (notebookId: string) => void;
   onUploadFile: (notebookId: string, file: File) => Promise<void> | void;
@@ -34,6 +35,7 @@ interface DashboardViewProps {
 }
 
 export default function DashboardView({ 
+  currentUserName,
   notebooks, 
   onOpenNotebook, 
   onUploadFile,
@@ -186,7 +188,7 @@ export default function DashboardView({
               <span className="text-sm font-semibold text-text-secondary">Sem 2 Semester Student Portal</span>
             </div>
             <h1 className="text-3xl font-black tracking-tight font-display text-gradient">
-              Welcome, Yi Kang
+              Welcome, {currentUserName}
             </h1>
             <p className="max-w-xl text-base font-normal leading-relaxed text-text-secondary font-serif">
               {notebooks.length === 0 ? (

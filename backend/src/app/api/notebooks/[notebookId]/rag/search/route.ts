@@ -1,5 +1,6 @@
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
-import { jsonResponse, optionsResponse } from '@/lib/http';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { prisma } from '@/lib/prisma';
 import { retrieveNotebookRagContext } from '@/lib/rag';
 
@@ -11,6 +12,12 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ notebookId: string }> },
 ) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
   const requestStartedAt = performance.now();
   const { notebookId } = await context.params;
   const body = await request.json().catch(() => null) as {
@@ -34,8 +41,11 @@ export async function POST(
     queryChars: body.query.length,
   });
 
-  const notebook = await prisma.notebook.findUnique({
-    where: { id: notebookId },
+  const notebook = await prisma.notebook.findFirst({
+    where: {
+      id: notebookId,
+      userId: user.id,
+    },
     select: { id: true },
   });
 

@@ -9,6 +9,7 @@ datasource db {
 
 model Notebook {
   id           String         @id @default(cuid())
+  userId       String
   name         String
   courseCode   String
   color        String
@@ -16,9 +17,59 @@ model Notebook {
   conceptCount Int            @default(0)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   files        NotebookFile[]
 
+  @@index([userId])
   @@index([courseCode])
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         UserRole   @default(USER)
+  disabled     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  notebooks    Notebook[]
+  sessions     Session[]
+  goals        Goal[]
+
+  @@index([role])
+  @@index([disabled])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Goal {
+  id         String   @id @default(cuid())
+  userId     String
+  text       String
+  completed  Boolean  @default(false)
+  isPriority Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum UserRole {
+  ADMIN
+  USER
 }
 
 model NotebookFile {

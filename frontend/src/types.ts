@@ -149,6 +149,26 @@ export interface Goal {
   isPriority: boolean;
 }
 
+export interface AuthUser {
+  disabled: boolean;
+  email: string;
+  id: string;
+  name: string;
+  role: 'ADMIN' | 'USER';
+}
+
+export interface AdminUser {
+  createdAt: string;
+  disabled: boolean;
+  email: string;
+  goalCount: number;
+  id: string;
+  name: string;
+  notebookCount: number;
+  role: 'ADMIN' | 'USER';
+  sessionCount: number;
+}
+
 export interface FileNote {
   id: string;
   fileId: string;

@@ -4,122 +4,169 @@ This document describes the current `backend/` implementation for uploaded noteb
 
 ## Scope
 
-This covers local video files uploaded through:
+Video ingestion currently covers local file uploads through:
 
 - `POST /api/notebooks/:notebookId/files`
 
-YouTube or remote video ingestion is not implemented.
+Remote video ingestion and YouTube ingestion are not implemented.
 
-## Entry Point
+## Supported formats
 
-Notebook uploads are handled in:
+Video support is defined in [backend/src/lib/notebook-files.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/notebook-files.ts).
 
-- `backend/src/app/api/notebooks/[notebookId]/files/route.ts`
-- `backend/src/lib/notebook-files.ts`
-
-Supported video extensions:
+Supported extensions:
 
 - `.mp4`
 - `.mov`
 - `.m4v`
 - `.webm`
 
-Supported MIME types:
+Accepted MIME types:
 
 - `video/mp4`
 - `video/quicktime`
 - `video/webm`
 - `video/x-m4v`
 
-The frontend accepts the same extensions from dashboard and notebook upload controls.
+Uploads are capped at `100 MB`.
 
-## Processing Model
+## Entry point
 
-Video processing is synchronous during upload, matching the current document and audio upload flow.
+Main files:
 
-There is no background queue or polling model in this repo. A video upload only returns after extraction, transcription, frame description, summary generation, database persistence, and RAG indexing complete.
+- [backend/src/app/api/notebooks/[notebookId]/files/route.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/app/api/notebooks/[notebookId]/files/route.ts)
+- [backend/src/lib/notebook-files.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/notebook-files.ts)
+- [backend/src/lib/video-processing.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/video-processing.ts)
+
+## Processing model
+
+Video processing is synchronous during upload.
+
+The upload request does not return until the backend has:
+
+1. written the uploaded file to disk
+2. probed duration with `ffprobe`
+3. extracted audio with `ffmpeg`
+4. transcribed the WAV track
+5. sampled frames
+6. described frames through the VLM provider
+7. built video RAG segments
+8. created the `NotebookFile`
+9. indexed the chunks into Qdrant and `NotebookFileChunk`
+
+Summary generation is separate and starts only after the file row and RAG index exist.
 
 ## Pipeline
 
-The implementation lives in `backend/src/lib/video-processing.ts`.
+`persistNotebookUpload()` routes video files to `buildVideoPreview()`, which calls `processVideoFile()`.
 
-Stages:
+`processVideoFile()` performs these steps:
 
-1. Read video duration with `ffprobe`.
-2. Extract a mono 16 kHz WAV audio track with `ffmpeg`.
-3. Transcribe the extracted WAV through the existing STT provider.
-4. Sample video frames with `ffmpeg`.
-5. Send sampled frames to a VLM through an OpenAI-compatible chat completions API.
-6. Build timestamped video segments from transcript slices plus frame descriptions.
-7. Save the plain transcript as `NotebookFile.extractedText`.
-8. Save a timestamped transcript as `NotebookFile.previewContent`.
-9. Embed each timestamped segment into `NotebookFileChunk`.
+1. create a temporary working directory
+2. read duration with `ffprobe`
+3. extract a mono `16 kHz` WAV audio track
+4. transcribe the WAV through `transcribeAudioFile()`
+5. sample JPG frames across the video
+6. describe each frame with `describeImageFile()`
+7. build `VideoRagSegment[]` with transcript slices plus frame descriptions
+8. build a timestamped transcript preview from those segments
+9. clean up temporary audio and frame files
 
-## Audio Transcription
+Returned values:
 
-Video audio is extracted before transcription.
+- `transcript`
+- `previewContent`
+- `ragSegments`
+- `durationSeconds`
 
-The extracted temporary file is passed to:
+## Audio transcription
 
-- `backend/src/lib/stt.ts`
-- `transcribeAudioFile({ mimeType: "audio/wav" })`
+Video audio transcription uses the same STT helper as audio uploads:
 
-Required STT environment variables:
+- [backend/src/lib/stt.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/stt.ts)
+
+Required environment variables:
 
 - `STT_API_BASE`
 - `STT_API_KEY`
 - `STT_MODEL`
 
-The current STT helper returns plain transcript text, not word-level or model-native timestamps.
+The helper returns plain text only. It does not provide native timestamps, so video timestamping is synthesized later.
 
-## Frame Sampling
+## Frame sampling
 
-Frame extraction uses:
+Frame extraction is implemented in [backend/src/lib/video-processing.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/video-processing.ts).
 
-- `ffprobe` for duration
-- `ffmpeg -ss <timestamp> -frames:v 1` for each sampled frame
-
-Configuration:
+Config:
 
 - `VIDEO_SEGMENT_SECONDS`, default `30`
 - `VIDEO_MAX_FRAMES`, default `60`
 - `VIDEO_COMMAND_TIMEOUT_MS`, default `120000`
 
-Frames are sampled around the midpoint of each segment, capped by `VIDEO_MAX_FRAMES`.
+Behavior:
 
-## VLM Descriptions
+- frame timestamps are distributed evenly across the video duration
+- the sample is taken near the midpoint of each time bucket
+- extraction uses `ffmpeg -ss <timestamp> -frames:v 1`
 
-Each sampled JPG frame is base64 encoded and sent to `/chat/completions` with image input.
+This is uniform time sampling, not scene detection.
 
-Environment variables:
+## VLM descriptions
 
-- `VLM_API_BASE_URL` or legacy `VLM_API_BASE`, falling back to `CHAT_API_BASE_URL`, then `https://api.openai.com/v1`
-- `VLM_API_KEY`, falling back to `CHAT_API_KEY`
-- `VLM_MODEL`, falling back to `CHAT_MODEL`
+Each sampled JPG frame is described through the VLM helper in [backend/src/lib/vlm.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/vlm.ts).
+
+Provider resolution:
+
+- `VLM_API_KEY`, fallback `CHAT_API_KEY`
+- `VLM_API_BASE_URL`, fallback `VLM_API_BASE`, then `CHAT_API_BASE_URL`, then `https://api.openai.com/v1`
+- `VLM_MODEL`, fallback `CHAT_MODEL`
 - `VLM_TIMEOUT_MS`, default `45000`
 
-The prompt asks for visible slide text, diagrams, equations, labels, people, objects, and actions in one or two concise sentences.
+Prompt intent:
 
-## Segment Construction
+- mention visible slide text
+- mention diagrams, equations, and labels
+- mention people, objects, and actions
+- keep the output to one or two concise sentences
 
-Segments are built by `buildVideoRagSegments()`.
+Frame descriptions are processed sequentially. There is no batching or concurrency control.
 
-Because the current STT provider wrapper returns plain text only, transcript words are distributed evenly across fixed-duration segments. This is a coarse timestamp strategy, not true word-level alignment.
+## Segment construction
 
-Each segment contains:
+RAG segment construction is handled by `buildVideoRagSegments()`.
+
+Because the transcript is plain text only, the code splits words evenly across fixed-duration buckets. Each segment contains:
 
 - file name
 - timestamp range
-- visual description lines for frames inside the segment
-- transcript slice for the same coarse segment
+- frame descriptions inside that range
+- transcript words assigned to that range
 
-## RAG Storage
+This produces coarse timestamps, not model-native alignment.
 
-Video uploads use the existing `NotebookFileChunk` table. No schema migration is needed.
+## Preview behavior
 
-`indexNotebookFileForRag()` now accepts optional prebuilt chunks. For video, each prebuilt chunk is embedded as one timestamped segment.
+The stored preview for video files is a timestamped transcript, not the raw frame descriptions.
 
-Chunk metadata includes:
+Stored fields:
+
+- `previewFormat = "text"`
+- `previewContent = buildTimestampedTranscriptPreview(...)`
+- `extractedText = transcript`
+
+If no spoken transcript is available, the preview text becomes:
+
+- `No spoken transcript is available for this video.`
+
+The frontend displays the preview through:
+
+- `GET /api/notebooks/:notebookId/files/:fileId`
+
+## RAG storage
+
+Video uploads pass prebuilt `ragSegments` into `indexNotebookFileForRag()` in [backend/src/lib/rag.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/rag.ts).
+
+Each segment is embedded as one chunk. Chunk metadata includes:
 
 - `fileName`
 - `fileType = "video"`
@@ -128,33 +175,44 @@ Chunk metadata includes:
 - `videoTimestampStart`
 - `videoTimestampEnd`
 
-Embeddings are still text embeddings. The embedded content includes the timestamp, transcript slice, and VLM description together.
+The text sent for embeddings includes the timestamp, transcript slice, and frame description together.
 
-## Preview Behavior
+Chunk records are stored in:
 
-The stored notebook file preview exposes:
+- Qdrant
+- PostgreSQL `NotebookFileChunk`
 
-- video player using the uploaded source file
-- timestamped transcript
+## Summary generation
 
-The frontend renders this in `frontend/src/components/NotebookView.tsx`.
+After upload succeeds, the route starts `startNotebookFileSummaryJob()` for non-image files that have non-empty `extractedText`.
 
-Visual frame descriptions stay server-side in Qdrant chunk payloads and chunk metadata for retrieval. They are not included in the file preview payload shown by the frontend.
+For video, the summary source is the plain transcript in `NotebookFile.extractedText`, not the timestamped preview and not the frame descriptions.
 
-## Operational Requirements
+Summary persistence lives on `NotebookFile`:
 
-The server running `backend/` must have:
+- `summary`
+- `summaryStatus`
+- `summaryError`
+- `summaryGeneratedAt`
 
+## Operational requirements
+
+Video uploads require:
+
+- writable upload storage
 - `ffmpeg`
 - `ffprobe`
-- STT provider configuration
-- VLM provider configuration
-- embedding provider configuration
+- STT provider config
+- VLM provider config
+- embedding provider config
+- Qdrant config
 
-## Current Caveats
+Startup health checks validate these dependencies in [backend/src/lib/startup-health.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/startup-health.ts).
 
-1. Video processing is synchronous. Large files can make upload requests slow.
-2. Transcript timestamps are coarse because the STT helper does not return native timestamp segments.
-3. Frame sampling is uniform over time, not scene-detection based.
-4. VLM frame descriptions are sequential, not batched or concurrency-limited.
-5. RAG retrieval ranks video chunks like normal text chunks; it does not yet merge adjacent video hits into a single returned moment.
+## Current caveats
+
+1. Video processing is synchronous, so upload latency grows with media length and provider latency.
+2. Transcript timestamps are synthetic because the STT helper returns plain text only.
+3. Frame sampling is uniform over time and can miss fast scene changes.
+4. Frame descriptions are sequential and can make uploads slow or rate-limited.
+5. Summaries are transcript-only; visual frame descriptions do not feed the summary job.

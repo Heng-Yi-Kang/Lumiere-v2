@@ -19,6 +19,33 @@ This repository contains a Vite frontend in `frontend/` and a Next.js backend in
 7. Run the frontend:
    `pnpm dev:frontend`
 
+## Test Scripts
+
+Workspace-level test and verification commands from the repository root:
+
+- `pnpm typecheck:frontend`: run the frontend TypeScript checker
+- `pnpm typecheck:backend`: run the backend TypeScript checker
+- `pnpm test:llm:backend`: run the backend LLM connectivity test script
+- `pnpm test:llm`: alias for `pnpm test:llm:backend`
+
+Frontend validation commands from `frontend/`:
+
+- `pnpm lint`: run `tsc --noEmit`
+- `pnpm typecheck`: run `tsc --noEmit`
+- `pnpm check`: run TypeScript checks and a production build
+
+The frontend does not currently define a dedicated unit or integration test script.
+
+Backend test and verification commands from `backend/`:
+
+- `pnpm test`: run the backend Vitest suite
+- `pnpm test:llm`: run the backend LLM connectivity checks
+- `pnpm test:llm:chat`: run only chat-provider connectivity checks
+- `pnpm test:llm:embeddings`: run only embeddings-provider connectivity checks
+- `pnpm test:vlm`: run the VLM connectivity test file with Vitest
+- `pnpm typecheck`: run the backend TypeScript checker
+- `pnpm lint`: run the backend TypeScript checker
+
 ## Service Endpoints
 
 - Frontend: `http://localhost:3000`
@@ -56,14 +83,34 @@ See [`docs/frontend-routing.md`](docs/frontend-routing.md) for the routing patte
 
 Notebook retrieval uses PostgreSQL for notebook and file metadata plus chunk manifests, and Qdrant for vector storage and retrieval. Qdrant is required for the current RAG flow. Reranking is optional and is only enabled when `ENABLE_RERANKING=true`. Image and video enrichment uses the VLM configuration in [`backend/.env.example`](backend/.env.example), with fallback to chat provider settings where supported.
 
-See:
-- [`docs/rag-processing.md`](docs/rag-processing.md) for chunking, Qdrant storage, retrieval, and grounded chat behavior
-- [`docs/video-processing.md`](docs/video-processing.md) for video transcription and VLM frame description flow
+## Further Reading
+
+| Topic | Read this | Why |
+| --- | --- | --- |
+| Architecture overview | [`docs/architecture-overview.md`](docs/architecture-overview.md) | Onboarding map of the workspace, routing model, backend API layout, and RAG data flow |
+| Frontend routing | [`docs/frontend-routing.md`](docs/frontend-routing.md) | Route registry, page-name navigation, and query-string detail state |
+| RAG processing | [`docs/rag-processing.md`](docs/rag-processing.md) | Chunking, Qdrant storage, retrieval, and grounded chat behavior |
+| Audio uploads | [`docs/audio-processing.md`](docs/audio-processing.md) | Notebook audio transcription, preview generation, and indexing flow |
+| Video uploads | [`docs/video-processing.md`](docs/video-processing.md) | Video transcription, frame description, timestamped preview, and RAG chunking |
+| File summaries | [`docs/SUMMARY_GENERATION.md`](docs/SUMMARY_GENERATION.md) | `NotebookFile` summary states, async summary job flow, and provider behavior |
 
 ## Database and config
 
-The database container uses `pgvector/pgvector:0.8.2-pg16`, so the `vector` extension is available immediately through the init script in [`docker/postgres/init/001-enable-pgvector.sql`](docker/postgres/init/001-enable-pgvector.sql).
-pgAdmin credentials and database credentials are defined in [`.env.example`](.env.example) and can be overridden in your local `.env` file.
-Prisma reads `backend/.env` through `dotenv/config`, so keep that file aligned with the Docker database settings. For the standard host-run backend workflow, keep Qdrant pointed at `http://localhost:6333`.
+The local stack started by `pnpm db:up` brings up three services:
+
+- PostgreSQL for notebooks, files, notes, and `NotebookFileChunk` manifests
+- Qdrant for chunk embeddings and retrieval payloads
+- pgAdmin for database inspection during development
+
+The PostgreSQL container uses `pgvector/pgvector:0.8.2-pg16`, and the init script in [`docker/postgres/init/001-enable-pgvector.sql`](docker/postgres/init/001-enable-pgvector.sql) enables the `vector` extension at boot. That said, the current RAG flow stores embeddings in Qdrant, not in PostgreSQL; PostgreSQL remains the source of truth for app data and chunk indexing history.
+
+Docker-side defaults for PostgreSQL, pgAdmin, ports, and the host `DATABASE_URL` live in [`.env.example`](.env.example) and can be overridden in your local `.env` file. Backend runtime settings live in [`backend/.env.example`](backend/.env.example); Prisma reads `backend/.env` through `dotenv/config`, so keep `DATABASE_URL` aligned with the Docker database settings. For the standard host-run backend workflow, keep `QDRANT_URL=http://localhost:6333`.
+
+Useful local database commands from the repository root:
+
+- `pnpm db:up`: start PostgreSQL, Qdrant, and pgAdmin
+- `pnpm db:down`: stop the local data services
+- `pnpm db:logs`: stream Docker service logs
+- `pnpm db:reset`: remove containers and named volumes
 
 The backend startup path now runs provider reachability checks on server boot. Required dependencies such as embeddings, Qdrant, database access, and upload storage can fail startup; optional providers such as reranking and some media-specific flows degrade the health report instead.
