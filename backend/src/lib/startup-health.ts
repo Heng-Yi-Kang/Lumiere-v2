@@ -2,7 +2,7 @@ import { logBackendProcess } from '@/lib/backend-logger';
 import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 import { prisma } from '@/lib/prisma';
 import { isRerankingEnabled } from '@/lib/reranker';
-import { buildSttRequest } from '@/lib/stt';
+import { buildSttRequest } from '@/lib/stt-request';
 
 const STARTUP_HEALTH_PROMISE_KEY = '__lumiereStartupHealthPromise';
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;

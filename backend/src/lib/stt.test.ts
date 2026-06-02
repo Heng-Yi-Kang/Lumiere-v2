@@ -1,4 +1,4 @@
-import { buildSttRequest } from './stt';
+import { buildSttRequest } from './stt-request';
 
 describe('buildSttRequest', () => {
   const originalSttRequestFormat = process.env.STT_REQUEST_FORMAT;
@@ -47,9 +47,8 @@ describe('buildSttRequest', () => {
       'Content-Type': 'application/json',
     });
     expect(JSON.parse(request.body as string)).toEqual({
-      file: {
+      input_audio: {
         data: Buffer.from('audio-bytes').toString('base64'),
-        filename: 'lecture.wav',
         format: 'wav',
       },
       model: 'qwen/qwen3-asr',
@@ -71,7 +70,7 @@ describe('buildSttRequest', () => {
     expect(request.headers).toEqual(expect.objectContaining({
       'Content-Type': 'application/json',
     }));
-    expect(JSON.parse(request.body as string).file).toEqual(expect.objectContaining({
+    expect(JSON.parse(request.body as string).input_audio).toEqual(expect.objectContaining({
       format: 'webm',
     }));
   });
