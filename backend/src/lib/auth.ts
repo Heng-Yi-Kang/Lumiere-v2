@@ -6,6 +6,7 @@ export const ADMIN_EMAIL = 'admin@lumiere.my';
 export const ADMIN_PASSWORD = 'admin1234';
 export const SESSION_COOKIE_NAME = 'lumiere_session';
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+type SessionCookieSameSite = 'Lax' | 'Strict' | 'None';
 
 const PASSWORD_HASH_ALGORITHM = 'scrypt';
 const PASSWORD_KEY_LENGTH = 64;
@@ -59,16 +60,38 @@ function getSessionToken(request: Request) {
   return match ? decodeURIComponent(match.slice(SESSION_COOKIE_NAME.length + 1)) : null;
 }
 
+function getSessionCookieSameSite(): SessionCookieSameSite {
+  const configuredSameSite = process.env.SESSION_COOKIE_SAME_SITE?.trim().toLowerCase();
+
+  if (configuredSameSite === 'none') {
+    return 'None';
+  }
+  if (configuredSameSite === 'strict') {
+    return 'Strict';
+  }
+
+  return 'Lax';
+}
+
+function shouldSecureSessionCookie(sameSite: SessionCookieSameSite) {
+  if (sameSite === 'None') {
+    return true;
+  }
+
+  return process.env.NODE_ENV === 'production';
+}
+
 export function buildSessionCookie(token: string, maxAgeSeconds = SESSION_MAX_AGE_SECONDS) {
+  const sameSite = getSessionCookieSameSite();
   const parts = [
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${sameSite}`,
     `Max-Age=${maxAgeSeconds}`,
   ];
 
-  if (process.env.NODE_ENV === 'production') {
+  if (shouldSecureSessionCookie(sameSite)) {
     parts.push('Secure');
   }
 
@@ -76,7 +99,20 @@ export function buildSessionCookie(token: string, maxAgeSeconds = SESSION_MAX_AG
 }
 
 export function buildClearSessionCookie() {
-  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const sameSite = getSessionCookieSameSite();
+  const parts = [
+    `${SESSION_COOKIE_NAME}=`,
+    'Path=/',
+    'HttpOnly',
+    `SameSite=${sameSite}`,
+    'Max-Age=0',
+  ];
+
+  if (shouldSecureSessionCookie(sameSite)) {
+    parts.push('Secure');
+  }
+
+  return parts.join('; ');
 }
 
 export async function ensureDefaultAdminUser() {

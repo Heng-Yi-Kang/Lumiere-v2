@@ -21,9 +21,11 @@ vi.mock('@/lib/prisma', () => ({
 import { PATCH as PATCH_ADMIN_USER } from '@/app/api/admin/users/[userId]/route';
 import { POST as LOGIN } from '@/app/api/auth/login/route';
 import { POST as SIGNUP } from '@/app/api/auth/signup/route';
-import { SESSION_COOKIE_NAME, hashPassword } from '@/lib/auth';
+import { SESSION_COOKIE_NAME, buildClearSessionCookie, buildSessionCookie, hashPassword } from '@/lib/auth';
 
 describe('authentication routes', () => {
+  const originalSameSite = process.env.SESSION_COOKIE_SAME_SITE;
+
   beforeEach(() => {
     prismaMock.session.create.mockReset();
     prismaMock.session.deleteMany.mockReset();
@@ -32,6 +34,38 @@ describe('authentication routes', () => {
     prismaMock.user.count.mockReset();
     prismaMock.user.findUnique.mockReset();
     prismaMock.user.update.mockReset();
+    process.env.SESSION_COOKIE_SAME_SITE = originalSameSite;
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    process.env.SESSION_COOKIE_SAME_SITE = originalSameSite;
+  });
+
+  afterAll(() => {
+    process.env.SESSION_COOKIE_SAME_SITE = originalSameSite;
+  });
+
+  it('defaults session cookies to SameSite=Lax', () => {
+    delete process.env.SESSION_COOKIE_SAME_SITE;
+
+    const cookie = buildSessionCookie('session-token');
+
+    expect(cookie).toContain(`${SESSION_COOKIE_NAME}=session-token`);
+    expect(cookie).toContain('SameSite=Lax');
+  });
+
+  it('supports cross-site session cookies for split-origin deployments', () => {
+    process.env.SESSION_COOKIE_SAME_SITE = 'none';
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const cookie = buildSessionCookie('session-token');
+    const clearCookie = buildClearSessionCookie();
+
+    expect(cookie).toContain('SameSite=None');
+    expect(cookie).toContain('Secure');
+    expect(clearCookie).toContain('SameSite=None');
+    expect(clearCookie).toContain('Secure');
   });
 
   it('creates a user and HTTP-only session cookie on signup', async () => {

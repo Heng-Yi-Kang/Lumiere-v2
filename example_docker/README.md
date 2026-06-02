@@ -123,6 +123,8 @@ Public backend URL reachable directly by the browser:
 
 ```env
 VITE_API_BASE_URL=https://api.example.com
+FRONTEND_ORIGIN=https://app.example.com
+SESSION_COOKIE_SAME_SITE=none
 ```
 
 Use the public backend URL mode only when you intentionally do not want Nginx to keep API traffic on the frontend origin.

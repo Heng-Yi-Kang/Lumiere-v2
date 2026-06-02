@@ -41,6 +41,7 @@ services:
     environment:
       NODE_ENV: production
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080}
+      SESSION_COOKIE_SAME_SITE: ${SESSION_COOKIE_SAME_SITE:-lax}
       DATABASE_URL: ${DATABASE_URL:-postgresql://lumiere:lumiere@postgres:5432/lumiere?schema=public}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_API_KEY: ${QDRANT_API_KEY:-}

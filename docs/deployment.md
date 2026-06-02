@@ -95,6 +95,8 @@ Useful production settings:
 
 - `NODE_ENV=production`
 - `FRONTEND_ORIGIN=https://your-domain.example`
+- `SESSION_COOKIE_SAME_SITE=lax` for the recommended same-origin reverse-proxy setup
+- `SESSION_COOKIE_SAME_SITE=none` when `VITE_API_BASE_URL` points to a backend on a different origin; the backend must be served over HTTPS
 - `NOTEBOOK_UPLOAD_ROOT=/var/lib/lumiere/uploads/notebooks`
 - `QDRANT_API_KEY=...` if your Qdrant instance requires it
 - `BACKEND_LOG_LEVEL=info`
@@ -104,6 +106,20 @@ Useful production settings:
 - `VIDEO_SEGMENT_SECONDS=30`
 - `VIDEO_MAX_FRAMES=60`
 - `VIDEO_COMMAND_TIMEOUT_MS=120000`
+
+### Auth cookies
+
+The frontend sends all API requests with credentials, and the backend stores login state in the HTTP-only `lumiere_session` cookie.
+
+For the recommended deployment where `/api/*` is reverse-proxied under the same public origin as the SPA, keep `SESSION_COOKIE_SAME_SITE=lax` and leave `VITE_API_BASE_URL` unset.
+
+If the SPA is deployed at one origin and calls the backend through `VITE_API_BASE_URL` at another origin, set:
+
+- backend `FRONTEND_ORIGIN` to the exact SPA origin, for example `https://app.example.com`
+- backend `SESSION_COOKIE_SAME_SITE=none`
+- frontend `VITE_API_BASE_URL` to the exact backend origin, for example `https://api.example.com`
+
+Without `SESSION_COOKIE_SAME_SITE=none`, browsers can accept the login response but omit the session cookie from notebook fetches, which surfaces as `Notebook API error: authentication required`.
 
 ## Filesystem and persistence
 
