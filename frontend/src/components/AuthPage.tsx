@@ -164,7 +164,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
             </form>
 
             <div className="mt-6 rounded-2xl border border-border-default bg-bg-elevated/40 p-4 text-xs leading-relaxed text-text-secondary">
-              Admin login: <span className="font-mono font-bold text-text-primary">admin@lumiere.my</span> with password <span className="font-mono font-bold text-text-primary">admin1234</span>.
+              Use your workspace account to sign in, or create a new account if you do not have one yet.
             </div>
           </section>
         </div>
