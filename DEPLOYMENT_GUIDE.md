@@ -50,6 +50,8 @@ Before a public deployment, edit `.env` and set at least:
 
 Keep these defaults unless there is a specific reason to change them:
 
+- `FRONTEND_BIND_ADDRESS=127.0.0.1` when a host-level reverse proxy terminates public traffic and forwards to this stack.
+- `FRONTEND_BIND_ADDRESS=0.0.0.0` only when the container Nginx port should be reachable directly from remote clients.
 - `VITE_API_BASE_URL=` for same-origin browser API calls through Nginx.
 - `BACKEND_UPSTREAM=http://backend:3001` for internal Compose routing.
 - `BACKEND_BIND_ADDRESS=127.0.0.1` so direct backend access is local-only.
@@ -73,13 +75,17 @@ docker compose build
 docker compose up -d
 ```
 
-The default frontend URL is:
+The default frontend URL from the deployment host is:
 
 ```text
 http://localhost:8080
 ```
 
-Put TLS termination in front of that port for public traffic.
+Put TLS termination in front of that port for public traffic. If the TLS proxy
+runs on the same host, set `FRONTEND_BIND_ADDRESS=127.0.0.1` and have the proxy
+forward to `http://127.0.0.1:8080`. If remote clients should connect directly to
+the container Nginx without an outer proxy, set `FRONTEND_BIND_ADDRESS=0.0.0.0`
+and restrict access at the firewall as needed.
 
 ## 4. Persistence
 

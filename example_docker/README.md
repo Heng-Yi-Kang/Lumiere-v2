@@ -41,6 +41,7 @@ cp .env.example .env
 Important settings:
 
 - `FRONTEND_PORT`: host port exposed by Nginx.
+- `FRONTEND_BIND_ADDRESS`: host interface for the public Nginx port. Use `0.0.0.0` for direct remote access, or `127.0.0.1` when another reverse proxy on the same host terminates public traffic.
 - `BACKEND_BIND_ADDRESS` and `BACKEND_PORT`: optional host binding for direct API access. The default binds only to localhost.
 - `POSTGRES_*`: PostgreSQL database, username, and password.
 - `DATABASE_URL`: backend Prisma database URL. Use the Compose service hostname `postgres`.
@@ -55,6 +56,29 @@ Important settings:
 Leave `VITE_API_BASE_URL` empty for the recommended same-origin deployment. In that mode, browser requests go to `/api/...` on the frontend origin and Nginx forwards them to `BACKEND_UPSTREAM`.
 
 `./start_docker.sh` fails fast when required embedding settings are blank. `docker compose up` will also fail backend startup health if those values are missing or unreachable.
+
+## Remote Reverse Proxy Use
+
+For direct remote access to this container's Nginx, keep:
+
+```env
+FRONTEND_BIND_ADDRESS=0.0.0.0
+FRONTEND_PORT=8080
+VITE_API_BASE_URL=
+BACKEND_UPSTREAM=http://backend:3001
+```
+
+For a production reverse proxy such as Caddy, Traefik, or host-level Nginx in front of this stack, bind the container Nginx to localhost and proxy to it:
+
+```env
+FRONTEND_BIND_ADDRESS=127.0.0.1
+FRONTEND_PORT=8080
+VITE_API_BASE_URL=
+BACKEND_UPSTREAM=http://backend:3001
+FRONTEND_ORIGIN=https://your-public-domain.example
+```
+
+The included Nginx template preserves upstream `X-Forwarded-Host` and `X-Forwarded-Proto` values when an outer proxy sends them, so backend requests still see the public host and scheme. Keep `BACKEND_BIND_ADDRESS=127.0.0.1` unless you intentionally expose the backend separately.
 
 ## Backend and Database
 

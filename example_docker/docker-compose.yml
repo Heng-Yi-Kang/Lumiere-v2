@@ -8,7 +8,7 @@ services:
     image: lumiere-frontend-nginx:latest
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "${FRONTEND_BIND_ADDRESS:-0.0.0.0}:${FRONTEND_PORT:-8080}:80"
     environment:
       BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:3001}
     depends_on:

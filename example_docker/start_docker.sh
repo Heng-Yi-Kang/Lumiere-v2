@@ -43,8 +43,9 @@ docker compose up -d
 
 echo
 echo "Lumiere stack is starting."
-echo "Frontend: http://localhost:${FRONTEND_PORT:-8080}"
-echo "Backend: http://localhost:${BACKEND_PORT:-3001}"
+echo "Frontend bind: ${FRONTEND_BIND_ADDRESS:-0.0.0.0}:${FRONTEND_PORT:-8080}"
+echo "Frontend local URL: http://localhost:${FRONTEND_PORT:-8080}"
+echo "Backend bind: ${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-3001}"
 echo "Proxy upstream: ${BACKEND_UPSTREAM:-http://backend:3001}"
 echo
 docker compose ps

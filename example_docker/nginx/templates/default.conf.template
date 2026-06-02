@@ -1,3 +1,18 @@
+map $http_x_forwarded_proto $lumiere_forwarded_proto {
+  default $http_x_forwarded_proto;
+  "" $scheme;
+}
+
+map $http_x_forwarded_host $lumiere_forwarded_host {
+  default $http_x_forwarded_host;
+  "" $host;
+}
+
+map $http_x_forwarded_port $lumiere_forwarded_port {
+  default $http_x_forwarded_port;
+  "" $server_port;
+}
+
 server {
   listen 80;
   server_name _;
@@ -27,10 +42,12 @@ server {
   location /api {
     proxy_pass ${BACKEND_UPSTREAM};
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_set_header Host $lumiere_forwarded_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $lumiere_forwarded_host;
+    proxy_set_header X-Forwarded-Proto $lumiere_forwarded_proto;
+    proxy_set_header X-Forwarded-Port $lumiere_forwarded_port;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
     proxy_read_timeout 300s;
@@ -40,10 +57,12 @@ server {
   location /uploads {
     proxy_pass ${BACKEND_UPSTREAM};
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_set_header Host $lumiere_forwarded_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $lumiere_forwarded_host;
+    proxy_set_header X-Forwarded-Proto $lumiere_forwarded_proto;
+    proxy_set_header X-Forwarded-Port $lumiere_forwarded_port;
     proxy_read_timeout 300s;
     proxy_send_timeout 300s;
   }
