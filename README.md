@@ -30,6 +30,16 @@ This repository contains a Vite frontend in `frontend/` and a Next.js backend in
 - Qdrant: `http://localhost:6333`
 - pgAdmin: `http://localhost:5050`
 
+## Qdrant URL Configuration
+
+The default local workflow runs only PostgreSQL, Qdrant, and pgAdmin in Docker. The backend is started on the host with `pnpm dev:backend`, so `backend/.env` should use:
+
+```env
+QDRANT_URL=http://localhost:6333
+```
+
+Use `http://qdrant:6333` only for a backend process that is also running inside the same Docker Compose network. If the host-run backend is configured with `http://qdrant:6333`, startup health checks fail with `qdrant-connectivity` because the host cannot resolve the Compose service name.
+
 ## Frontend Routing
 
 The frontend uses React Router for direct URL access while keeping app navigation based on semantic page names. The route registry lives in [`frontend/src/App.tsx`](frontend/src/App.tsx):
@@ -44,7 +54,7 @@ See [`docs/frontend-routing.md`](docs/frontend-routing.md) for the routing patte
 
 ## Retrieval and AI services
 
-Notebook retrieval uses PostgreSQL for notebook and file metadata plus chunk manifests, and Qdrant for vector storage and retrieval. Optional reranking can be enabled with `ENABLE_RERANKING=true`. Image and video enrichment uses the VLM configuration in [`backend/.env.example`](backend/.env.example), with fallback to chat provider settings where supported.
+Notebook retrieval uses PostgreSQL for notebook and file metadata plus chunk manifests, and Qdrant for vector storage and retrieval. Qdrant is required for the current RAG flow. Reranking is optional and is only enabled when `ENABLE_RERANKING=true`. Image and video enrichment uses the VLM configuration in [`backend/.env.example`](backend/.env.example), with fallback to chat provider settings where supported.
 
 See:
 - [`docs/rag-processing.md`](docs/rag-processing.md) for chunking, Qdrant storage, retrieval, and grounded chat behavior
@@ -54,6 +64,6 @@ See:
 
 The database container uses `pgvector/pgvector:0.8.2-pg16`, so the `vector` extension is available immediately through the init script in [`docker/postgres/init/001-enable-pgvector.sql`](docker/postgres/init/001-enable-pgvector.sql).
 pgAdmin credentials and database credentials are defined in [`.env.example`](.env.example) and can be overridden in your local `.env` file.
-Prisma reads `backend/.env` through `dotenv/config`, so keep that file aligned with the Docker database settings.
+Prisma reads `backend/.env` through `dotenv/config`, so keep that file aligned with the Docker database settings. For the standard host-run backend workflow, keep Qdrant pointed at `http://localhost:6333`.
 
 The backend startup path now runs provider reachability checks on server boot. Required dependencies such as embeddings, Qdrant, database access, and upload storage can fail startup; optional providers such as reranking and some media-specific flows degrade the health report instead.

@@ -8,9 +8,11 @@
 - Added citations and clearer missing-context fallback messaging in the notebook chat panel.
 - Remounted notebook chat state when switching notebooks so conversations reset cleanly.
 - Moved notebook RAG vector storage into Qdrant while keeping PostgreSQL as the metadata manifest.
+- Documented Qdrant as the required vector store for the current notebook retrieval path.
 - Added cleanup and rollback handling for notebook and file vector records during delete and indexing failure paths.
 - Diversified notebook-wide retrieval context with per-file caps and score tolerance to reduce redundant grounding passages.
 - Added optional Qwen3-compatible reranking for retrieval, with fallback to raw vector scores when reranking is unavailable or fails.
+- Documented reranking as an optional layer on top of Qdrant retrieval rather than a required dependency.
 
 ### Uploads and content processing
 
