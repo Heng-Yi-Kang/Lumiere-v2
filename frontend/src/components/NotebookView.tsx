@@ -851,6 +851,9 @@ export default function NotebookView({
           notebookId={notebook.id}
           notebookName={notebook.name}
           color={notebook.color}
+          hasFiles={notebook.files.length > 0}
+          onAddLink={onAddLink ? () => setIsAddLinkModalOpen(true) : undefined}
+          onUploadFile={onUploadFile ? () => fileInputRef.current?.click() : undefined}
         />
       </div>
 
