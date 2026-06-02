@@ -61,6 +61,15 @@ forward to `http://127.0.0.1:8080`. If remote clients should connect directly to
 the container Nginx without an outer proxy, set `FRONTEND_BIND_ADDRESS=0.0.0.0`
 and restrict access at the firewall as needed.
 
+For `yikang.org`, keep `FRONTEND_ORIGIN=https://yikang.org` and use a reverse
+proxy such as:
+
+```caddyfile
+yikang.org {
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
 The Nginx template preserves incoming `X-Forwarded-Host`,
 `X-Forwarded-Proto`, and `X-Forwarded-Port` headers when an outer proxy sends
 them, so backend requests still see the public host and scheme.

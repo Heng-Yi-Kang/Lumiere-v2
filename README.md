@@ -4,7 +4,7 @@ This repository contains a Vite frontend in `frontend/` and a Next.js backend in
 
 ## Deployed Project
 
-View the deployed project at [http://62.238.44.138:8080](http://62.238.44.138:8080).
+View the deployed project at [https://yikang.org](https://yikang.org).
 
 ## Key Features
 

@@ -94,7 +94,7 @@ These unlock major features and are strongly recommended:
 Useful production settings:
 
 - `NODE_ENV=production`
-- `FRONTEND_ORIGIN=https://your-domain.example`
+- `FRONTEND_ORIGIN=https://yikang.org`
 - `SESSION_COOKIE_SAME_SITE=lax` for the recommended same-origin reverse-proxy setup
 - `SESSION_COOKIE_SAME_SITE=none` when `VITE_API_BASE_URL` points to a backend on a different origin; the backend must be served over HTTPS
 - `NOTEBOOK_UPLOAD_ROOT=/var/lib/lumiere/uploads/notebooks`
@@ -272,7 +272,7 @@ Example server block:
 ```nginx
 server {
     listen 80;
-    server_name your-domain.example;
+    server_name yikang.org;
 
     root /srv/lumiere/frontend/dist;
     index index.html;
