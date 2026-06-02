@@ -30,6 +30,27 @@ type CollectionVectorParams = {
 
 let qdrantClient: QdrantClient | undefined;
 let ensuredCollection: string | undefined;
+let fetchDispatcherPatchInstalled = false;
+
+function installFetchDispatcherCompatibilityPatch() {
+  if (fetchDispatcherPatchInstalled || typeof globalThis.fetch !== 'function') {
+    return;
+  }
+
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  globalThis.fetch = ((...args: Parameters<typeof fetch>) => {
+    const [input, init] = args;
+    const initWithDispatcher = init as (RequestInit & { dispatcher?: unknown }) | undefined;
+
+    if (!initWithDispatcher || !('dispatcher' in initWithDispatcher)) {
+      return nativeFetch(input, init);
+    }
+
+    const { dispatcher: _dispatcher, ...initWithoutDispatcher } = initWithDispatcher;
+    return nativeFetch(input, initWithoutDispatcher);
+  }) as typeof fetch;
+  fetchDispatcherPatchInstalled = true;
+}
 
 function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -52,6 +73,7 @@ export function getQdrantClient() {
 
   const url = getRequiredEnv('QDRANT_URL');
   const apiKey = process.env.QDRANT_API_KEY?.trim();
+  installFetchDispatcherCompatibilityPatch();
   qdrantClient = new QdrantClient({
     url,
     ...(apiKey ? { apiKey } : {}),
@@ -61,8 +83,15 @@ export function getQdrantClient() {
 }
 
 function isNotFoundError(error: unknown) {
-  return error instanceof QdrantClientUnexpectedResponseError
-    && (error.message.includes('404') || error.message.toLowerCase().includes('not found'));
+  const status = typeof error === 'object' && error && 'status' in error
+    ? Number((error as { status?: unknown }).status)
+    : undefined;
+  const message = String(error instanceof Error ? error.message : error).toLowerCase();
+
+  return (error instanceof QdrantClientUnexpectedResponseError
+    && (error.message.includes('404') || message.includes('not found')))
+    || status === 404
+    || message.includes('not found');
 }
 
 function getSingleVectorParams(vectors: Schemas['VectorsConfig'] | undefined): CollectionVectorParams | undefined {

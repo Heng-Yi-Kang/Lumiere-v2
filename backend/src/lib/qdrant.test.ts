@@ -68,6 +68,22 @@ describe('qdrant client wrapper', () => {
     });
   });
 
+  it('creates the notebook chunk collection when the client returns a plain 404 error', async () => {
+    const qdrant = await loadQdrant();
+    const notFoundError = Object.assign(new Error('Not Found'), { status: 404 });
+    clientMock.getCollection.mockRejectedValue(notFoundError);
+    clientMock.createCollection.mockResolvedValue(true);
+
+    await qdrant.ensureNotebookChunksCollection(4096);
+
+    expect(clientMock.createCollection).toHaveBeenCalledWith('notebook_chunks', {
+      vectors: {
+        distance: 'Cosine',
+        size: 4096,
+      },
+    });
+  });
+
   it('rejects an existing collection with incompatible vector config', async () => {
     const qdrant = await loadQdrant();
     clientMock.getCollection.mockResolvedValue({
