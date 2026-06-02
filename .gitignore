@@ -10,3 +10,4 @@ frontend/node_modules/
 !frontend/.env.example
 
 backend/public/
+production_docker/

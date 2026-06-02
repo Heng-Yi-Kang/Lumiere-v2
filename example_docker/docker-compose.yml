@@ -47,6 +47,7 @@ services:
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-notebook_chunks}
       NOTEBOOK_UPLOAD_ROOT: /app/backend/public/uploads/notebooks
       RUN_PRISMA_MIGRATIONS: ${RUN_PRISMA_MIGRATIONS:-true}
+      PUPPETEER_EXECUTABLE_PATH: ${PUPPETEER_EXECUTABLE_PATH:-/usr/bin/chromium}
       CHAT_API_KEY: ${CHAT_API_KEY:-}
       CHAT_API_BASE_URL: ${CHAT_API_BASE_URL:-}
       CHAT_MODEL: ${CHAT_MODEL:-}

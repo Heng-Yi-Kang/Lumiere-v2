@@ -12,3 +12,6 @@ backend/.env
 frontend/.env
 example_docker/.env
 example_docker/logs/
+production_docker/.env
+production_docker/logs/
+production_docker/data/

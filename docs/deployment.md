@@ -17,6 +17,9 @@ The simplest supported production model is a single Linux host with:
 4. PostgreSQL and Qdrant reachable from the backend
 5. a persistent directory mounted for notebook uploads
 
+For a containerized single-host deployment, use the root deployment setup guide:
+[`DEPLOYMENT_GUIDE.md`](../DEPLOYMENT_GUIDE.md).
+
 ## Current deployment architecture
 
 Browser traffic should be routed like this:
@@ -341,10 +344,10 @@ These are not blockers, but they matter operationally:
 - uploads are stored on local disk, so horizontal scaling is not ready without shared storage
 - startup health can block backend boot if providers are unavailable
 - video processing is synchronous and can make uploads slow
-- the repo does not yet include a first-class production Docker deployment for the current monorepo layout
 
 ## Related docs
 
+- [DEPLOYMENT_GUIDE.md](/home/arch_Kang/projects/Lumiere-v2/DEPLOYMENT_GUIDE.md)
 - [architecture-overview.md](/home/arch_Kang/projects/Lumiere-v2/docs/architecture-overview.md)
 - [rag-processing.md](/home/arch_Kang/projects/Lumiere-v2/docs/rag-processing.md)
 - [video-processing.md](/home/arch_Kang/projects/Lumiere-v2/docs/video-processing.md)

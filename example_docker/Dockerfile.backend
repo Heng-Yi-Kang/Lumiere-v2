@@ -1,8 +1,12 @@
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat openssl \
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/* \
   && corepack enable \
   && corepack prepare pnpm@10.33.2 --activate
 
@@ -19,16 +23,25 @@ ENV DATABASE_URL=postgresql://lumiere:lumiere@localhost:5432/lumiere?schema=publ
 RUN pnpm --dir backend prisma:generate \
   && pnpm --dir backend build
 
-FROM node:22-alpine AS runtime
+FROM node:22-bookworm-slim AS runtime
 
 WORKDIR /app
 
 ENV NODE_ENV=production \
   NEXT_TELEMETRY_DISABLED=1 \
   HOSTNAME=0.0.0.0 \
-  PORT=3001
+  PORT=3001 \
+  PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-RUN apk add --no-cache ffmpeg libc6-compat openssl \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    chromium \
+    ffmpeg \
+    fonts-liberation \
+    openssl \
+    wget \
+  && rm -rf /var/lib/apt/lists/* \
   && corepack enable \
   && corepack prepare pnpm@10.33.2 --activate
 

@@ -7,7 +7,7 @@ The deployable frontend is a Vite static build served by Nginx. The backend is a
 ## Runtime Shape
 
 - `frontend`: builds `frontend/` with pnpm and serves `dist/` through Nginx.
-- `backend`: builds `backend/`, runs Prisma migrations, and starts Next.js on port `3001`.
+- `backend`: builds `backend/`, runs Prisma migrations, starts Next.js on port `3001`, and includes Chromium for web-link scraping.
 - `postgres`: stores metadata and enables the `pgvector` extension at first initialization.
 - `qdrant`: stores vector retrieval data.
 - Nginx exposes the public HTTP port, serves React Router routes with `index.html` fallback, and proxies `/api/` and `/uploads/` to `BACKEND_UPSTREAM`.
@@ -48,6 +48,7 @@ Important settings:
 - `BACKEND_UPSTREAM`: Nginx upstream for `/api/` and `/uploads/`. Keep `http://backend:3001` for this Compose stack.
 - `VITE_API_BASE_URL`: optional build-time browser API base URL.
 - `NOTEBOOK_UPLOAD_HOST_DIR`: host folder for user-uploaded notebook files. The default is `./data/uploads/notebooks` inside this deployment folder.
+- `PUPPETEER_EXECUTABLE_PATH`: Chromium executable used by Puppeteer for web-link scraping. The backend image sets this to `/usr/bin/chromium`.
 - `EMBEDDING_API_BASE`, `EMBEDDING_API_KEY`, and `EMBEDDING_MODEL`: required for backend startup health and retrieval.
 - `CHAT_*`, `STT_*`, `VLM_*`, and `RERANKER_*`: provider configuration for chat, media processing, and optional reranking.
 
@@ -109,3 +110,5 @@ Use the public backend URL mode only when you intentionally do not want Nginx to
 - Replace default database credentials before any public deployment.
 - If the folder is renamed, update `dockerfile: example_docker/Dockerfile.frontend` in `docker-compose.yml`.
 - Run `docker compose logs -f frontend backend postgres qdrant` from this folder to inspect runtime output.
+
+For deployment, use the production Compose stack in `production_docker/`.
