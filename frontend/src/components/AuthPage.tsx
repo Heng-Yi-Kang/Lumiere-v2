@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Lock } from 'lucide-react';
 import { AuthUser } from '../types';
 import { login, signup } from '../lib/authApi';
 
@@ -12,6 +12,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,21 +44,24 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
         <div className="grid w-full overflow-hidden rounded-[2rem] border border-border-default bg-bg-surface/70 shadow-[0_32px_90px_rgba(0,0,0,0.48)] backdrop-blur-2xl lg:grid-cols-[1.05fr_0.95fr]">
           <section className="hidden min-h-[620px] flex-col justify-between bg-gradient-to-br from-indigo-950 via-slate-950 to-emerald-950 p-10 lg:flex">
             <div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white shadow-xl">
-                <Sparkles className="h-5 w-5" />
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/25">
+                  <span className="text-lg font-black leading-none">L</span>
+                </div>
+                <span className="text-xl font-black text-white font-display">Lumiere</span>
               </div>
               <h1 className="mt-10 max-w-md text-5xl font-black leading-tight tracking-tight font-display">
-                Private study workspaces for every Lumiere user.
+                Study from your materials, not from guesses.
               </h1>
               <p className="mt-5 max-w-lg text-base leading-relaxed text-slate-300 font-serif">
-                Sign in to keep notebooks, uploads, RAG chat context, and goals isolated to your account.
+                Upload lecture slides, PDFs, videos, audio, and images to chat with grounded context, get AI summaries, and keep notes attached to every file.
               </p>
             </div>
 
             <div className="grid gap-3 text-sm text-slate-300">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Notebook data is scoped by account.</div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Sessions use HTTP-only cookies.</div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Admins can disable compromised accounts.</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Grounded notebook chat over your uploaded study materials.</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Multi-format uploads with AI summaries for faster revision.</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">Add your notes to each upload and keep context in one place.</div>
             </div>
           </section>
 
@@ -129,15 +133,25 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
 
               <label className="block">
                 <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-text-muted font-mono">Password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  minLength={8}
-                  required
-                  className="premium-focus w-full rounded-2xl border border-border-default bg-bg-elevated/70 px-4 py-3 text-sm font-semibold text-text-primary outline-none placeholder:text-text-muted"
-                  placeholder="Minimum 8 characters"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    minLength={8}
+                    required
+                    className="premium-focus w-full rounded-2xl border border-border-default bg-bg-elevated/70 px-4 py-3 pr-14 text-sm font-semibold text-text-primary outline-none placeholder:text-text-muted"
+                    placeholder="Minimum 8 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-text-secondary transition hover:text-text-primary"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </label>
 
               <button
@@ -145,7 +159,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
                 disabled={isSubmitting}
                 className="premium-focus w-full rounded-2xl bg-cta px-5 py-3 text-sm font-black text-text-inverse transition hover:bg-cta-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? 'Working...' : mode === 'login' ? 'Log in to workspace' : 'Create isolated workspace'}
+                {isSubmitting ? 'Working...' : mode === 'login' ? 'Get me in' : 'Get started'}
               </button>
             </form>
 
