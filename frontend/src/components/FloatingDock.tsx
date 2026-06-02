@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   Compass, 
   BookOpen, 
-  Network, 
   Target,
   Star,
   Plus,
@@ -43,7 +42,6 @@ export default function FloatingDock({
   const menuItems = [
     { page: 'Dashboard', label: 'Dashboard', icon: Compass },
     { page: 'Notebooks', label: 'My Notebooks', icon: BookOpen },
-    { page: 'KnowledgeGraph', label: 'Knowledge Graph', icon: Network },
   ];
 
   const priorityGoal = goals.find(g => g.isPriority) || goals[0];

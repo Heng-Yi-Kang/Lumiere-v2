@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { DEFAULT_COURSES, DEFAULT_KNOWLEDGE_GRAPH } from './data/mockData';
 import { AuthUser, ChatGroundingScope, GroundedChatRequest, Notebook, Goal, StudyStreak } from './types';
 import FloatingDock from './components/FloatingDock';
 import Header from './components/Header';
@@ -8,7 +7,6 @@ import PriorityGoalBox from './components/PriorityGoalBox';
 import DashboardView from './components/DashboardView';
 import NotebookView from './components/NotebookView';
 import StudyBuddy from './components/StudyBuddy';
-import KnowledgeGraphView from './components/KnowledgeGraphView';
 import CreateNotebookModal from './components/CreateNotebookModal';
 import AuthPage from './components/AuthPage';
 import AdminConsoleView from './components/AdminConsoleView';
@@ -22,7 +20,6 @@ const pageToPath = {
   Admin: '/admin',
   Dashboard: '/dashboard',
   Notebooks: '/notebooks',
-  KnowledgeGraph: '/knowledge-graph',
 } as const;
 
 const pathToPage = Object.fromEntries(
@@ -197,7 +194,6 @@ export default function App() {
   }, [authUser, currentPage]);
 
   const curNotebooksList = notebooks;
-  const curGraphData = DEFAULT_KNOWLEDGE_GRAPH;
   const reusableCourseCodes = useMemo(() => {
     return Array.from(
       new Set(
@@ -545,25 +541,6 @@ export default function App() {
     }
   }, [activeNotebook?.id, chatGroundingScope]);
 
-  const handleAskInChat = (question: string, scope?: ChatGroundingScope) => {
-    setChatGroundingScope(scope || activeGroundingScope);
-    setPreFilledRequest({
-      question,
-      scope: scope || activeGroundingScope,
-    });
-    setIsStudyBuddyOpen(true);
-  };
-
-  const handleOpenNotebookByCode = (code: string) => {
-    const foundNb = curNotebooksList.find(n => n.courseCode.toLowerCase() === code.toLowerCase());
-
-    if (foundNb) {
-      openNotebook(foundNb.id);
-    } else {
-      openNotebook(null);
-    }
-  };
-
   if (isAuthLoading) {
     return (
       <div className="premium-dark flex min-h-screen items-center justify-center bg-bg-base text-text-secondary">
@@ -674,18 +651,6 @@ export default function App() {
                   onEditNotebook={(entry) => setEditingNotebook(entry)}
                   onDeleteNotebook={handleDeleteNotebook}
                   onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
-                />
-              )}
-            />
-            <Route
-              path={pageToPath.KnowledgeGraph}
-              element={(
-                <KnowledgeGraphView
-                  nodes={curGraphData.nodes}
-                  links={curGraphData.links}
-                  courses={DEFAULT_COURSES}
-                  onAskInChat={handleAskInChat}
-                  onOpenNotebookByCode={handleOpenNotebookByCode}
                 />
               )}
             />
