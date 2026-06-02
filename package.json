@@ -10,6 +10,7 @@
     "build:backend": "pnpm --dir backend build",
     "typecheck:frontend": "pnpm --dir frontend typecheck",
     "typecheck:backend": "pnpm --dir backend typecheck",
+    "test:auth": "pnpm --dir backend test:auth",
     "test:llm:backend": "pnpm --dir backend test:llm",
     "test:llm": "pnpm test:llm:backend",
     "db:up": "docker compose up -d",

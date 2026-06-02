@@ -4,7 +4,5 @@ export async function register() {
   }
 
   const { runStartupHealthCheckOnce } = await import('@/lib/startup-health');
-  const { ensureDefaultAdminUser } = await import('@/lib/auth');
   await runStartupHealthCheckOnce();
-  await ensureDefaultAdminUser();
 }

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 
+const frontendOrigin = process.env.FRONTEND_ORIGIN?.trim() || 'http://localhost:3000';
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': process.env.FRONTEND_ORIGIN || '*',
+  'Access-Control-Allow-Origin': frontendOrigin === '*' ? 'http://localhost:3000' : frontendOrigin,
   'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Credentials': 'true',
