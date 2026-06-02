@@ -1,11 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Shield, LogOut } from 'lucide-react';
+import { Search, Bell, Shield, LogOut, X } from 'lucide-react';
 import { AuthUser } from '../types';
 
 interface HeaderProps {
   activeTab: string;
   currentUser: AuthUser;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  onSearchClear: () => void;
+  onSearchSubmit: (value: string) => void;
   onLogout: () => void;
 }
 
@@ -19,7 +23,15 @@ function getInitials(name: string) {
     .toUpperCase() || 'LU';
 }
 
-export default function Header({ activeTab, currentUser, onLogout }: HeaderProps) {
+export default function Header({
+  activeTab,
+  currentUser,
+  searchValue,
+  onSearchChange,
+  onSearchClear,
+  onSearchSubmit,
+  onLogout,
+}: HeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -43,15 +55,35 @@ export default function Header({ activeTab, currentUser, onLogout }: HeaderProps
           </div>
           <div className="truncate text-sm font-bold text-text-primary">Lumiere study workspace</div>
         </div>
-        <div className="relative w-full max-w-sm">
+        <form
+          className="relative w-full max-w-sm"
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearchSubmit(searchValue);
+          }}
+        >
           <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-text-muted" />
           <input
             type="text"
             id="global-search"
-            placeholder="Search notes, slides, transcripts..."
-            className="premium-focus w-full rounded-xl border border-border-default bg-bg-elevated/70 py-2.5 pr-4 pl-10 text-sm font-medium text-text-primary outline-none transition-colors duration-200 placeholder:text-text-muted focus:border-accent hover:bg-bg-elevated"
+            placeholder="Search notebooks, files, descriptions..."
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            className="premium-focus w-full rounded-xl border border-border-default bg-bg-elevated/70 py-2.5 pr-10 pl-10 text-sm font-medium text-text-primary outline-none transition-colors duration-200 placeholder:text-text-muted focus:border-accent hover:bg-bg-elevated"
           />
-        </div>
+          {searchValue ? (
+            <button
+              type="button"
+              onClick={onSearchClear}
+              className="premium-focus absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-text-muted transition hover:bg-bg-overlay hover:text-text-primary"
+              title="Clear search"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </form>
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">

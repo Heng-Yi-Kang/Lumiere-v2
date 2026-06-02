@@ -43,9 +43,11 @@ export default function App() {
   const currentPage = pathToPage[location.pathname] ?? 'Dashboard';
   const searchParams = new URLSearchParams(location.search);
   const activeNotebookId = currentPage === 'Notebooks' ? searchParams.get('notebookId') : null;
+  const activeSearchQuery = currentPage === 'Notebooks' ? searchParams.get('search')?.trim() || '' : '';
 
   // Active states
   const [preFilledRequest, setPreFilledRequest] = useState<GroundedChatRequest | null>(null);
+  const [globalSearchValue, setGlobalSearchValue] = useState('');
   const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState<boolean>(false);
   const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
@@ -64,6 +66,10 @@ export default function App() {
   const [goalLoadError, setGoalLoadError] = useState('');
   const [studyStreak, setStudyStreak] = useState<StudyStreak | undefined>(undefined);
   const [streakLoadError, setStreakLoadError] = useState('');
+
+  useEffect(() => {
+    setGlobalSearchValue(activeSearchQuery);
+  }, [activeSearchQuery]);
 
   useEffect(() => {
     let isActive = true;
@@ -242,14 +248,49 @@ export default function App() {
     navigate(pageToPath[page as keyof typeof pageToPath] ?? pageToPath.Dashboard);
   }, [navigate]);
 
+  const buildNotebooksPath = useCallback((notebookId: string | null, searchQuery: string) => {
+    const nextParams = new URLSearchParams();
+    const normalizedSearch = searchQuery.trim();
+
+    if (notebookId) {
+      nextParams.set('notebookId', notebookId);
+    }
+
+    if (normalizedSearch) {
+      nextParams.set('search', normalizedSearch);
+    }
+
+    const queryString = nextParams.toString();
+    return queryString ? `${pageToPath.Notebooks}?${queryString}` : pageToPath.Notebooks;
+  }, []);
+
   const openNotebook = useCallback((notebookId: string | null) => {
-    if (!notebookId) {
-      navigate(pageToPath.Notebooks);
+    navigate(buildNotebooksPath(notebookId, activeSearchQuery));
+  }, [activeSearchQuery, buildNotebooksPath, navigate]);
+
+  const handleGlobalSearchSubmit = useCallback((value: string) => {
+    const normalizedSearch = value.trim();
+
+    if (!normalizedSearch) {
+      if (currentPage !== 'Notebooks') {
+        return;
+      }
+
+      navigate(buildNotebooksPath(activeNotebookId, ''));
       return;
     }
 
-    navigate(`${pageToPath.Notebooks}?notebookId=${encodeURIComponent(notebookId)}`);
-  }, [navigate]);
+    navigate(buildNotebooksPath(null, normalizedSearch));
+  }, [activeNotebookId, buildNotebooksPath, currentPage, navigate]);
+
+  const handleGlobalSearchClear = useCallback(() => {
+    setGlobalSearchValue('');
+    if (currentPage !== 'Notebooks') {
+      return;
+    }
+
+    navigate(buildNotebooksPath(activeNotebookId, ''));
+  }, [activeNotebookId, buildNotebooksPath, currentPage, navigate]);
 
   const handleAddNewNotebook = async (name: string, courseCode: string, color: string, description: string) => {
     notebookLoadRequestIdRef.current += 1;
@@ -580,7 +621,15 @@ export default function App() {
       {/* Main Layout Area */}
       <div className="flex-1 flex flex-col min-h-screen relative z-10 bg-transparent pl-20 md:pl-24">
         {/* Top Header bar with Picker & Streak ranks */}
-        <Header activeTab={currentPage} currentUser={authUser} onLogout={handleLogout} />
+        <Header
+          activeTab={currentPage}
+          currentUser={authUser}
+          searchValue={globalSearchValue}
+          onSearchChange={setGlobalSearchValue}
+          onSearchClear={handleGlobalSearchClear}
+          onSearchSubmit={handleGlobalSearchSubmit}
+          onLogout={handleLogout}
+        />
 
         {/* Dynamic Context Canvas */}
         <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full pb-16 relative z-10">
@@ -609,6 +658,7 @@ export default function App() {
                 <NotebookView
                   notebook={activeNotebook || null}
                   allNotebooks={curNotebooksList}
+                  searchQuery={activeSearchQuery}
                   onSelectNotebook={openNotebook}
                   onBackToDashboard={() => setCurrentPage('Dashboard')}
                   onUploadFile={handleAddNewFile}

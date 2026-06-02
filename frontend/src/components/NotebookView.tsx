@@ -16,6 +16,7 @@ import {
   MessageSquare,
   MonitorPlay,
   Plus,
+  Search,
   Send,
   ShieldCheck,
   Sparkles,
@@ -39,6 +40,7 @@ import AddLinkModal from './AddLinkModal';
 interface NotebookViewProps {
   notebook: Notebook | null;
   allNotebooks: Notebook[];
+  searchQuery?: string;
   onSelectNotebook: (id: string | null) => void;
   onBackToDashboard: () => void;
   onAddLink?: (notebookId: string, url: string) => Promise<void> | void;
@@ -80,6 +82,45 @@ function getViewerUrl(sourceUrl?: string) {
   return buildNotebookApiUrl(sourceUrl);
 }
 
+function normalizeSearchValue(value: string | undefined) {
+  return value?.trim().toLowerCase() || '';
+}
+
+function fieldMatchesSearch(searchQuery: string, fields: Array<string | undefined>) {
+  if (!searchQuery) {
+    return true;
+  }
+
+  return fields.some((field) => field?.toLowerCase().includes(searchQuery));
+}
+
+function fileMatchesSearch(file: FileItem, searchQuery: string) {
+  return fieldMatchesSearch(searchQuery, [
+    file.name,
+    file.type,
+    file.siteName,
+    file.sourceUrl,
+    file.summary,
+  ]);
+}
+
+function notebookMatchesSearch(notebook: Notebook, searchQuery: string) {
+  return fieldMatchesSearch(searchQuery, [
+    notebook.name,
+    notebook.courseCode,
+    notebook.courseLabel,
+    notebook.description,
+  ]);
+}
+
+function countMatchingFiles(notebook: Notebook, searchQuery: string) {
+  if (!searchQuery) {
+    return notebook.files.length;
+  }
+
+  return notebook.files.filter((file) => fileMatchesSearch(file, searchQuery)).length;
+}
+
 function createFileChatInitialMessage(fileName: string): ChatMessage {
   return {
     id: `file-chat-init-${fileName}`,
@@ -98,6 +139,7 @@ function createFileChatInitialMessage(fileName: string): ChatMessage {
 export default function NotebookView({
   notebook,
   allNotebooks,
+  searchQuery = '',
   onSelectNotebook,
   onBackToDashboard,
   onAddLink,
@@ -129,6 +171,8 @@ export default function NotebookView({
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
 
   const fileNoteApi = useFileNotes(notebook?.id, selectedMaterial?.id);
+  const normalizedSearchQuery = normalizeSearchValue(searchQuery);
+  const isSearchActive = Boolean(normalizedSearchQuery);
 
   useEffect(() => {
     setSelectedMaterial(null);
@@ -220,8 +264,27 @@ export default function NotebookView({
       return [];
     }
 
+    if (normalizedSearchQuery) {
+      return notebook.files.filter((file) => fileMatchesSearch(file, normalizedSearchQuery));
+    }
+
     return notebook.files;
-  }, [notebook]);
+  }, [notebook, normalizedSearchQuery]);
+
+  const filteredNotebooks = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return allNotebooks;
+    }
+
+    return allNotebooks.filter((entry) =>
+      notebookMatchesSearch(entry, normalizedSearchQuery) || countMatchingFiles(entry, normalizedSearchQuery) > 0,
+    );
+  }, [allNotebooks, normalizedSearchQuery]);
+
+  const visibleNotebookCount = filteredNotebooks.length;
+  const totalFileMatchCount = isSearchActive
+    ? allNotebooks.reduce((total, entry) => total + countMatchingFiles(entry, normalizedSearchQuery), 0)
+    : 0;
 
   const activePreview = selectedMaterial ? previewCache[selectedMaterial.id] : undefined;
   const activeFileChatMessages = selectedMaterial ? fileChatMessagesById[selectedMaterial.id] || [] : [];
@@ -277,6 +340,14 @@ export default function NotebookView({
       setSelectedMaterial(refreshedFile);
     }
   }, [notebook, selectedMaterial]);
+
+  useEffect(() => {
+    if (!selectedMaterial || filteredFiles.some((file) => file.id === selectedMaterial.id)) {
+      return;
+    }
+
+    setSelectedMaterial(null);
+  }, [filteredFiles, selectedMaterial]);
 
   const updateFileChatMessages = (fileId: string, update: (messages: ChatMessage[]) => ChatMessage[]) => {
     setFileChatMessagesById((current) => {
@@ -431,6 +502,7 @@ export default function NotebookView({
 
   if (!notebook) {
     const hasNotebooks = allNotebooks.length > 0;
+    const hasVisibleNotebooks = filteredNotebooks.length > 0;
 
     return (
       <div className="space-y-8 text-left relative z-10" id="all-notebooks-tab">
@@ -442,7 +514,9 @@ export default function NotebookView({
               </span>
               <h2 className="text-2xl font-black text-text-primary font-display">My Academic Course Notebooks</h2>
               <p className="max-w-2xl text-sm leading-relaxed text-text-secondary font-serif">
-                {hasNotebooks
+                {isSearchActive
+                  ? `${visibleNotebookCount} notebook${visibleNotebookCount === 1 ? '' : 's'} and ${totalFileMatchCount} file match${totalFileMatchCount === 1 ? '' : 'es'} for "${searchQuery.trim()}".`
+                  : hasNotebooks
                   ? 'Upload lecture materials and open previews inline without leaving the notebook.'
                   : 'Set up your first notebook to start collecting course files, previews, and study context.'}
               </p>
@@ -499,10 +573,19 @@ export default function NotebookView({
               </div>
             </div>
           </div>
+        ) : !hasVisibleNotebooks ? (
+          <div className="rounded-2xl border border-dashed border-border-default bg-bg-elevated/20 px-6 py-14 text-center">
+            <Search className="mx-auto h-10 w-10 text-text-muted" />
+            <h3 className="mt-4 text-lg font-black text-text-primary font-display">No notebook matches found</h3>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-text-secondary font-serif">
+              No notebook titles, course details, file names, links, or generated descriptions matched "{searchQuery.trim()}".
+            </p>
+          </div>
         ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {allNotebooks.map((entry) => {
+          {filteredNotebooks.map((entry) => {
             const entryTone = getNotebookColorTone(entry.color);
+            const fileMatchCount = countMatchingFiles(entry, normalizedSearchQuery);
 
             return (
             <button
@@ -515,7 +598,14 @@ export default function NotebookView({
                   {entry.courseLabel || entry.courseCode}
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-text-muted">{entry.fileCount} files</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-sm font-bold text-text-muted">{entry.fileCount} files</span>
+                    {isSearchActive && fileMatchCount > 0 ? (
+                      <span className={`rounded-lg px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border font-mono ${entryTone.subtleBlock}`}>
+                        {fileMatchCount} match{fileMatchCount === 1 ? '' : 'es'}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -642,7 +732,11 @@ export default function NotebookView({
           <div className="flex flex-col gap-3 border-b border-border-subtle pb-4">
             <div>
               <h2 className="text-sm font-black text-text-primary font-display">Materials Directory</h2>
-              <p className="text-[11px] text-text-muted">Open inline previews or delete files directly from this notebook.</p>
+              <p className="text-[11px] text-text-muted">
+                {isSearchActive
+                  ? `${filteredFiles.length} file${filteredFiles.length === 1 ? '' : 's'} matched "${searchQuery.trim()}".`
+                  : 'Open inline previews or delete files directly from this notebook.'}
+              </p>
             </div>
           </div>
 
@@ -679,7 +773,9 @@ export default function NotebookView({
             {filteredFiles.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border-default px-4 py-12 text-center text-sm text-text-muted">
                 <FolderOpen className="mx-auto mb-3 h-8 w-8 text-text-muted" />
-                No files matched this notebook filter.
+                {isSearchActive
+                  ? `No files in this notebook matched "${searchQuery.trim()}".`
+                  : 'No files matched this notebook filter.'}
               </div>
             ) : (
               filteredFiles.map((file) => (
