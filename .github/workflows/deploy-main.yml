@@ -1,0 +1,118 @@
+name: Deploy main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck frontend
+        run: pnpm typecheck:frontend
+
+      - name: Typecheck backend
+        run: pnpm typecheck:backend
+
+      - name: Build frontend
+        run: pnpm build:frontend
+
+      - name: Build backend
+        run: pnpm build:backend
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_COMPOSE_DIR: ${{ secrets.DEPLOY_COMPOSE_DIR }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_BRANCH: main
+
+    steps:
+      - name: Check deployment secrets
+        run: |
+          set -euo pipefail
+
+          missing=""
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY; do
+            if [ -z "${!name:-}" ]; then
+              missing="$missing $name"
+            fi
+          done
+
+          if [ -n "$missing" ]; then
+            echo "Missing required deployment secrets:$missing" >&2
+            exit 1
+          fi
+
+      - name: Configure SSH
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          port="${DEPLOY_PORT:-22}"
+          ssh-keyscan -p "$port" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Pull main and restart production stack
+        run: |
+          set -euo pipefail
+
+          port="${DEPLOY_PORT:-22}"
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$port" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            'bash -s' -- "$DEPLOY_PATH" "$DEPLOY_BRANCH" "$DEPLOY_COMPOSE_DIR" <<'REMOTE'
+          set -euo pipefail
+
+          deploy_path="${1:-/srv/lumiere}"
+          deploy_branch="${2:-main}"
+          deploy_compose_dir="${3:-production_docker}"
+
+          cd "$deploy_path"
+          git checkout "$deploy_branch"
+          git pull --ff-only origin "$deploy_branch"
+
+          cd "$deploy_compose_dir"
+          ./start_docker.sh
+          REMOTE

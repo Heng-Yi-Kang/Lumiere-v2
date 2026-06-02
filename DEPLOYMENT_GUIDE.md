@@ -132,7 +132,34 @@ docker compose build
 docker compose up -d
 ```
 
-## 6. Verification
+## 6. GitHub Actions Auto-Deploy
+
+The repository includes `.github/workflows/deploy-main.yml` to deploy
+automatically after pushes to `main`. The workflow first validates the pnpm
+workspace, then connects to the deployment server over SSH and runs:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+cd production_docker
+./start_docker.sh
+```
+
+Configure these GitHub Actions secrets before enabling production deploys:
+
+- `DEPLOY_HOST`: deployment server hostname or IP address.
+- `DEPLOY_USER`: SSH user on the deployment server.
+- `DEPLOY_SSH_KEY`: private SSH key with access to `DEPLOY_USER`.
+- `DEPLOY_PORT`: optional SSH port. Defaults to `22` when unset.
+- `DEPLOY_PATH`: optional absolute path to the server checkout. Defaults to `/srv/lumiere` when unset.
+- `DEPLOY_COMPOSE_DIR`: optional deployment compose folder under `DEPLOY_PATH`. Defaults to `production_docker` when unset.
+
+The server checkout must already exist, point at this repository, and have a
+server-local deployment `.env` configured. For the default production stack,
+that file is `production_docker/.env`; it is gitignored and is not changed by
+the workflow.
+
+## 7. Verification
 
 After deployment, verify:
 
@@ -153,7 +180,7 @@ docker compose exec backend chromium --version
 docker compose exec backend test -x "$PUPPETEER_EXECUTABLE_PATH"
 ```
 
-## 7. Security Notes
+## 8. Security Notes
 
 - Keep `production_docker/.env` server-local.
 - Replace default database credentials before public exposure.
