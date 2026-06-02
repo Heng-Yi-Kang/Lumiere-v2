@@ -25,6 +25,7 @@ import { SESSION_COOKIE_NAME, buildClearSessionCookie, buildSessionCookie, hashP
 
 describe('authentication routes', () => {
   const originalSameSite = process.env.SESSION_COOKIE_SAME_SITE;
+  const originalCookieSecure = process.env.SESSION_COOKIE_SECURE;
 
   beforeEach(() => {
     prismaMock.session.create.mockReset();
@@ -35,15 +36,18 @@ describe('authentication routes', () => {
     prismaMock.user.findUnique.mockReset();
     prismaMock.user.update.mockReset();
     process.env.SESSION_COOKIE_SAME_SITE = originalSameSite;
+    process.env.SESSION_COOKIE_SECURE = originalCookieSecure;
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
     process.env.SESSION_COOKIE_SAME_SITE = originalSameSite;
+    process.env.SESSION_COOKIE_SECURE = originalCookieSecure;
   });
 
   afterAll(() => {
     process.env.SESSION_COOKIE_SAME_SITE = originalSameSite;
+    process.env.SESSION_COOKIE_SECURE = originalCookieSecure;
   });
 
   it('defaults session cookies to SameSite=Lax', () => {
@@ -66,6 +70,20 @@ describe('authentication routes', () => {
     expect(cookie).toContain('Secure');
     expect(clearCookie).toContain('SameSite=None');
     expect(clearCookie).toContain('Secure');
+  });
+
+  it('supports insecure session cookies for HTTP-only demo deployments', () => {
+    process.env.SESSION_COOKIE_SAME_SITE = 'lax';
+    process.env.SESSION_COOKIE_SECURE = 'false';
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const cookie = buildSessionCookie('session-token');
+    const clearCookie = buildClearSessionCookie();
+
+    expect(cookie).toContain('SameSite=Lax');
+    expect(cookie).not.toContain('Secure');
+    expect(clearCookie).toContain('SameSite=Lax');
+    expect(clearCookie).not.toContain('Secure');
   });
 
   it('creates a user and HTTP-only session cookie on signup', async () => {

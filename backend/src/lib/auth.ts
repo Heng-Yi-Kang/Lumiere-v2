@@ -74,6 +74,10 @@ function getSessionCookieSameSite(): SessionCookieSameSite {
 }
 
 function shouldSecureSessionCookie(sameSite: SessionCookieSameSite) {
+  if (process.env.SESSION_COOKIE_SECURE?.trim().toLowerCase() === 'false') {
+    return false;
+  }
+
   if (sameSite === 'None') {
     return true;
   }
