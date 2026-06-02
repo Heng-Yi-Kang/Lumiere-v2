@@ -28,6 +28,31 @@ function serializeAdminUser(user: {
   };
 }
 
+function buildAdminUserStats(users: ReturnType<typeof serializeAdminUser>[]) {
+  return users.reduce(
+    (stats, user) => ({
+      activeSessions: stats.activeSessions + user.sessionCount,
+      activeUsers: stats.activeUsers + (user.disabled ? 0 : 1),
+      adminUsers: stats.adminUsers + (user.role === 'ADMIN' ? 1 : 0),
+      disabledUsers: stats.disabledUsers + (user.disabled ? 1 : 0),
+      regularUsers: stats.regularUsers + (user.role === 'USER' ? 1 : 0),
+      totalGoals: stats.totalGoals + user.goalCount,
+      totalNotebooks: stats.totalNotebooks + user.notebookCount,
+      totalUsers: stats.totalUsers + 1,
+    }),
+    {
+      activeSessions: 0,
+      activeUsers: 0,
+      adminUsers: 0,
+      disabledUsers: 0,
+      regularUsers: 0,
+      totalGoals: 0,
+      totalNotebooks: 0,
+      totalUsers: 0,
+    },
+  );
+}
+
 export async function OPTIONS() {
   return optionsResponse();
 }
@@ -55,7 +80,10 @@ export async function GET(request: Request) {
     },
   });
 
+  const serializedUsers = users.map(serializeAdminUser);
+
   return jsonResponse({
-    users: users.map(serializeAdminUser),
+    stats: buildAdminUserStats(serializedUsers),
+    users: serializedUsers,
   });
 }

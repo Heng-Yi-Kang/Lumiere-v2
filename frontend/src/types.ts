@@ -169,6 +169,17 @@ export interface AdminUser {
   sessionCount: number;
 }
 
+export interface AdminUserStats {
+  activeSessions: number;
+  activeUsers: number;
+  adminUsers: number;
+  disabledUsers: number;
+  regularUsers: number;
+  totalGoals: number;
+  totalNotebooks: number;
+  totalUsers: number;
+}
+
 export interface FileNote {
   id: string;
   fileId: string;

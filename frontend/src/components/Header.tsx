@@ -58,7 +58,7 @@ export default function Header({ activeTab, currentUser, onLogout }: HeaderProps
         {currentUser.role === 'ADMIN' && (
           <button
             type="button"
-            onClick={() => navigate('/admin/users')}
+            onClick={() => navigate('/admin?tab=dashboard')}
             className="premium-focus hidden items-center gap-2 rounded-xl border border-border-default bg-bg-elevated/60 px-3 py-2 text-xs font-bold text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary md:inline-flex"
           >
             <Shield className="h-3.5 w-3.5" />

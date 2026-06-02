@@ -20,9 +20,10 @@ Goals are stored server-side per user through `/api/goals`.
 
 ## Admin users
 
-Admins can use `/admin/users` to list users and enable or disable accounts.
+Admins can use `/admin` to review account stats and manage users.
+The Manage Users tab supports enable/disable actions and role changes.
 Disabling a user immediately deletes that user's active sessions.
-Admins cannot disable their own account.
+Admins cannot disable their own account, change their own role, or remove the last active admin.
 
 ## Legacy cleanup after migration
 

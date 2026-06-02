@@ -1,8 +1,9 @@
-import { AdminUser } from '../types';
+import { AdminUser, AdminUserStats } from '../types';
 import { buildNotebookApiUrl } from './notebooksApi';
 
 type AdminUsersResponse = {
   error?: string;
+  stats?: AdminUserStats;
   user?: Partial<AdminUser>;
   users?: AdminUser[];
 };
@@ -29,14 +30,26 @@ async function requestAdmin<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function fetchAdminUsers() {
-  const payload = await requestAdmin<AdminUsersResponse>('/api/admin/users');
-  return payload.users || [];
+  return requestAdmin<AdminUsersResponse>('/api/admin/users');
 }
 
 export async function setAdminUserDisabled(userId: string, disabled: boolean) {
   const payload = await requestAdmin<AdminUsersResponse>(`/api/admin/users/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ disabled }),
+  });
+
+  if (!payload.user) {
+    throw new Error('User was not returned by the API');
+  }
+
+  return payload.user;
+}
+
+export async function setAdminUserRole(userId: string, role: AdminUser['role']) {
+  const payload = await requestAdmin<AdminUsersResponse>(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
   });
 
   if (!payload.user) {

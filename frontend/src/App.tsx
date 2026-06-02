@@ -11,14 +11,14 @@ import StudyBuddy from './components/StudyBuddy';
 import KnowledgeGraphView from './components/KnowledgeGraphView';
 import CreateNotebookModal from './components/CreateNotebookModal';
 import AuthPage from './components/AuthPage';
-import AdminUsersView from './components/AdminUsersView';
+import AdminConsoleView from './components/AdminConsoleView';
 import { createNotebook, createNotebookFile, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
 import { getRetryLaterUploadMessage, isRetryLaterUploadError } from './lib/apiErrors';
 import { fetchCurrentUser, logout as logoutCurrentUser } from './lib/authApi';
 import { createGoal, deleteGoal, fetchGoals, updateGoal as updateGoalApi } from './lib/goalsApi';
 
 const pageToPath = {
-  AdminUsers: '/admin/users',
+  Admin: '/admin',
   Dashboard: '/dashboard',
   Notebooks: '/notebooks',
   KnowledgeGraph: '/knowledge-graph',
@@ -432,6 +432,23 @@ export default function App() {
     );
   }
 
+  if (location.pathname.startsWith('/admin')) {
+    return (
+      <Routes>
+        <Route
+          path={pageToPath.Admin}
+          element={authUser.role === 'ADMIN' ? (
+            <AdminConsoleView currentUser={authUser} onLogout={handleLogout} />
+          ) : (
+            <Navigate to={pageToPath.Dashboard} replace />
+          )}
+        />
+        <Route path="/admin/users" element={<Navigate to={`${pageToPath.Admin}?tab=manage`} replace />} />
+        <Route path="*" element={<Navigate to={pageToPath.Admin} replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="premium-dark min-h-screen flex font-sans relative overflow-hidden">
       {authLoadError && (
@@ -509,12 +526,8 @@ export default function App() {
               )}
             />
             <Route
-              path={pageToPath.AdminUsers}
-              element={authUser.role === 'ADMIN' ? (
-                <AdminUsersView currentUser={authUser} />
-              ) : (
-                <Navigate to={pageToPath.Dashboard} replace />
-              )}
+              path={pageToPath.Admin}
+              element={<Navigate to={pageToPath.Admin} replace />}
             />
             <Route path="*" element={<Navigate to={pageToPath.Dashboard} replace />} />
           </Routes>
