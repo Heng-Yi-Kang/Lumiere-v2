@@ -60,6 +60,7 @@ services:
       STT_API_BASE: ${STT_API_BASE:-}
       STT_API_KEY: ${STT_API_KEY:-}
       STT_MODEL: ${STT_MODEL:-qwen3-asr-1.7b}
+      STT_REQUEST_FORMAT: ${STT_REQUEST_FORMAT:-multipart}
       VLM_API_BASE_URL: ${VLM_API_BASE_URL:-}
       VLM_API_BASE: ${VLM_API_BASE:-}
       VLM_API_KEY: ${VLM_API_KEY:-}

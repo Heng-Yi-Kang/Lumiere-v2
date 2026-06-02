@@ -85,7 +85,8 @@ Behavior:
 
 - Requires `STT_API_BASE`, `STT_API_KEY`, and `STT_MODEL`
 - Sends the upload to `${STT_API_BASE}/audio/transcriptions`
-- Uses multipart `FormData`
+- Uses multipart `FormData` by default
+- Uses JSON base64 audio when `STT_REQUEST_FORMAT=json` or when `STT_API_BASE` contains `openrouter.ai`
 - Expects a JSON response with a `text` field
 - Throws if the provider returns an error or empty text
 

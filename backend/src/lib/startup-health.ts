@@ -2,6 +2,7 @@ import { logBackendProcess } from '@/lib/backend-logger';
 import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 import { prisma } from '@/lib/prisma';
 import { isRerankingEnabled } from '@/lib/reranker';
+import { buildSttRequest } from '@/lib/stt';
 
 const STARTUP_HEALTH_PROMISE_KEY = '__lumiereStartupHealthPromise';
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
@@ -245,21 +246,21 @@ async function pingChatProvider() {
 }
 
 async function pingSttProvider() {
-  const formData = new FormData();
-  formData.append('model', getTrimmedEnv('STT_MODEL')!);
-  formData.append(
-    'file',
-    new Blob([Buffer.from(tinyWavBase64, 'base64')], { type: 'audio/wav' }),
-    'startup-health.wav',
-  );
+  const baseUrl = getTrimmedEnv('STT_API_BASE')!;
+  const request = buildSttRequest({
+    apiKey: getTrimmedEnv('STT_API_KEY')!,
+    baseUrl,
+    buffer: Buffer.from(tinyWavBase64, 'base64'),
+    fileName: 'startup-health.wav',
+    mimeType: 'audio/wav',
+    model: getTrimmedEnv('STT_MODEL')!,
+  });
 
-  const response = await fetch(buildUrl(getTrimmedEnv('STT_API_BASE')!, '/audio/transcriptions'), {
+  const response = await fetch(buildUrl(baseUrl, '/audio/transcriptions'), {
     method: 'POST',
     signal: AbortSignal.timeout(getProviderTimeoutMs()),
-    headers: {
-      Authorization: `Bearer ${getTrimmedEnv('STT_API_KEY')!}`,
-    },
-    body: formData,
+    headers: request.headers,
+    body: request.body,
   });
 
   const payload = await parseJsonResponse(response, 'STT provider probe');

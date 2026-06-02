@@ -90,6 +90,7 @@ Required environment variables:
 - `STT_API_BASE`
 - `STT_API_KEY`
 - `STT_MODEL`
+- `STT_REQUEST_FORMAT`, optional. Defaults to `multipart`; use `json` for providers that reject multipart uploads.
 
 The helper returns plain text only. It does not provide native timestamps, so video timestamping is synthesized later.
 
