@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, LogOut, Search, Shield, UserCheck, Users, UserX } from 'lucide-react';
+import { BarChart3, LogOut, Search, Shield, UserCheck, Users, UserX } from 'lucide-react';
 import { AdminUser, AdminUserStats, AuthUser } from '../types';
 import { fetchAdminUsers, setAdminUserDisabled, setAdminUserRole } from '../lib/adminApi';
 
@@ -198,14 +198,6 @@ export default function AdminConsoleView({ currentUser, onLogout }: AdminConsole
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard')}
-              className="premium-focus inline-flex items-center gap-2 rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2 text-xs font-bold text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to app
-            </button>
             <div className="flex items-center gap-2 rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-[10px] font-black text-white">
                 {getInitials(currentUser.name)}

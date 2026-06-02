@@ -101,7 +101,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!authUser) {
+    if (!authUser || authUser.role === 'ADMIN') {
       setNotebooks([]);
       setNotebookLoadError('');
       return;
@@ -131,7 +131,7 @@ export default function App() {
   }, [authUser]);
 
   useEffect(() => {
-    if (!authUser) {
+    if (!authUser || authUser.role === 'ADMIN') {
       setGoals([]);
       setGoalLoadError('');
       return;
@@ -160,7 +160,7 @@ export default function App() {
   }, [authUser]);
 
   useEffect(() => {
-    if (!authUser) {
+    if (!authUser || authUser.role === 'ADMIN') {
       setStudyStreak(undefined);
       setStreakLoadError('');
       return;
@@ -456,7 +456,7 @@ export default function App() {
   const handleAuthenticated = useCallback((user: AuthUser) => {
     setAuthUser(user);
     setAuthLoadError('');
-    navigate(pageToPath.Dashboard, { replace: true });
+    navigate(user.role === 'ADMIN' ? pageToPath.Admin : pageToPath.Dashboard, { replace: true });
   }, [navigate]);
 
   const handleLogout = useCallback(() => {
@@ -561,6 +561,10 @@ export default function App() {
         <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     );
+  }
+
+  if (authUser.role === 'ADMIN' && !location.pathname.startsWith('/admin')) {
+    return <Navigate to={pageToPath.Admin} replace />;
   }
 
   if (location.pathname.startsWith('/admin')) {
