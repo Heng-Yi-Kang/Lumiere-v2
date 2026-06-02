@@ -142,10 +142,6 @@ export default function NotebookChatPanel({ notebookId, notebookName, color }: N
                   : 'rounded-tl-sm border-border-subtle bg-bg-elevated/60 text-text-primary'
               }`}
             >
-              <div className="mb-1.5 flex items-center justify-between gap-3 border-b border-white/10 pb-1 text-[8.5px] font-extrabold uppercase tracking-wide text-text-muted font-mono">
-                <span>{msg.role === 'user' ? 'You' : 'Lumiere'}</span>
-                <span>{msg.timestamp}</span>
-              </div>
               {msg.role === 'assistant' ? (
                 <ChatMarkdown content={msg.text} />
               ) : (

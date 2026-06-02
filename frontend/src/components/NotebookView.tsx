@@ -25,7 +25,7 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import { ChatGroundingScope, ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
+import { ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
 import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
 import { getGroundedChatErrorMessage } from '../lib/apiErrors';
 import { NOTEBOOK_UPLOAD_ACCEPT, validateNotebookUpload } from '../lib/notebookUpload';
@@ -41,7 +41,6 @@ interface NotebookViewProps {
   allNotebooks: Notebook[];
   onSelectNotebook: (id: string | null) => void;
   onBackToDashboard: () => void;
-  onAskInChat: (question: string, scope?: ChatGroundingScope) => void;
   onAddLink?: (notebookId: string, url: string) => Promise<void> | void;
   onUploadFile?: (notebookId: string, file: File) => Promise<void> | void;
   onDeleteFile?: (notebookId: string, fileId: string) => Promise<void> | void;
@@ -101,7 +100,6 @@ export default function NotebookView({
   allNotebooks,
   onSelectNotebook,
   onBackToDashboard,
-  onAskInChat,
   onAddLink,
   onUploadFile,
   onDeleteFile,
@@ -629,23 +627,6 @@ export default function NotebookView({
                 Delete notebook
               </div>
             </div>
-            <button
-              onClick={() =>
-                onAskInChat(
-                  `Explain the main ideas from the files in my "${notebook.name}" notebook.`,
-                  {
-                    notebookId: notebook.id,
-                    notebookName: notebook.name,
-                  },
-                )
-              }
-              className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4" />
-                Ask AI About This Notebook
-              </span>
-            </button>
           </div>
         </div>
       </div>
@@ -1006,10 +987,6 @@ export default function NotebookView({
                               ? 'rounded-tr-sm border-accent bg-accent text-white'
                               : 'rounded-tl-sm border-border-subtle bg-bg-elevated/60 text-text-primary'
                           }`}>
-                            <div className="mb-1.5 flex items-center justify-between gap-3 border-b border-white/10 pb-1 text-[8.5px] font-extrabold uppercase tracking-wide text-text-muted font-mono">
-                              <span>{message.role === 'user' ? 'You' : 'Lumiere'}</span>
-                              <span>{message.timestamp}</span>
-                            </div>
                             {message.role === 'assistant' ? (
                               <ChatMarkdown content={message.text} />
                             ) : (

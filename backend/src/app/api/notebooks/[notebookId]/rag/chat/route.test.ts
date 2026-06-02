@@ -165,6 +165,56 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
     );
   });
 
+  it('streams keepalive bytes before chat generation completes', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      files: [{ extractedText: null, id: 'file-1', name: 'week-1.txt' }],
+      id: 'nb-1',
+      name: 'Algorithms',
+    });
+    vi.mocked(retrieveNotebookRagContext).mockResolvedValue([
+      ragSearchResult({
+        content: 'Greedy algorithms choose local optima.',
+        score: 0.92,
+      }),
+    ]);
+
+    let resolveCompletion: (answer: string) => void = () => undefined;
+    vi.mocked(generateChatCompletion).mockReturnValue(new Promise((resolve) => {
+      resolveCompletion = resolve;
+    }));
+
+    const response = await POST(
+      new Request('http://localhost/api/notebooks/nb-1/rag/chat', {
+        body: JSON.stringify({ question: 'Explain greedy algorithms' }),
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ notebookId: 'nb-1' }) },
+    );
+
+    const reader = response.body?.getReader();
+    expect(reader).toBeTruthy();
+
+    const decoder = new TextDecoder();
+    const firstChunk = await reader!.read();
+    expect(decoder.decode(firstChunk.value)).toBe(' ');
+
+    resolveCompletion('Slow grounded answer.');
+
+    let remainingBody = '';
+    while (true) {
+      const chunk = await reader!.read();
+      if (chunk.done) {
+        break;
+      }
+      remainingBody += decoder.decode(chunk.value);
+    }
+
+    expect(JSON.parse(remainingBody.trim())).toEqual(expect.objectContaining({
+      answer: 'Slow grounded answer.',
+      grounded: true,
+    }));
+  });
+
   it('sends diversified notebook chunks to chat formatting', async () => {
     prismaMock.notebook.findUnique.mockResolvedValue({
       files: [
@@ -342,7 +392,7 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
     expect(response.headers.get('Access-Control-Allow-Origin')).toBeTruthy();
   });
 
-  it('returns a JSON error when chat generation fails', async () => {
+  it('streams a JSON error when chat generation fails after the response starts', async () => {
     prismaMock.notebook.findUnique.mockResolvedValue({
       files: [{ extractedText: null, id: 'file-1', name: 'week-1.txt' }],
       id: 'nb-1',
@@ -365,7 +415,7 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
     );
     const payload = await response.json();
 
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(200);
     expect(payload.error).toBe('chat provider unavailable');
     expect(response.headers.get('Access-Control-Allow-Origin')).toBeTruthy();
   });

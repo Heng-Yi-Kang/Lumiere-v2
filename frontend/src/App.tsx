@@ -611,7 +611,6 @@ export default function App() {
                   allNotebooks={curNotebooksList}
                   onSelectNotebook={openNotebook}
                   onBackToDashboard={() => setCurrentPage('Dashboard')}
-                  onAskInChat={handleAskInChat}
                   onUploadFile={handleAddNewFile}
                   onAddLink={handleAddNewLink}
                   onDeleteFile={handleDeleteFile}

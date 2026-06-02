@@ -1,6 +1,6 @@
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
+import { jsonResponse, optionsResponse, streamingJsonResponse, unauthorizedResponse } from '@/lib/http';
 import { generateChatCompletion } from '@/lib/openai-chat';
 import { prisma } from '@/lib/prisma';
 import { diversifyRagResults, formatRagContextForPrompt, retrieveNotebookRagContext, splitIntoChunks } from '@/lib/rag';
@@ -220,55 +220,54 @@ export async function POST(
     scopeLabel,
   });
 
-  let answer;
-  try {
-    answer = await generateChatCompletion({
-      context: formatRagContextForPrompt(groundedResults),
-      question,
-      scopeLabel,
-    });
-  } catch (error) {
-    logBackendProcess('error', 'rag.chat_completion.failed', {
+  return streamingJsonResponse((async () => {
+    let answer;
+    try {
+      answer = await generateChatCompletion({
+        context: formatRagContextForPrompt(groundedResults),
+        question,
+        scopeLabel,
+      });
+    } catch (error) {
+      logBackendProcess('error', 'rag.chat_completion.failed', {
+        elapsedMs: getElapsedMs(completionStartedAt),
+        error: error instanceof Error ? error.message : 'Unknown chat completion error',
+        fileId: scopedFile?.id,
+        notebookId,
+      });
+      return { error: error instanceof Error ? error.message : 'Grounded chat generation failed.' };
+    }
+
+    logBackendProcess('info', 'rag.chat_completion.completed', {
+      answerChars: answer.length,
       elapsedMs: getElapsedMs(completionStartedAt),
-      error: error instanceof Error ? error.message : 'Unknown chat completion error',
       fileId: scopedFile?.id,
       notebookId,
     });
-    return jsonResponse(
-      { error: error instanceof Error ? error.message : 'Grounded chat generation failed.' },
-      { status: 502 },
-    );
-  }
 
-  logBackendProcess('info', 'rag.chat_completion.completed', {
-    answerChars: answer.length,
-    elapsedMs: getElapsedMs(completionStartedAt),
-    fileId: scopedFile?.id,
-    notebookId,
-  });
-
-  logBackendProcess('info', 'rag.api.chat.completed', {
-    elapsedMs: getElapsedMs(requestStartedAt),
-    fileId: scopedFile?.id,
-    notebookId,
-    resultCount: groundedResults.length,
-  });
-
-  return jsonResponse({
-    answer,
-    citations: groundedResults.map((result) => ({
-      fileId: result.fileId,
-      fileName: result.fileName,
-      position: `Chunk ${result.chunkIndex + 1}`,
-      score: result.score,
-      type: 'page',
-    })),
-    grounded: true,
-    scope: {
+    logBackendProcess('info', 'rag.api.chat.completed', {
+      elapsedMs: getElapsedMs(requestStartedAt),
       fileId: scopedFile?.id,
-      fileName: scopedFile?.name,
-      notebookId: notebook.id,
-      notebookName: notebook.name,
-    },
-  });
+      notebookId,
+      resultCount: groundedResults.length,
+    });
+
+    return {
+      answer,
+      citations: groundedResults.map((result) => ({
+        fileId: result.fileId,
+        fileName: result.fileName,
+        position: `Chunk ${result.chunkIndex + 1}`,
+        score: result.score,
+        type: 'page',
+      })),
+      grounded: true,
+      scope: {
+        fileId: scopedFile?.id,
+        fileName: scopedFile?.name,
+        notebookId: notebook.id,
+        notebookName: notebook.name,
+      },
+    };
+  })());
 }

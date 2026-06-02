@@ -45,7 +45,13 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  const payload = (await response.json()) as T & { error?: string };
+
+  if (payload?.error) {
+    throw new Error(payload.error);
+  }
+
+  return payload;
 }
 
 export function buildNotebookApiUrl(path: string) {

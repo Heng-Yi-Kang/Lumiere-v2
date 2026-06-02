@@ -218,11 +218,6 @@ export default function StudyBuddy({
                     ? 'bg-accent border-accent text-white font-medium rounded-tr-xs shadow-lg shadow-indigo-500/20'
                     : 'bg-bg-elevated/70 border-border-default text-text-primary rounded-tl-xs'
                 }`}>
-                  <div className="mb-1.5 flex items-center justify-between border-b border-white/10 pb-1 text-[8.5px] font-extrabold uppercase tracking-wide text-text-muted font-mono">
-                    <span>{msg.role === 'user' ? 'You' : 'Buddy'}</span>
-                    <span>{msg.timestamp}</span>
-                  </div>
-
                   {msg.role === 'assistant' ? (
                     <ChatMarkdown content={msg.text} />
                   ) : (
