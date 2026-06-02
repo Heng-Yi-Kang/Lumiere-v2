@@ -2,6 +2,10 @@
 
 This repository contains a Vite frontend in `frontend/` and a Next.js backend in `backend/`, with PostgreSQL, Qdrant, pgvector support in PostgreSQL, and pgAdmin provided through Docker.
 
+## Deployed Project
+
+View the deployed project at [http://62.238.44.138:8080](http://62.238.44.138:8080).
+
 ## Key Features
 
 Lumiere is an AI-assisted study workspace for organizing course notebooks, uploading learning materials, and asking grounded questions over indexed content.
