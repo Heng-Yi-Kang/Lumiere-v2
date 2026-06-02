@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-06-02
+
+### Notebook chat and retrieval
+
+- Replaced mock notebook chat replies with grounded answers built from uploaded notebook files.
+- Added citations and clearer missing-context fallback messaging in the notebook chat panel.
+- Remounted notebook chat state when switching notebooks so conversations reset cleanly.
+- Moved notebook RAG vector storage into Qdrant while keeping PostgreSQL as the metadata manifest.
+- Added cleanup and rollback handling for notebook and file vector records during delete and indexing failure paths.
+- Diversified notebook-wide retrieval context with per-file caps and score tolerance to reduce redundant grounding passages.
+- Added optional Qwen3-compatible reranking for retrieval, with fallback to raw vector scores when reranking is unavailable or fails.
+
+### Uploads and content processing
+
+- Added image upload support for notebooks with inline preview handling for common image formats.
+- Generated VLM-backed image descriptions during upload and indexed those descriptions for notebook RAG.
+- Renamed notebook file summary UI language to description so the frontend matches the backend-generated content.
+
+### Backend health and API tooling
+
+- Added startup provider reachability probes for embeddings, chat, STT, VLM, reranker, Qdrant, database, and upload storage.
+- Failed backend startup on required dependency outages while allowing degraded startup for optional providers.
+- Deferred startup health imports at runtime to avoid static client-side resolution issues in Next instrumentation.
+- Extracted notebook upload root lookup into a shared helper and replaced direct Node and Qdrant imports with runtime-safe probes.
+- Added Swagger UI at `/api` and exposed OpenAPI JSON at `/api/openapi.json` for backend route inspection and debugging.
+- Documented notebook, file, note, health, and RAG routes in the generated OpenAPI surface.
+
+### Frontend shell
+
+- Simplified shell navigation by removing the `Revision` and `Study Lounge` routes from route registration and the floating dock.
+- Removed the floating `Study Buddy` launcher while preserving access paths that still exist inside the app.
+
+### Documentation
+
+- Updated RAG documentation to describe the current PostgreSQL-plus-Qdrant storage model.
+- Documented notebook chunk indexing, retrieval, and grounded chat fallback behavior.
+- Replaced stale documentation that still described older MongoDB and in-memory search behavior.
+
 ## 2026-06-01
 
 ### Video uploads

@@ -1,19 +1,38 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository is a Vite + React + TypeScript frontend. The app lives under `frontend/`.
+This repository is a pnpm workspace with a Vite + React + TypeScript frontend in `frontend/` and a Next.js backend in `backend/`.
 
-- `frontend/src/`: application source
+- `frontend/src/`: frontend application source
 - `frontend/src/components/`: UI components and feature views
-- `frontend/src/data/`: local mock data and fixtures
-- `frontend/assets/`: static assets
+- `frontend/src/data/`: frontend mock data and fixtures
+- `frontend/assets/`: frontend static assets
 - `frontend/index.html`: Vite entry page
-- `frontend/.env.example`: environment variable template
+- `frontend/.env.example`: frontend environment variable template
+- `backend/src/`: backend routes, API handlers, and server-side libraries
+- `backend/prisma/`: Prisma schema and migrations
+- `backend/public/uploads/notebooks/`: stored notebook uploads in local development
+- `backend/.env.example`: backend environment variable template
+- `docs/`: implementation notes for routing, RAG, media processing, and deployment
 
 Keep feature code close to the view or component that uses it. Prefer small, focused modules over large shared files unless the logic is reused.
 
 ## Build, Test, and Development Commands
-Run commands from `frontend/` and use `pnpm` for installs and scripts.
+Use `pnpm` for installs and scripts. Workspace-level commands run from the repository root. Package-specific commands can run from `frontend/` or `backend/` as needed.
+
+Workspace:
+
+- `pnpm install`: install workspace dependencies
+- `pnpm dev:frontend`: start the Vite frontend on port 3000
+- `pnpm dev:backend`: start the Next.js backend on port 3001
+- `pnpm build:frontend`: build the frontend
+- `pnpm build:backend`: build the backend
+- `pnpm typecheck:frontend`: run frontend TypeScript checks
+- `pnpm typecheck:backend`: run backend TypeScript checks
+- `pnpm db:up`: start PostgreSQL, Qdrant, and pgAdmin with Docker Compose
+- `pnpm db:down`: stop Docker services
+
+Frontend package:
 
 - `pnpm install --frozen-lockfile`: install dependencies from the committed lockfile
 - `pnpm dev`: start the local Vite dev server on port 3000
@@ -24,15 +43,25 @@ Run commands from `frontend/` and use `pnpm` for installs and scripts.
 - `pnpm check`: run type-checking and a production build
 - `pnpm clean`: remove generated build output
 
+Backend package:
+
+- `pnpm dev`: start the local Next.js backend on port 3001
+- `pnpm build`: create the production backend build
+- `pnpm typecheck`: run backend TypeScript checks
+- `pnpm lint`: run backend TypeScript checks
+- `pnpm test`: run backend Vitest coverage
+- `pnpm prisma:migrate:dev`: apply Prisma migrations in development
+- `pnpm prisma:generate`: regenerate Prisma client after schema changes
+
 ## Coding Style & Naming Conventions
-Use TypeScript and React function components. Follow the existing project style:
+Use TypeScript throughout. Follow the existing project style:
 
 - 2-space indentation
-- `PascalCase` for components and view files, e.g. `DashboardView.tsx`
-- `camelCase` for variables, helpers, and hooks
+- `PascalCase` for React components and view files, e.g. `DashboardView.tsx`
+- `camelCase` for variables, helpers, hooks, and backend library functions
 - keep component-specific styles and logic near the component
 
-Path aliases are configured with `@/*` in `frontend/tsconfig.json`, so imports may use `@/components/...` instead of long relative paths.
+Path aliases are configured with `@/*` in both app packages, so imports may use `@/components/...` or `@/lib/...` instead of long relative paths.
 
 ## Frontend Routing Guidelines
 The frontend uses React Router plus semantic page-name navigation. The source of truth is the `pageToPath` registry in `frontend/src/App.tsx`; keep it aligned with the rendered `<Routes>` tree.
@@ -41,10 +70,19 @@ The frontend uses React Router plus semantic page-name navigation. The source of
 - Derive active navigation state from the current route, not independent tab state.
 - Keep query strings for contextual detail state. For example, notebook detail views use `/notebooks?notebookId=<id>` while the logical page remains `Notebooks`.
 - When adding a page, update `pageToPath`, `pathToPage` coverage through the registry, the `<Routes>` declaration, and any floating dock/search entry that should expose the page.
+- The current shell-level pages are `Dashboard`, `Notebooks`, and `KnowledgeGraph`. `Study Buddy` is no longer a dock route.
 - See `docs/frontend-routing.md` before changing routing behavior.
 
+## Backend and RAG Notes
+
+- The backend uses PostgreSQL for notebook, file, and chunk-manifest metadata and Qdrant for vector retrieval storage.
+- Grounded notebook chat, file ingestion, retrieval, reranking, and cleanup behavior are documented in [`docs/rag-processing.md`](docs/rag-processing.md).
+- Video and image enrichment rely on VLM configuration in `backend/.env`; see [`docs/video-processing.md`](docs/video-processing.md) for the current flow.
+- Swagger UI is served from `/api` and the OpenAPI document from `/api/openapi.json`.
+- Startup health checks run during backend boot and can fail startup when required dependencies are unavailable.
+
 ## Testing Guidelines
-There is no dedicated test runner configured yet. Treat `pnpm lint` or `pnpm check` as the baseline verification step before committing changes. If you add tests, place them near the code they cover and use clear names that match the unit or view under test.
+The frontend still uses `pnpm lint` or `pnpm check` as the baseline verification step. The backend has a dedicated Vitest suite; use `pnpm --dir backend test` for backend changes and `pnpm --dir backend typecheck` for server-side type verification. If you add tests, place them near the code they cover and use clear names that match the unit, route, or view under test.
 
 ## Commit & Pull Request Guidelines
 Commit history is short and uses concise imperative messages, sometimes with a prefix such as `feat:`. Keep commits focused and descriptive, for example `feat: add notebook sidebar state`.
@@ -56,7 +94,7 @@ Pull requests should include:
 - notes on any environment changes or new config values
 
 ## Security & Configuration Tips
-Do not commit secrets. Copy `frontend/.env.example` to `.env.local` and set `GEMINI_API_KEY` locally before running the app.
+Do not commit secrets. Copy `backend/.env.example` to `backend/.env` before running the backend, and copy `frontend/.env.example` to `.env.local` only if you add frontend-local configuration. Keep Docker database settings aligned with backend Prisma settings.
 
 ## pnpm Workflow Notes
 Follow the repository guide in [`docs/pnpm-agent-guide.md`](docs/pnpm-agent-guide.md) when changing dependencies or running package scripts.
