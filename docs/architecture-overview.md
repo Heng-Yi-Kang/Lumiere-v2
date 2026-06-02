@@ -129,11 +129,6 @@ Important behaviors:
 - `/notebooks?notebookId=<id>` still resolves to the logical `Notebooks` page
 - `/` and unknown routes redirect to `/dashboard`
 
-The `Study Buddy` UI still exists, but it is no longer a shell-level route. It is opened from in-app actions and notebook context.
-
-### Known documentation drift
-
-`docs/frontend-routing.md` still documents `Revision` and `StudyLounge` in its example registry. The current implementation in `frontend/src/App.tsx` only exposes `Dashboard`, `Notebooks`, and `KnowledgeGraph` as shell routes. Treat the code as authoritative.
 
 ## Backend architecture
 
