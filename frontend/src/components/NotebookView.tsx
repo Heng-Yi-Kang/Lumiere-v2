@@ -868,12 +868,14 @@ export default function NotebookView({
                         {item.status}
                       </span>
                     </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-elevated">
-                      <div
-                        className={`h-full rounded-full transition-all duration-200 ${item.status === 'failed' ? 'bg-error' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400'}`}
-                        style={{ width: `${item.progress}%` }}
-                      />
-                    </div>
+                    {uploadQueue.length > 1 && (
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-elevated">
+                        <div
+                          className={`h-full rounded-full transition-all duration-200 ${item.status === 'failed' ? 'bg-error' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400'}`}
+                          style={{ width: `${item.progress}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
