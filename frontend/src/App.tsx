@@ -10,7 +10,16 @@ import StudyBuddy from './components/StudyBuddy';
 import CreateNotebookModal from './components/CreateNotebookModal';
 import AuthPage from './components/AuthPage';
 import AdminConsoleView from './components/AdminConsoleView';
-import { createNotebook, createNotebookFile, createNotebookLink, deleteNotebook, deleteNotebookFile, fetchNotebooks, retryNotebookFileSummary, updateNotebook } from './lib/notebooksApi';
+import {
+  createNotebook,
+  createNotebookFiles,
+  createNotebookLink,
+  deleteNotebook,
+  deleteNotebookFile,
+  fetchNotebooks,
+  retryNotebookFileSummary,
+  updateNotebook,
+} from './lib/notebooksApi';
 import {
   getLostUploadResponseMessage,
   getRetryLaterUploadMessage,
@@ -37,6 +46,13 @@ function sleep(ms: number) {
 
 function countNotebookFilesNamed(notebook: Notebook | undefined, fileName: string) {
   return notebook?.files.filter((entry) => entry.name === fileName).length ?? 0;
+}
+
+function countFilesNamed(files: File[]) {
+  return files.reduce((counts, file) => {
+    counts.set(file.name, (counts.get(file.name) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
 }
 
 export default function App() {
@@ -306,22 +322,27 @@ export default function App() {
     setNotebooks((prev) => [notebook, ...prev]);
   };
 
-  const handleAddNewFile = async (notebookId: string, file: File) => {
+  const handleAddNewFile = async (notebookId: string, files: File[]) => {
     notebookLoadRequestIdRef.current += 1;
-    const previousMatchingFileCount = countNotebookFilesNamed(
-      notebooks.find((entry) => entry.id === notebookId),
-      file.name,
-    );
+    const notebookBeforeUpload = notebooks.find((entry) => entry.id === notebookId);
+    const selectedFileCounts = countFilesNamed(files);
+    const previousMatchingFileCounts = new Map<string, number>();
+
+    for (const fileName of selectedFileCounts.keys()) {
+      previousMatchingFileCounts.set(fileName, countNotebookFilesNamed(notebookBeforeUpload, fileName));
+    }
+
     let notebook: Notebook;
 
     try {
-      notebook = await createNotebookFile(notebookId, file);
+      notebook = await createNotebookFiles(notebookId, files);
     } catch (error) {
       if (isLostUploadResponseError(error)) {
         const recoveredNotebook = await recoverNotebookAfterLostUploadResponse(
           notebookId,
-          file,
-          previousMatchingFileCount,
+          files,
+          selectedFileCounts,
+          previousMatchingFileCounts,
         );
         if (recoveredNotebook) {
           return;
@@ -357,8 +378,9 @@ export default function App() {
 
   const recoverNotebookAfterLostUploadResponse = async (
     notebookId: string,
-    file: File,
-    previousMatchingFileCount: number,
+    files: File[],
+    selectedFileCounts: Map<string, number>,
+    previousMatchingFileCounts: Map<string, number>,
   ) => {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       if (attempt > 0) {
@@ -375,7 +397,13 @@ export default function App() {
       setNotebooks(loadedNotebooks);
       setNotebookLoadError('');
 
-      if (countNotebookFilesNamed(refreshedNotebook, file.name) > previousMatchingFileCount) {
+      const uploadCountsSatisfied = files.every((file) => {
+        const previousMatchingFileCount = previousMatchingFileCounts.get(file.name) ?? 0;
+        const selectedFileCount = selectedFileCounts.get(file.name) ?? 0;
+        return countNotebookFilesNamed(refreshedNotebook, file.name) >= previousMatchingFileCount + selectedFileCount;
+      });
+
+      if (uploadCountsSatisfied) {
         return refreshedNotebook;
       }
     }

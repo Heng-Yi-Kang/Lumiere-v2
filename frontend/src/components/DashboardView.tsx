@@ -13,11 +13,15 @@ import {
   Trash2,
   Flame,
   Lightbulb,
-  Link as LinkIcon
+  Link as LinkIcon,
+  LoaderCircle
 } from 'lucide-react';
 
 import { StudyStreak } from '../types';
-import { NOTEBOOK_UPLOAD_ACCEPT, isSupportedNotebookExtension, validateNotebookUpload } from '../lib/notebookUpload';
+import {
+  NOTEBOOK_UPLOAD_ACCEPT,
+  validateNotebookUploadBatch,
+} from '../lib/notebookUpload';
 import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import AddLinkModal from './AddLinkModal';
@@ -27,7 +31,7 @@ interface DashboardViewProps {
   notebooks: Notebook[];
   onOpenNotebook: (notebookId: string) => void;
   onAddLink: (notebookId: string, url: string) => Promise<void> | void;
-  onUploadFile: (notebookId: string, file: File) => Promise<void> | void;
+  onUploadFile: (notebookId: string, files: File[]) => Promise<void> | void;
   onEditNotebook?: (notebook: Notebook) => void;
   onDeleteNotebook?: (notebookId: string) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
@@ -53,6 +57,15 @@ export default function DashboardView({
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [selectedFileType, setSelectedFileType] = useState<SupportedNotebookExtension>('pdf');
+  const [selectedFileCount, setSelectedFileCount] = useState(0);
+  const [completedFileCount, setCompletedFileCount] = useState(0);
+  const [uploadQueue, setUploadQueue] = useState<Array<{
+    id: string;
+    name: string;
+    extension: SupportedNotebookExtension;
+    progress: number;
+    status: 'queued' | 'validating' | 'uploading' | 'extracting' | 'done' | 'failed';
+  }>>([]);
   const [uploadError, setUploadError] = useState('');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -77,6 +90,9 @@ export default function DashboardView({
     const timeoutId = window.setTimeout(() => {
       setUploadPhase('idle');
       setSelectedFileName('');
+      setSelectedFileCount(0);
+      setCompletedFileCount(0);
+      setUploadQueue([]);
     }, 1400);
 
     return () => window.clearTimeout(timeoutId);
@@ -92,36 +108,48 @@ export default function DashboardView({
     }
   };
 
-  const executeUpload = async (file: File) => {
+  const executeUpload = async (files: File[]) => {
     if (!selectedNotebookId) {
       return;
     }
 
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    const validationError = validateNotebookUpload(file);
+    const validationError = validateNotebookUploadBatch(files);
     if (validationError) {
       setUploadError(validationError);
       return;
     }
-    if (!extension || !isSupportedNotebookExtension(extension)) {
-      setUploadError('Only PDF, DOCX, PPTX, TXT, common image files, common audio files, and common video files are supported.');
-      return;
-    }
 
     setUploadError('');
-    setSelectedFileName(file.name);
-    setSelectedFileType(extension);
+    setUploadQueue(files.map((file, index) => ({
+      id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+      name: file.name,
+      extension: (file.name.split('.').pop()?.toLowerCase() as SupportedNotebookExtension) || 'pdf',
+      progress: 0,
+      status: 'queued',
+    })));
+    setSelectedFileName(files[0].name);
+    setSelectedFileType((files[0].name.split('.').pop()?.toLowerCase() as SupportedNotebookExtension) || 'pdf');
+    setSelectedFileCount(files.length);
+    setCompletedFileCount(0);
     setUploadPhase('validating');
 
     try {
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 10, status: 'validating' })));
       await Promise.resolve();
       setUploadPhase('uploading');
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 45, status: 'uploading' })));
       await Promise.resolve();
       setUploadPhase('extracting');
-      await Promise.resolve(onUploadFile(selectedNotebookId, file));
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 82, status: 'extracting' })));
+      await Promise.resolve(onUploadFile(selectedNotebookId, files));
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 100, status: 'done' })));
+      setCompletedFileCount(files.length);
       setUploadPhase('success');
     } catch (error) {
       setUploadPhase('idle');
+      setUploadQueue((current) => current.map((item) =>
+        item.status === 'done' ? item : { ...item, status: 'failed' },
+      ));
       setUploadError(error instanceof Error ? error.message : 'Upload failed.');
     } finally {
       if (fileInputRef.current) {
@@ -135,8 +163,8 @@ export default function DashboardView({
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      void executeUpload(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void executeUpload(Array.from(e.dataTransfer.files));
     }
   };
 
@@ -165,15 +193,35 @@ export default function DashboardView({
           ? 101
           : -1;
 
+  const uploadProgressValue = uploadPhase === 'idle'
+    ? -1
+    : uploadProgress;
+
   const uploadStatus = uploadPhase === 'validating'
-    ? 'Validating file before upload...'
+    ? selectedFileCount > 1
+      ? `Validating ${selectedFileCount} files before upload...`
+      : 'Validating file before upload...'
     : uploadPhase === 'uploading'
-      ? 'Uploading file to notebook storage...'
+      ? selectedFileCount > 1
+        ? `Uploading ${selectedFileCount} files to notebook storage...`
+        : 'Uploading file to notebook storage...'
       : uploadPhase === 'extracting'
-        ? 'Extracting preview and refreshing notebook...'
+        ? selectedFileCount > 1
+          ? `Extracting ${selectedFileCount} files and refreshing notebook...`
+          : 'Extracting preview and refreshing notebook...'
         : uploadPhase === 'success'
-          ? 'Upload completed successfully.'
+          ? selectedFileCount > 1
+            ? `Uploaded ${selectedFileCount} files successfully.`
+            : 'Upload completed successfully.'
           : '';
+  const isUploadActive = uploadPhase === 'validating' || uploadPhase === 'uploading' || uploadPhase === 'extracting';
+  const hasUploadFailure = uploadQueue.some((item) => item.status === 'failed');
+  const shouldShowUploadQueue = uploadQueue.length > 0 && (isUploadActive || uploadPhase === 'success' || Boolean(uploadError));
+  const uploadSummaryLabel = hasUploadFailure
+    ? `${completedFileCount} of ${selectedFileCount} files uploaded before the batch stopped`
+    : selectedFileCount > 1
+      ? `${completedFileCount} of ${selectedFileCount} files complete`
+      : selectedFileName;
 
   return (
     <div className="space-y-8 text-left">
@@ -333,7 +381,7 @@ export default function DashboardView({
                   className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
                 >
                   <Plus className="h-3.5 w-3.5 text-accent-hover" />
-                  File
+                  Files
                 </button>
                 <button
                   type="button"
@@ -348,12 +396,13 @@ export default function DashboardView({
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept={NOTEBOOK_UPLOAD_ACCEPT}
                 className="hidden"
                 onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    void executeUpload(file);
+                  const files = event.target.files ? Array.from(event.target.files) : [];
+                  if (files.length > 0) {
+                    void executeUpload(files);
                   }
                 }}
               />
@@ -372,7 +421,68 @@ export default function DashboardView({
                 : 'border-border-default bg-bg-base/40 hover:bg-bg-elevated/30'
             }`}
           >
-            {uploadProgress === -1 ? (
+            {shouldShowUploadQueue ? (
+              <div className="w-full max-w-xl space-y-4">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 font-bold text-text-primary">
+                    {isUploadActive ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin text-accent-hover" />
+                    ) : hasUploadFailure ? (
+                      <span className="h-2.5 w-2.5 rounded-full bg-error" />
+                    ) : (
+                      <Check className="h-4 w-4 text-success" />
+                    )}
+                    <span>{uploadSummaryLabel}</span>
+                  </span>
+                  <span className="font-extrabold text-success font-mono">
+                    {uploadProgressValue < 100 ? `${uploadProgressValue}%` : 'Ready'}
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-bg-elevated overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-150"
+                    style={{ width: `${uploadProgressValue}%` }}
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-text-muted justify-center">
+                  <Sparkles className="h-3 w-3 text-cta" />
+                  <span>{hasUploadFailure ? 'Resolve the failed file and retry the remaining upload.' : uploadStatus}</span>
+                </div>
+                <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
+                  {uploadQueue.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-border-subtle bg-bg-elevated/40 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="flex min-w-0 items-center gap-2 font-semibold text-text-primary">
+                          {item.extension === 'pdf' ? (
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-error" />
+                          ) : (
+                            <BookMarked className="h-3.5 w-3.5 shrink-0 text-accent-hover" />
+                          )}
+                          <span className="truncate">{item.name}</span>
+                        </span>
+                        <span className={`shrink-0 text-[10px] font-black uppercase tracking-wider ${
+                          item.status === 'failed'
+                            ? 'text-error'
+                            : item.status === 'done'
+                              ? 'text-success'
+                              : item.status === 'queued'
+                                ? 'text-text-muted'
+                                : 'text-accent-hover'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-overlay">
+                        <div
+                          className={`h-full rounded-full transition-all duration-200 ${item.status === 'failed' ? 'bg-error' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400'}`}
+                          style={{ width: `${item.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : uploadProgress === -1 ? (
               <div className="text-center space-y-2.5">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-bg-elevated border border-border-default shadow-md">
                   <UploadCloud className="h-5 w-5 text-accent-hover" />
@@ -381,45 +491,48 @@ export default function DashboardView({
                   {notebooks.length === 0 ? 'Create a notebook to unlock uploads' : 'Drag your lecture material here, or click to pick'}
                 </div>
                 <div className="text-[10px] text-text-muted">
-                  {notebooks.length === 0 ? 'Your first upload target will appear after notebook setup.' : 'Supports PDF, DOCX, PPTX, TXT, image, audio, and video up to 100MB'}
+                  {notebooks.length === 0
+                    ? 'Your first upload target will appear after notebook setup.'
+                    : 'Supports PDF, DOCX, PPTX, TXT, image, audio, and video. Select multiple files as long as the total stays under 100MB.'}
                 </div>
               </div>
-            ) : uploadProgress <= 100 ? (
-              <div className="w-full max-w-sm space-y-3 col-span-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-2 font-bold text-text-primary">
-                    {selectedFileType === 'pdf' ? (
-                      <FileText className="h-4 w-4 text-error" />
-                    ) : (
-                      <BookMarked className="h-4 w-4 text-accent-hover" />
-                    )}
-                    <span className="truncate max-w-[200px]">{selectedFileName}</span>
-                  </span>
-                  <span className="font-extrabold text-success font-mono">
-                    {uploadProgress < 100 ? `${uploadProgress}%` : 'Ready'}
-                  </span>
-                </div>
-                
-                {/* Progress Bar Container */}
-                <div className="h-2 w-full rounded-full bg-bg-elevated overflow-hidden">
-                  <div 
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-150"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-[10px] text-text-muted justify-center">
-                  <Sparkles className="h-3 w-3 text-cta" />
-                  <span>{uploadStatus}</span>
-                </div>
-              </div>
-            ) : (
+            ) : uploadPhase === 'success' ? (
               <div className="text-center space-y-2 flex flex-col items-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success-subtle text-success border border-success/20">
                   <Check className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-success">Processed & Indexed!</span>
-                <span className="text-[10px] text-text-muted">Concept linkages, descriptions and flashcards populated successfully.</span>
+                <span className="text-xs font-bold text-success">Processed &amp; Indexed!</span>
+                <span className="text-[10px] text-text-muted">
+                  {selectedFileCount > 1
+                    ? `${selectedFileCount} files were processed successfully.`
+                    : 'Concept linkages, descriptions and flashcards populated successfully.'}
+                </span>
+              </div>
+            ) : (
+              <div className="w-full max-w-sm space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 font-bold text-text-primary">
+                    {uploadPhase === 'validating' ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin text-accent-hover" />
+                    ) : (
+                      <BookMarked className="h-4 w-4 text-accent-hover" />
+                    )}
+                    <span className="truncate max-w-[220px]">{selectedFileCount > 1 ? `${selectedFileCount} files` : selectedFileName}</span>
+                  </span>
+                  <span className="font-extrabold text-success font-mono">
+                    {uploadProgressValue < 100 ? `${uploadProgressValue}%` : 'Ready'}
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-bg-elevated overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-150"
+                    style={{ width: `${uploadProgressValue}%` }}
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-text-muted justify-center">
+                  <Sparkles className="h-3 w-3 text-cta" />
+                  <span>{uploadStatus}</span>
+                </div>
               </div>
             )}
           </div>

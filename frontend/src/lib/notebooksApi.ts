@@ -86,12 +86,14 @@ export async function createNotebook(input: {
   return payload.notebook;
 }
 
-export async function createNotebookFile(
+export async function createNotebookFiles(
   notebookId: string,
-  file: File,
+  files: File[],
 ) {
   const formData = new FormData();
-  formData.append('file', file);
+  for (const file of files) {
+    formData.append('file', file);
+  }
 
   const payload = await requestJson<NotebookResponse>(`/api/notebooks/${encodeURIComponent(notebookId)}/files`, {
     method: 'POST',
@@ -103,6 +105,13 @@ export async function createNotebookFile(
   }
 
   return payload.notebook;
+}
+
+export async function createNotebookFile(
+  notebookId: string,
+  file: File,
+) {
+  return createNotebookFiles(notebookId, [file]);
 }
 
 export async function createNotebookLink(

@@ -30,7 +30,10 @@ import {
 import { ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
 import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
 import { getGroundedChatErrorMessage } from '../lib/apiErrors';
-import { NOTEBOOK_UPLOAD_ACCEPT, validateNotebookUpload } from '../lib/notebookUpload';
+import {
+  NOTEBOOK_UPLOAD_ACCEPT,
+  validateNotebookUploadBatch,
+} from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useFileNotes } from '../hooks/useFileNotes';
@@ -45,7 +48,7 @@ interface NotebookViewProps {
   onSelectNotebook: (id: string | null) => void;
   onBackToDashboard: () => void;
   onAddLink?: (notebookId: string, url: string) => Promise<void> | void;
-  onUploadFile?: (notebookId: string, file: File) => Promise<void> | void;
+  onUploadFile?: (notebookId: string, files: File[]) => Promise<void> | void;
   onDeleteFile?: (notebookId: string, fileId: string) => Promise<void> | void;
   onRetryFileSummary?: (notebookId: string, fileId: string) => Promise<void> | void;
   onEditNotebook?: (notebook: Notebook) => void;
@@ -160,6 +163,14 @@ export default function NotebookView({
   const [uploadError, setUploadError] = useState('');
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   const [uploadFileName, setUploadFileName] = useState('');
+  const [uploadFileCount, setUploadFileCount] = useState(0);
+  const [completedUploadCount, setCompletedUploadCount] = useState(0);
+  const [uploadQueue, setUploadQueue] = useState<Array<{
+    id: string;
+    name: string;
+    progress: number;
+    status: 'queued' | 'validating' | 'uploading' | 'extracting' | 'done' | 'failed';
+  }>>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingNotebook, setIsDeletingNotebook] = useState(false);
   const [pendingDeleteFile, setPendingDeleteFile] = useState<FileItem | null>(null);
@@ -218,6 +229,9 @@ export default function NotebookView({
     const timeoutId = window.setTimeout(() => {
       setUploadPhase('idle');
       setUploadFileName('');
+      setUploadFileCount(0);
+      setCompletedUploadCount(0);
+      setUploadQueue([]);
     }, 1400);
 
     return () => window.clearTimeout(timeoutId);
@@ -319,16 +333,32 @@ export default function NotebookView({
         : uploadPhase === 'success'
           ? 100
           : 0;
+  const uploadProgress = uploadProgressValue;
   const uploadStatusLabel = uploadPhase === 'validating'
-    ? 'Validating file before upload...'
+    ? uploadFileCount > 1
+      ? `Validating ${uploadFileCount} files before upload...`
+      : 'Validating file before upload...'
     : uploadPhase === 'uploading'
-      ? 'Sending file to notebook storage...'
+      ? uploadFileCount > 1
+        ? `Sending ${uploadFileCount} files to notebook storage...`
+        : 'Sending file to notebook storage...'
       : uploadPhase === 'extracting'
-        ? 'Extracting preview content and refreshing notebook...'
+        ? uploadFileCount > 1
+          ? `Extracting ${uploadFileCount} files and refreshing notebook...`
+          : 'Extracting preview content and refreshing notebook...'
         : uploadPhase === 'success'
-          ? 'Upload finished. Material is ready.'
+          ? uploadFileCount > 1
+            ? `Uploaded ${uploadFileCount} files successfully.`
+            : 'Upload finished. Material is ready.'
           : '';
-
+  const isUploadActive = uploadPhase === 'validating' || uploadPhase === 'uploading' || uploadPhase === 'extracting';
+  const hasUploadFailure = uploadQueue.some((item) => item.status === 'failed');
+  const shouldShowUploadQueue = uploadQueue.length > 0 && (isUploadActive || uploadPhase === 'success' || Boolean(uploadError));
+  const uploadSummaryLabel = hasUploadFailure
+    ? `${completedUploadCount} of ${uploadFileCount} files uploaded before the batch stopped`
+    : uploadFileCount > 1
+      ? `${completedUploadCount} of ${uploadFileCount} files complete`
+      : uploadFileName;
   const handleRetrySummary = async () => {
     if (!notebook || !selectedMaterial || !onRetryFileSummary) {
       return;
@@ -451,12 +481,12 @@ export default function NotebookView({
     }
   };
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (files: File[]) => {
     if (!notebook || !onUploadFile) {
       return;
     }
 
-    const validationError = validateNotebookUpload(file);
+    const validationError = validateNotebookUploadBatch(files);
     if (validationError) {
       setUploadError(validationError);
       setUploadPhase('idle');
@@ -464,20 +494,35 @@ export default function NotebookView({
     }
 
     setUploadError('');
-    setUploadFileName(file.name);
+    setUploadFileName(files[0].name);
+    setUploadFileCount(files.length);
+    setCompletedUploadCount(0);
+    setUploadQueue(files.map((file, index) => ({
+      id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+      name: file.name,
+      progress: 0,
+      status: 'queued',
+    })));
     setUploadPhase('validating');
 
     try {
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 10, status: 'validating' })));
       await Promise.resolve();
       setUploadPhase('uploading');
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 45, status: 'uploading' })));
       await Promise.resolve();
       setUploadPhase('extracting');
-      await Promise.resolve(onUploadFile(notebook.id, file));
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 82, status: 'extracting' })));
+      await Promise.resolve(onUploadFile(notebook.id, files));
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 100, status: 'done' })));
+      setCompletedUploadCount(files.length);
       setUploadPhase('success');
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'Upload failed.');
       setUploadPhase('idle');
-      setUploadFileName('');
+      setUploadQueue((current) => current.map((item) =>
+        item.status === 'done' ? item : { ...item, status: 'failed' },
+      ));
     } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -781,31 +826,69 @@ export default function NotebookView({
             </div>
           </div>
 
-          {uploadPhase !== 'idle' && (
+          {shouldShowUploadQueue && (
             <div className={`mt-4 rounded-2xl border bg-bg-elevated/50 p-4 ${colorTone?.subtleBlock || 'border-border-default'}`}>
               <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="truncate font-bold text-text-primary">{uploadFileName}</span>
-                <span className={`font-black ${colorTone?.text || 'text-accent-hover'}`}>{uploadProgressValue}%</span>
+                <span className="flex min-w-0 items-center gap-2 font-bold text-text-primary">
+                  {isUploadActive ? (
+                    <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+                  ) : hasUploadFailure ? (
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-error" />
+                  ) : (
+                    <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
+                  )}
+                  <span className="truncate">{uploadSummaryLabel}</span>
+                </span>
+                <span className={`font-black ${colorTone?.text || 'text-accent-hover'}`}>{uploadProgress}%</span>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-bg-elevated">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-200"
-                  style={{ width: `${uploadProgressValue}%` }}
+                  style={{ width: `${uploadProgress}%` }}
                 />
               </div>
-              <p className="mt-3 text-sm text-text-secondary">{uploadStatusLabel}</p>
+              <p className="mt-3 text-sm text-text-secondary">
+                {hasUploadFailure ? 'Resolve the failed file and retry the remaining upload.' : uploadStatusLabel}
+              </p>
+              <div className="mt-3 max-h-52 space-y-2 overflow-y-auto pr-1">
+                {uploadQueue.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-border-subtle bg-bg-overlay/30 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <span className="min-w-0 truncate font-semibold text-text-primary">{item.name}</span>
+                      <span className={`shrink-0 text-[10px] font-black uppercase tracking-wider ${
+                        item.status === 'failed'
+                          ? 'text-error'
+                          : item.status === 'done'
+                            ? 'text-success'
+                            : item.status === 'queued'
+                              ? 'text-text-muted'
+                              : colorTone?.text || 'text-accent-hover'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-elevated">
+                      <div
+                        className={`h-full rounded-full transition-all duration-200 ${item.status === 'failed' ? 'bg-error' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400'}`}
+                        style={{ width: `${item.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           <input
             ref={fileInputRef}
             type="file"
+            multiple
             accept={NOTEBOOK_UPLOAD_ACCEPT}
             className="hidden"
             onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) {
-                void handleUpload(file);
+              const files = event.target.files ? Array.from(event.target.files) : [];
+              if (files.length > 0) {
+                void handleUpload(files);
               }
             }}
           />
@@ -882,7 +965,7 @@ export default function NotebookView({
               className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
             >
               {uploadPhase !== 'idle' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {uploadPhase !== 'idle' ? 'Uploading...' : 'Upload File'}
+              {uploadPhase !== 'idle' ? 'Uploading...' : 'Upload Files'}
             </button>
           </div>
         </div>

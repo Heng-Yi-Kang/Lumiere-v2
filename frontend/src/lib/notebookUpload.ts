@@ -57,3 +57,26 @@ export function validateNotebookUpload(file: File) {
 
   return null;
 }
+
+export function validateNotebookUploadBatch(files: File[]) {
+  if (files.length === 0) {
+    return 'Select at least one file to upload.';
+  }
+
+  let totalBytes = 0;
+
+  for (const file of files) {
+    const validationError = validateNotebookUpload(file);
+    if (validationError) {
+      return `${file.name}: ${validationError}`;
+    }
+
+    totalBytes += file.size;
+  }
+
+  if (totalBytes > NOTEBOOK_MAX_UPLOAD_BYTES) {
+    return 'Selected files exceed the 100 MB upload limit.';
+  }
+
+  return null;
+}
