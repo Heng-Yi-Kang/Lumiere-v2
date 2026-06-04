@@ -11,7 +11,12 @@ import CreateNotebookModal from './components/CreateNotebookModal';
 import AuthPage from './components/AuthPage';
 import AdminConsoleView from './components/AdminConsoleView';
 import { createNotebook, createNotebookFile, createNotebookLink, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
-import { getRetryLaterUploadMessage, isNetworkFetchError, isRetryLaterUploadError } from './lib/apiErrors';
+import {
+  getLostUploadResponseMessage,
+  getRetryLaterUploadMessage,
+  isLostUploadResponseError,
+  isRetryLaterUploadError,
+} from './lib/apiErrors';
 import { fetchCurrentUser, logout as logoutCurrentUser } from './lib/authApi';
 import { createGoal, deleteGoal, fetchGoals, updateGoal as updateGoalApi } from './lib/goalsApi';
 import { recordStudyActivity } from './lib/streakApi';
@@ -50,6 +55,7 @@ export default function App() {
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
   const [chatGroundingScope, setChatGroundingScope] = useState<ChatGroundingScope | undefined>(undefined);
   const [rateLimitDialogMessage, setRateLimitDialogMessage] = useState('');
+  const [uploadRecoveryDialogMessage, setUploadRecoveryDialogMessage] = useState('');
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authLoadError, setAuthLoadError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -311,7 +317,7 @@ export default function App() {
     try {
       notebook = await createNotebookFile(notebookId, file);
     } catch (error) {
-      if (isNetworkFetchError(error)) {
+      if (isLostUploadResponseError(error)) {
         const recoveredNotebook = await recoverNotebookAfterLostUploadResponse(
           notebookId,
           file,
@@ -320,6 +326,10 @@ export default function App() {
         if (recoveredNotebook) {
           return;
         }
+
+        const message = getLostUploadResponseMessage();
+        setUploadRecoveryDialogMessage(message);
+        throw new Error(message);
       }
 
       if (isRetryLaterUploadError(error)) {
@@ -737,6 +747,52 @@ export default function App() {
                 className="rounded-xl bg-cta px-4 py-2 text-xs font-bold text-text-inverse transition hover:bg-cta-hover"
               >
                 Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {uploadRecoveryDialogMessage && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="upload-recovery-dialog-title"
+          onClick={() => setUploadRecoveryDialogMessage('')}
+        >
+          <div
+            className="surface-glass w-full max-w-md rounded-3xl p-6 text-left"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-cta font-mono">
+                  Upload still running
+                </p>
+                <h3 id="upload-recovery-dialog-title" className="mt-2 text-lg font-black text-text-primary font-display">
+                  Refresh in a moment
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUploadRecoveryDialogMessage('')}
+                className="premium-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-default bg-bg-elevated/60 text-text-muted transition-colors hover:bg-bg-overlay hover:text-text-primary"
+                aria-label="Close dialog"
+              >
+                X
+              </button>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-text-secondary font-serif">
+              {uploadRecoveryDialogMessage}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-xl bg-cta px-4 py-2 text-xs font-bold text-text-inverse transition hover:bg-cta-hover"
+              >
+                Refresh page
               </button>
             </div>
           </div>

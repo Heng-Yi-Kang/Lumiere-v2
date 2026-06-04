@@ -278,6 +278,7 @@ server {
     index index.html;
 
     location /api/ {
+        client_max_body_size 100m;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -286,6 +287,7 @@ server {
     }
 
     location /uploads/ {
+        client_max_body_size 100m;
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -298,6 +300,11 @@ server {
     }
 }
 ```
+
+The application accepts notebook uploads up to 100 MB. Keep every public proxy
+in front of the backend at the same limit or higher; the default nginx limit is
+1 MB and will return `413 Request Entity Too Large` before the Next.js upload
+route runs.
 
 Add TLS with Let’s Encrypt or terminate TLS at your platform load balancer.
 
