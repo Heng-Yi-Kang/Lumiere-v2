@@ -4,6 +4,10 @@ This guide is for deploying Lumiere with the local `production_docker/` Compose
 stack. The stack runs the Vite frontend, Next.js backend, PostgreSQL, and Qdrant
 on one Linux host.
 
+This file is the deployment source of truth for the production Docker workflow.
+If another deployment note duplicates this content, update this file first and
+either regenerate or reconcile the copy afterward.
+
 ## 1. Configure Environment
 
 Create the server-local environment file:
@@ -124,12 +128,24 @@ cd production_docker
 docker compose up -d
 ```
 
-Rebuild after pulling code changes:
+Refresh the deployment after pulling code changes:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+cd production_docker
+./start_docker.sh
+```
+
+`./start_docker.sh` is the standard refresh command for this stack. It validates
+required environment variables, ensures runtime directories exist, and runs
+`docker compose up -d --build --force-recreate`.
+
+If you want to skip the helper script, the equivalent direct Compose refresh is:
 
 ```bash
 cd production_docker
-docker compose build
-docker compose up -d
+docker compose up -d --build --force-recreate
 ```
 
 ## 6. GitHub Actions Auto-Deploy
