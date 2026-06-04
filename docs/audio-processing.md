@@ -175,6 +175,6 @@ Startup health checks validate the STT provider and core storage dependencies in
 ## Current caveats
 
 1. Audio processing is synchronous, so long uploads keep the request open until transcription and indexing finish.
-2. Transcript previews have no timestamps.
+2. Transcript timestamps are synthetic because the STT helper returns plain text only.
 3. Summary generation is asynchronous and can be lost if the process exits after upload succeeds but before the `setImmediate()` job finishes.
 4. If STT config is missing, audio uploads fail during extraction rather than degrading gracefully.

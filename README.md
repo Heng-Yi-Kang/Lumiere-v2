@@ -40,14 +40,24 @@ Lumiere is an AI-assisted study workspace for organizing course notebooks, uploa
 7. Run the frontend:
    `pnpm dev:frontend`
 
-## Default Admin Login
+## Sign Up, Sign In, and Use Lumiere
 
-The backend creates the default admin account automatically on startup and during admin login for local/demo workflows:
+After starting the frontend and backend, open `http://localhost:3000`. Lumiere shows the authentication screen when no active session is found.
 
-- Email: `admin@lumiere.my`
-- Password: `admin1234`
+- To create a new workspace, choose **Sign up**, enter your name, email address, and password, then submit the form.
+- To return to an existing workspace, choose **Log in**, enter the same email address and password, then submit the form.
+- Sessions are stored in HTTP-only cookies, so your notebooks, files, notes, goals, and chat history remain scoped to the signed-in account.
 
-Use this account to access the admin console at `http://localhost:3000/admin`. Replace or harden this default before any public deployment.
+Once signed in:
+
+- Use the **Dashboard** to review study goals, priority work, and streak activity.
+- Use **Notebooks** to create course or topic workspaces, edit notebook metadata, and open notebook detail pages.
+- Upload PDFs, DOCX, PPTX, TXT, images, audio, videos, or web links inside a notebook so Lumiere can extract, summarize, and index the material.
+- Open uploaded files to preview supported content, add notes, retry summaries, and ask file-scoped questions.
+- Use **Study Buddy** from notebook and file actions to ask grounded questions over indexed material with citations.
+- Use the **Knowledge Graph** to explore concepts, prerequisites, mastery status, and course relationships.
+
+Admin users can open `http://localhost:3000/admin` after signing in with an account that has the `ADMIN` role. The admin console is for reviewing account stats, enabling or disabling users, changing roles, and managing sessions.
 
 ## Test Scripts
 
@@ -103,7 +113,6 @@ The frontend uses React Router for direct URL access while keeping app navigatio
 
 - `Dashboard` -> `/dashboard`
 - `Notebooks` -> `/notebooks`
-- `KnowledgeGraph` -> `/knowledge-graph`
 
 The floating macOS-style dock and other shell-level navigation should call `setCurrentPage('PageName')` instead of pushing raw URLs. Detail context can still use query parameters; notebook detail selection uses `/notebooks?notebookId=<id>`. The `Study Buddy` panel still exists, but it is opened from in-app actions rather than from a shell-level dock item.
 
@@ -120,8 +129,14 @@ Notebook retrieval uses PostgreSQL for notebook and file metadata plus chunk man
 | Architecture overview | [`docs/architecture-overview.md`](docs/architecture-overview.md) | Onboarding map of the workspace, routing model, backend API layout, and RAG data flow |
 | Frontend routing | [`docs/frontend-routing.md`](docs/frontend-routing.md) | Route registry, page-name navigation, and query-string detail state |
 | RAG processing | [`docs/rag-processing.md`](docs/rag-processing.md) | Chunking, Qdrant storage, retrieval, and grounded chat behavior |
+| PDF uploads | [`docs/pdf-upload-processing.md`](docs/pdf-upload-processing.md) | PDF validation, `officeparser` extraction, preview behavior, RAG indexing, and summary flow |
+| DOCX uploads | [`docs/docx-upload-processing.md`](docs/docx-upload-processing.md) | DOCX `mammoth` extraction, sanitized HTML previews, RAG indexing, and summary flow |
+| PPTX uploads | [`docs/pptx-upload-processing.md`](docs/pptx-upload-processing.md) | PPTX slide and notes extraction, sanitized previews, RAG indexing, and summary flow |
+| TXT uploads | [`docs/txt-upload-processing.md`](docs/txt-upload-processing.md) | Plain-text reading, preview storage, RAG indexing, and summary flow |
+| Image uploads | [`docs/image-upload-processing.md`](docs/image-upload-processing.md) | VLM image descriptions, immediate image summaries, and description-based RAG indexing |
 | Audio uploads | [`docs/audio-processing.md`](docs/audio-processing.md) | Notebook audio transcription, preview generation, and indexing flow |
 | Video uploads | [`docs/video-processing.md`](docs/video-processing.md) | Video transcription, frame description, timestamped preview, and RAG chunking |
+| Web link uploads | [`docs/web-link-upload-processing.md`](docs/web-link-upload-processing.md) | Public HTML link validation, Puppeteer scraping, readable-text extraction, and optional RAG indexing |
 | File summaries | [`docs/SUMMARY_GENERATION.md`](docs/SUMMARY_GENERATION.md) | `NotebookFile` summary states, async summary job flow, large-file chunk sampling, and provider behavior |
 
 ## Database and config

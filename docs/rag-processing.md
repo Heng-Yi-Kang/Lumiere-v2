@@ -72,7 +72,7 @@ Each Qdrant point payload includes:
 - `timestampEnd`
 - `embeddingModel`
 
-PDF, DOCX, PPTX, and TXT chunks currently store `null` for page, slide, and timestamp fields. Audio and video chunks map segment metadata into `timestampStart` and `timestampEnd`.
+PDF, DOCX, PPTX, TXT, image, and web-link chunks use metadata from the standard text chunker when available. Audio and video chunks map segment metadata into `timestampStart` and `timestampEnd`.
 
 ## Embedding Service
 
@@ -117,14 +117,17 @@ The upload route:
 6. writes `NotebookFileChunk` manifest rows in PostgreSQL
 7. deletes inserted Qdrant points if manifest persistence fails
 
-Supported upload types are handled in `backend/src/lib/notebook-files.ts`:
+Supported multipart upload types are handled in `backend/src/lib/notebook-files.ts`:
 
 - PDF
 - DOCX
 - PPTX
 - TXT
+- image files
 - audio files
 - video files
+
+Web links enter through `POST /api/notebooks/[notebookId]/links`, create `NotebookFile` rows with `type = "link"`, and use the same `indexNotebookFileForRag()` path when enough readable text is extracted.
 
 ## Retrieval Flow
 
@@ -164,8 +167,8 @@ Text-like content is chunked by `splitIntoChunks()` in `backend/src/lib/rag.ts`.
 
 Current defaults:
 
-- `RAG_CHUNK_SIZE = 2000` characters
-- `RAG_CHUNK_OVERLAP = 400` characters
+- `RAG_CHUNK_SIZE = 650` estimated tokens
+- `RAG_CHUNK_OVERLAP = 120` estimated tokens
 
 Algorithm:
 
@@ -175,7 +178,7 @@ Algorithm:
 4. seed the next chunk with overlapping tail text from the previous chunk
 5. split unusually large paragraphs by sentence boundaries
 
-This is character-based chunking. It estimates token count with a simple word-count multiplier and does not use a tokenizer or semantic segmentation.
+This is structure-aware text chunking with lightweight token estimates. It does not use a tokenizer or semantic segmentation.
 
 ## Video Segments
 
