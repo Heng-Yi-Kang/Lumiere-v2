@@ -669,11 +669,11 @@ export const MOCK_QUIZZES: Record<string, QuizQuestion[]> = {
   ]
 };
 
-// Study tips glossary for students (replaces localized slang)
+// Generic study tips glossary for students
 export const SLANG_TIPS = [
-  { phrase: "Dean's List Goal", meaning: "Aiming for Dean's List (CGPA >= 3.50). Lumiere's space repetition makes this highly attainable." },
-  { phrase: "Overloaded Syllabus", meaning: "A huge volume of lecture slides before study week. Use Notebook divisions to segment them cleanly." },
-  { phrase: "Cooperative Study Sessions", meaning: "Collaborating with peers in virtual sessions or library rooms. Use the interactive graph to map dependencies together." },
-  { phrase: "Mandatory Core Courses", meaning: "Compulsory subjects. Don't waste days copying slides; ask Lumiere to extract standard short summaries." },
-  { phrase: "Study Week Preparations", meaning: "The final revision week before exams. Use our active recall flashcards to review weaker topics systematically." }
+  { phrase: "Dean's List Goal", meaning: "Aim for a strong semester by setting weekly targets, checking progress early, and protecting focused revision time." },
+  { phrase: "Overloaded Syllabus", meaning: "When the workload feels heavy, split topics into small batches and prioritize the areas most likely to affect your grade." },
+  { phrase: "Cooperative Study Sessions", meaning: "Study with peers by assigning each person a topic, teaching it back, and comparing answers to practice questions." },
+  { phrase: "Mandatory Core Courses", meaning: "For required subjects, focus first on recurring concepts, common question patterns, and definitions that need exact wording." },
+  { phrase: "Study Week Preparations", meaning: "Use the final revision week for timed practice, active recall, and targeted review of weaker topics instead of rereading everything." }
 ];

@@ -67,19 +67,19 @@ export default function SlangLounge() {
   const getGpaHumorAdvice = (gpa: number) => {
     if (gpa >= 3.85) return {
       badge: "ROYAL AWARD TRACK",
-      advice: "Wow! A stellar pointer like this will definitely make you proud! Keep utilizing Lumiere's semantic concept connections, you are practically locked for the Dean's List (GPA 4.00 flat)!"
+      advice: "Wow! A stellar pointer like this will definitely make you proud! Keep reviewing key concepts, testing recall, and spacing your revision so the momentum stays consistent."
     };
     if (gpa >= 3.50) return {
       badge: "DEAN'S LIST RUNNER ZONE",
-      advice: "Dean's List is within reach! Just a bit more to achieve a perfect CGPA. Keep reviewing those remaining weak nodes on your semantic graph, review your flashcards, and lock in for study week!"
+      advice: "Dean's List is within reach! Tighten the remaining weak topics, schedule focused review blocks, and use active recall before study week starts."
     };
     if (gpa >= 3.00) return {
       badge: "SECURE ZONE",
-      advice: "Steady pointer! You are safe and meet all standard degree requirements. If you want that extra edge, drop your lecture transcript audio files into Lumiere RAG chat to extract shortcuts and core exam criteria."
+      advice: "Steady pointer! You are in a solid range. For an extra edge, summarize each topic in your own words and turn likely exam points into quick practice questions."
     };
     return {
       badge: "ACADEMIC ALERT ZONE",
-      advice: "Don't panic, it is not too late to turn things around! Drop those long, messy slide PDFs into Lumiere notes. Use our intuitive study guides to understand difficult concepts simply, and let the AI summarize backprop or logic before midterm nights!"
+      advice: "Don't panic, it is not too late to turn things around. Start with the highest-impact topics, break revision into short sessions, and check understanding with simple self-quizzes."
     };
   };
 
@@ -216,7 +216,7 @@ export default function SlangLounge() {
 
           <div className="rounded-2xl bg-cta-subtle border border-cta/30 p-4 text-[10.5px] text-cta font-semibold leading-relaxed">
             <BookOpenCheck className="mr-1.5 inline h-3.5 w-3.5 text-cta" />
-            <span className="font-extrabold text-cta">Core Course Tip:</span> Facing mandatory general studies papers? Drop raw lecture notes into the Lumiere notebook dashboard, choose <b>Exam-focused</b> style, and let AI outline historical legal timelines instantly.
+            <span className="font-extrabold text-cta">Study Tip:</span> Before a revision session, choose one clear outcome, review only the material needed for it, then close with a short recall check.
           </div>
         </div>
       </div>

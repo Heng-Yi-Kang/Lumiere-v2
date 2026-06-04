@@ -70,6 +70,9 @@ export default function DashboardView({
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const totalFileCount = notebooks.reduce((sum, notebook) => sum + (notebook.fileCount ?? notebook.files.length), 0);
+  const studyTip = streak?.currentStreak
+    ? 'Your study streak is active. Keep it useful by finishing one focused recall check before the day ends.'
+    : 'Start with one short study block today, then mark a clear outcome so your streak has momentum.';
 
   useEffect(() => {
     if (notebooks.length === 0) {
@@ -597,7 +600,7 @@ export default function DashboardView({
 
           <div className="rounded-xl border border-border-subtle bg-bg-elevated/20 px-4 py-3 text-sm leading-relaxed text-text-secondary font-serif">
             <Lightbulb className="mr-1.5 inline h-4 w-4 text-cta shrink-0" />
-            <span className="font-bold text-text-primary">Lumiere Study Tip:</span> Your conceptual check between <span className="font-semibold text-accent-hover">Discrete Math</span> and <span className="font-semibold text-accent-hover">Database Systems</span> displays active progress. Revise Set Theory quizzes tonight.
+            <span className="font-bold text-text-primary">Lumiere Study Tip:</span> {studyTip}
           </div>
         </div>
       </div>
