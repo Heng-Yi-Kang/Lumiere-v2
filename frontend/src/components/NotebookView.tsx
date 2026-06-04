@@ -178,7 +178,7 @@ export default function NotebookView({
   const [fileChatMessagesById, setFileChatMessagesById] = useState<Record<string, ChatMessage[]>>({});
   const [fileChatInput, setFileChatInput] = useState('');
   const [isFileChatTyping, setIsFileChatTyping] = useState(false);
-  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const [summaryRetryError, setSummaryRetryError] = useState('');
   const [retryingSummaryFileId, setRetryingSummaryFileId] = useState<string | null>(null);
   const [fileDetailTab, setFileDetailTab] = useState<'chat' | 'notes'>('chat');

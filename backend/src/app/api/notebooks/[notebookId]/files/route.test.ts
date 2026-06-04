@@ -21,6 +21,7 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('@/lib/rag', () => ({
   indexNotebookFileForRag: vi.fn().mockResolvedValue(1),
+  deleteNotebookFileRagIndex: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/notebook-file-summary-job', () => ({
@@ -28,7 +29,7 @@ vi.mock('@/lib/notebook-file-summary-job', () => ({
 }));
 
 import { POST } from './route';
-import { indexNotebookFileForRag } from '@/lib/rag';
+import { deleteNotebookFileRagIndex, indexNotebookFileForRag } from '@/lib/rag';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 
 describe('POST /api/notebooks/[notebookId]/files', () => {
@@ -54,6 +55,7 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     prismaMock.notebook.findUnique.mockReset();
     prismaMock.notebook.update.mockReset();
     vi.mocked(indexNotebookFileForRag).mockResolvedValue(1);
+    vi.mocked(deleteNotebookFileRagIndex).mockResolvedValue(undefined);
     vi.mocked(startNotebookFileSummaryJob).mockReset();
   });
 
@@ -181,6 +183,66 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
       }),
     );
     expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
+  });
+
+  it('uploads multiple files in one request and returns the refreshed notebook payload', async () => {
+    const files: Array<Record<string, unknown>> = [];
+    const returnedNotebook = {
+      id: 'nb-1',
+      name: 'Algorithms',
+      courseCode: 'CS101',
+      color: 'indigo',
+      description: 'Notes',
+      conceptCount: 4,
+      files,
+    };
+    prismaMock.notebook.findUnique
+      .mockResolvedValueOnce({ id: 'nb-1' })
+      .mockResolvedValueOnce(returnedNotebook);
+    prismaMock.notebook.update.mockImplementation(async ({ data }: { data: { files: { create: Record<string, unknown> } } }) => {
+      const createdFile = {
+        id: `file-${files.length + 1}`,
+        extractedText: data.files.create.extractedText,
+        name: data.files.create.name,
+        type: data.files.create.type,
+        mimeType: data.files.create.mimeType,
+        size: data.files.create.size,
+        uploadDate: data.files.create.uploadDate,
+        status: 'ready',
+        sourcePath: data.files.create.sourcePath,
+        summary: data.files.create.summary,
+        summaryError: data.files.create.summaryError,
+        summaryGeneratedAt: null,
+        summaryStatus: data.files.create.summaryStatus,
+        totalPages: data.files.create.totalPages,
+      };
+
+      files.unshift(createdFile);
+
+      return {
+        ...returnedNotebook,
+        files,
+      };
+    });
+
+    const formData = new FormData();
+    formData.append('file', new File(['alpha'], 'week-1.txt', { type: 'text/plain' }));
+    formData.append('file', new File(['beta'], 'week-2.txt', { type: 'text/plain' }));
+
+    const response = await POST(new Request('http://localhost/api/notebooks/nb-1/files', {
+      method: 'POST',
+      body: formData,
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(payload.notebook.files).toHaveLength(2);
+    expect(prismaMock.notebook.update).toHaveBeenCalledTimes(2);
+    expect(indexNotebookFileForRag).toHaveBeenCalledTimes(2);
+    expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
+    expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-2');
   });
 
   it('schedules summary generation instead of blocking upload on the chat model', async () => {
@@ -532,6 +594,38 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     } as unknown as Request;
 
     const response = await POST(request, {
+      params: Promise.resolve({ notebookId: 'nb-1' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toMatch(/100 MB/);
+    expect(prismaMock.notebook.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects batched uploads whose total size exceeds the 100 MB limit', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({ id: 'nb-1' });
+
+    const firstFile = new File(['x'], 'week-1.txt', { type: 'text/plain' });
+    const secondFile = new File(['y'], 'week-2.txt', { type: 'text/plain' });
+
+    Object.defineProperty(firstFile, 'size', {
+      value: 60 * 1024 * 1024,
+      configurable: true,
+    });
+    Object.defineProperty(secondFile, 'size', {
+      value: 50 * 1024 * 1024,
+      configurable: true,
+    });
+
+    const formData = new FormData();
+    formData.append('file', firstFile);
+    formData.append('file', secondFile);
+
+    const response = await POST(new Request('http://localhost/api/notebooks/nb-1/files', {
+      method: 'POST',
+      body: formData,
+    }), {
       params: Promise.resolve({ notebookId: 'nb-1' }),
     });
     const payload = await response.json();
