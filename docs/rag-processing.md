@@ -105,7 +105,7 @@ The upload route:
 3. creates a `NotebookFile` row
 4. calls `indexNotebookFileForRag()`
 5. deletes the `NotebookFile` and stored file if indexing fails
-6. starts the file summary job when extracted text exists
+6. starts the file summary job when extracted text exists; the summary job samples representative chunks across long files so it stays within a fixed prompt budget instead of sending only the first portion of the file
 
 `indexNotebookFileForRag()`:
 

@@ -137,6 +137,13 @@ Behavior:
 - requests a concise 3 to 5 sentence study summary
 - returns plain message content from the first choice
 
+Large-file source selection:
+
+- uses the existing RAG chunk splitter to segment long extracted text
+- keeps the first and last chunks, then fills the remaining budget with evenly spaced chunks across the file
+- trims only the final selected excerpt if the sampled text would exceed the prompt budget
+- logs the source mode, selected chunk indexes, selected text length, and total chunk count for debugging
+
 The current system does not:
 
 - request JSON output

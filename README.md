@@ -122,7 +122,7 @@ Notebook retrieval uses PostgreSQL for notebook and file metadata plus chunk man
 | RAG processing | [`docs/rag-processing.md`](docs/rag-processing.md) | Chunking, Qdrant storage, retrieval, and grounded chat behavior |
 | Audio uploads | [`docs/audio-processing.md`](docs/audio-processing.md) | Notebook audio transcription, preview generation, and indexing flow |
 | Video uploads | [`docs/video-processing.md`](docs/video-processing.md) | Video transcription, frame description, timestamped preview, and RAG chunking |
-| File summaries | [`docs/SUMMARY_GENERATION.md`](docs/SUMMARY_GENERATION.md) | `NotebookFile` summary states, async summary job flow, and provider behavior |
+| File summaries | [`docs/SUMMARY_GENERATION.md`](docs/SUMMARY_GENERATION.md) | `NotebookFile` summary states, async summary job flow, large-file chunk sampling, and provider behavior |
 
 ## Database and config
 

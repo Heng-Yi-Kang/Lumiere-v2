@@ -209,7 +209,7 @@ Current flow:
    - upsert Qdrant points
    - write `NotebookFileChunk` manifest rows
 6. If indexing fails, clean up the created DB row and stored file.
-7. If extracted text exists, start async file-summary generation.
+7. If extracted text exists, start async file-summary generation. The summary pipeline samples representative chunks across long files so it can stay within a fixed prompt budget instead of sending only the first part of the file.
 
 Supported file categories currently include:
 
