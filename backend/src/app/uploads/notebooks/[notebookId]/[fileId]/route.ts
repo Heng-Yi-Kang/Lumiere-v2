@@ -50,7 +50,7 @@ function toWebStream(stream: ReturnType<typeof createReadStream>) {
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ notebookId: string; fileName: string }> },
+  context: { params: Promise<{ notebookId: string; fileId: string }> },
 ) {
   const user = await getAuthenticatedUser(request);
 
@@ -58,10 +58,10 @@ export async function GET(
     return unauthorizedResponse();
   }
 
-  const { fileName, notebookId } = await context.params;
+  const { fileId, notebookId } = await context.params;
   const uploadRoot = path.resolve(getNotebookUploadRoot());
   const notebookUploadDirectory = path.resolve(uploadRoot, notebookId);
-  const requestedPath = path.resolve(notebookUploadDirectory, fileName);
+  const requestedPath = path.resolve(notebookUploadDirectory, fileId);
 
   if (!requestedPath.startsWith(`${notebookUploadDirectory}${path.sep}`)) {
     return jsonResponse({ error: 'file not found' }, { status: 404 });

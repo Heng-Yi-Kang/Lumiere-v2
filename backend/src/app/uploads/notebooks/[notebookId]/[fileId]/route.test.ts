@@ -16,7 +16,7 @@ vi.mock('@/lib/prisma', () => ({
 
 import { GET } from './route';
 
-describe('GET /uploads/notebooks/[notebookId]/[fileName]', () => {
+describe('GET /uploads/notebooks/[notebookId]/[fileId]', () => {
   const originalUploadRoot = process.env.NOTEBOOK_UPLOAD_ROOT;
   let tempDir = '';
 
@@ -46,7 +46,7 @@ describe('GET /uploads/notebooks/[notebookId]/[fileName]', () => {
     });
 
     const response = await GET(new Request('http://localhost/uploads/notebooks/nb-1/stored-week-1.txt'), {
-      params: Promise.resolve({ notebookId: 'nb-1', fileName: 'stored-week-1.txt' }),
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'stored-week-1.txt' }),
     });
 
     expect(response.status).toBe(200);
@@ -83,7 +83,7 @@ describe('GET /uploads/notebooks/[notebookId]/[fileName]', () => {
         range: 'bytes=2-5',
       },
     }), {
-      params: Promise.resolve({ notebookId: 'nb-1', fileName: 'clip.mp4' }),
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'clip.mp4' }),
     });
 
     expect(response.status).toBe(206);
