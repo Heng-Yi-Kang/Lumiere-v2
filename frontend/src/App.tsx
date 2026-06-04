@@ -10,7 +10,7 @@ import StudyBuddy from './components/StudyBuddy';
 import CreateNotebookModal from './components/CreateNotebookModal';
 import AuthPage from './components/AuthPage';
 import AdminConsoleView from './components/AdminConsoleView';
-import { createNotebook, createNotebookFile, createNotebookLink, deleteNotebook, deleteNotebookFile, fetchNotebooks, updateNotebook } from './lib/notebooksApi';
+import { createNotebook, createNotebookFile, createNotebookLink, deleteNotebook, deleteNotebookFile, fetchNotebooks, retryNotebookFileSummary, updateNotebook } from './lib/notebooksApi';
 import {
   getLostUploadResponseMessage,
   getRetryLaterUploadMessage,
@@ -397,6 +397,13 @@ export default function App() {
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
 
+  const handleRetryFileSummary = async (notebookId: string, fileId: string) => {
+    notebookLoadRequestIdRef.current += 1;
+    const notebook = await retryNotebookFileSummary(notebookId, fileId);
+
+    setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+  };
+
   const handleUpdateNotebook = async (notebookId: string, name: string, color: string, description: string) => {
     notebookLoadRequestIdRef.current += 1;
     const previousNotebook = notebooks.find((nb) => nb.id === notebookId);
@@ -662,6 +669,7 @@ export default function App() {
                   onUploadFile={handleAddNewFile}
                   onAddLink={handleAddNewLink}
                   onDeleteFile={handleDeleteFile}
+                  onRetryFileSummary={handleRetryFileSummary}
                   onEditNotebook={(entry) => setEditingNotebook(entry)}
                   onDeleteNotebook={handleDeleteNotebook}
                   onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}

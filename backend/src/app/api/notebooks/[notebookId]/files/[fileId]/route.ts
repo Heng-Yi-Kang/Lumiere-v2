@@ -3,6 +3,7 @@ import { getAuthenticatedUser } from '@/lib/auth';
 import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { deleteNotebookFileRagIndex } from '@/lib/rag';
 import { serializeNotebook } from '@/lib/notebooks';
+import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 import { prisma } from '@/lib/prisma';
 
 export async function OPTIONS() {
@@ -67,6 +68,65 @@ export async function GET(
       totalPages: file.totalPages ?? undefined,
       type: file.type,
     },
+  });
+}
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ notebookId: string; fileId: string }> },
+) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
+  const { fileId, notebookId } = await context.params;
+
+  const file = await prisma.notebookFile.findFirst({
+    where: {
+      id: fileId,
+      notebookId,
+      notebook: {
+        userId: user.id,
+      },
+    },
+    select: {
+      extractedText: true,
+      id: true,
+    },
+  });
+
+  if (!file) {
+    return jsonResponse({ error: 'file not found' }, { status: 404 });
+  }
+
+  if (!file.extractedText?.replace(/\s+/g, ' ').trim()) {
+    return jsonResponse({ error: 'No extracted text is available to summarize.' }, { status: 400 });
+  }
+
+  await prisma.notebookFile.update({
+    where: { id: file.id },
+    data: {
+      summaryError: null,
+      summaryGeneratedAt: null,
+      summaryStatus: 'in-progress',
+    },
+  });
+
+  startNotebookFileSummaryJob(file.id);
+
+  const notebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
+    include: {
+      files: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+
+  return jsonResponse({
+    notebook: notebook && (!notebook.userId || notebook.userId === user.id) ? serializeNotebook(notebook) : null,
   });
 }
 

@@ -248,6 +248,26 @@ export const openApiDocument = {
           '404': { $ref: '#/components/responses/NotFound' },
         },
       },
+      post: {
+        tags: ['Files'],
+        summary: 'Retry file summary generation',
+        parameters: [
+          { $ref: '#/components/parameters/NotebookId' },
+          { $ref: '#/components/parameters/FileId' },
+        ],
+        responses: {
+          '200': {
+            description: 'Summary retry scheduled and notebook returned',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/NotebookResponse' },
+              },
+            },
+          },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
       delete: {
         tags: ['Files'],
         summary: 'Delete a notebook file',

@@ -133,6 +133,21 @@ export async function fetchNotebookFilePreview(notebookId: string, fileId: strin
   return payload.preview;
 }
 
+export async function retryNotebookFileSummary(notebookId: string, fileId: string) {
+  const payload = await requestJson<NotebookResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}`,
+    {
+      method: 'POST',
+    },
+  );
+
+  if (!payload.notebook) {
+    throw new Error('Notebook update was not returned by the API');
+  }
+
+  return payload.notebook;
+}
+
 export async function deleteNotebookFile(notebookId: string, fileId: string) {
   const payload = await requestJson<NotebookResponse>(
     `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}`,

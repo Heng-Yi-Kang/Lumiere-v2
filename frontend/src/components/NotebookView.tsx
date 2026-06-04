@@ -16,6 +16,7 @@ import {
   MessageSquare,
   MonitorPlay,
   Plus,
+  RotateCcw,
   Search,
   Send,
   ShieldCheck,
@@ -46,6 +47,7 @@ interface NotebookViewProps {
   onAddLink?: (notebookId: string, url: string) => Promise<void> | void;
   onUploadFile?: (notebookId: string, file: File) => Promise<void> | void;
   onDeleteFile?: (notebookId: string, fileId: string) => Promise<void> | void;
+  onRetryFileSummary?: (notebookId: string, fileId: string) => Promise<void> | void;
   onEditNotebook?: (notebook: Notebook) => void;
   onDeleteNotebook?: (notebookId: string) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
@@ -145,6 +147,7 @@ export default function NotebookView({
   onAddLink,
   onUploadFile,
   onDeleteFile,
+  onRetryFileSummary,
   onEditNotebook,
   onDeleteNotebook,
   onCreateNotebookRequested,
@@ -165,6 +168,8 @@ export default function NotebookView({
   const [fileChatInput, setFileChatInput] = useState('');
   const [isFileChatTyping, setIsFileChatTyping] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [summaryRetryError, setSummaryRetryError] = useState('');
+  const [retryingSummaryFileId, setRetryingSummaryFileId] = useState<string | null>(null);
   const [fileDetailTab, setFileDetailTab] = useState<'chat' | 'notes'>('chat');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -183,6 +188,7 @@ export default function NotebookView({
 
   useEffect(() => {
     setFileDetailTab('chat');
+    setSummaryRetryError('');
   }, [selectedMaterial?.id]);
 
   useEffect(() => {
@@ -303,6 +309,7 @@ export default function NotebookView({
     : summaryStatus === 'error'
       ? summaryError || 'Description generation failed.'
       : summaryText || 'No generated description is available for this file.';
+  const isRetryingSummary = Boolean(selectedMaterial && retryingSummaryFileId === selectedMaterial.id);
   const uploadProgressValue = uploadPhase === 'validating'
     ? 10
     : uploadPhase === 'uploading'
@@ -321,6 +328,40 @@ export default function NotebookView({
         : uploadPhase === 'success'
           ? 'Upload finished. Material is ready.'
           : '';
+
+  const handleRetrySummary = async () => {
+    if (!notebook || !selectedMaterial || !onRetryFileSummary) {
+      return;
+    }
+
+    setRetryingSummaryFileId(selectedMaterial.id);
+    setSummaryRetryError('');
+
+    try {
+      await onRetryFileSummary(notebook.id, selectedMaterial.id);
+      setPreviewCache((current) => {
+        const preview = current[selectedMaterial.id];
+
+        if (!preview) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [selectedMaterial.id]: {
+            ...preview,
+            summaryError: undefined,
+            summaryGeneratedAt: undefined,
+            summaryStatus: 'in-progress',
+          },
+        };
+      });
+    } catch (error) {
+      setSummaryRetryError(error instanceof Error ? error.message : 'Failed to retry description generation.');
+    } finally {
+      setRetryingSummaryFileId(null);
+    }
+  };
 
   useEffect(() => {
     if (!fileChatScrollRef.current) {
@@ -1030,6 +1071,26 @@ export default function NotebookView({
                       <p className="mt-3 text-base leading-relaxed text-text-primary font-serif">
                         {summaryDisplayText}
                       </p>
+                      {summaryStatus === 'error' && onRetryFileSummary ? (
+                        <div className="mt-4">
+                          <button
+                            type="button"
+                            onClick={handleRetrySummary}
+                            disabled={isRetryingSummary}
+                            className="inline-flex items-center gap-2 rounded-lg border border-border-default bg-bg-elevated/60 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-text-secondary transition hover:border-accent/40 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isRetryingSummary ? (
+                              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            )}
+                            Retry
+                          </button>
+                          {summaryRetryError ? (
+                            <p className="mt-2 text-xs font-semibold text-error">{summaryRetryError}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

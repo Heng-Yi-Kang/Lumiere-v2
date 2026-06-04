@@ -7,6 +7,7 @@ const { prismaMock } = vi.hoisted(() => ({
     notebookFile: {
       findFirst: vi.fn(),
       delete: vi.fn(),
+      update: vi.fn(),
     },
     notebook: {
       findUnique: vi.fn(),
@@ -22,8 +23,13 @@ vi.mock('@/lib/rag', () => ({
   deleteNotebookFileRagIndex: vi.fn(),
 }));
 
-import { DELETE, GET } from './route';
+vi.mock('@/lib/notebook-file-summary-job', () => ({
+  startNotebookFileSummaryJob: vi.fn(),
+}));
+
+import { DELETE, GET, POST } from './route';
 import { deleteNotebookFileRagIndex } from '@/lib/rag';
+import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 
 describe('GET /api/notebooks/[notebookId]/files/[fileId]', () => {
   beforeEach(() => {
@@ -57,6 +63,83 @@ describe('GET /api/notebooks/[notebookId]/files/[fileId]', () => {
     expect(payload.preview.summaryStatus).toBe('done');
     expect(payload.preview.type).toBe('txt');
     expect(payload.preview.sourceUrl).toContain('/uploads/notebooks/nb-1/week-1.txt');
+  });
+});
+
+describe('POST /api/notebooks/[notebookId]/files/[fileId]', () => {
+  beforeEach(() => {
+    prismaMock.notebookFile.findFirst.mockReset();
+    prismaMock.notebookFile.update.mockReset();
+    prismaMock.notebook.findUnique.mockReset();
+    vi.mocked(startNotebookFileSummaryJob).mockReset();
+  });
+
+  it('marks the file summary in progress and schedules a retry job', async () => {
+    prismaMock.notebookFile.findFirst.mockResolvedValue({
+      extractedText: 'Text to summarize again.',
+      id: 'file-1',
+    });
+    prismaMock.notebookFile.update.mockResolvedValue({ id: 'file-1' });
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      id: 'nb-1',
+      name: 'Algorithms',
+      courseCode: 'CS101',
+      color: 'indigo',
+      description: 'Notes',
+      conceptCount: 4,
+      userId: 'user-1',
+      files: [
+        {
+          id: 'file-1',
+          name: 'week-1.txt',
+          type: 'txt',
+          mimeType: 'text/plain',
+          size: '1 KB',
+          siteName: null,
+          sourceUrl: null,
+          uploadDate: '2026-06-01',
+          status: 'ready',
+          summary: null,
+          summaryError: null,
+          summaryGeneratedAt: null,
+          summaryStatus: 'in-progress',
+          totalPages: null,
+        },
+      ],
+    });
+
+    const response = await POST(new Request('http://localhost', { method: 'POST' }), {
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'file-1' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.notebook.files[0].summaryStatus).toBe('in-progress');
+    expect(prismaMock.notebookFile.update).toHaveBeenCalledWith({
+      where: { id: 'file-1' },
+      data: {
+        summaryError: null,
+        summaryGeneratedAt: null,
+        summaryStatus: 'in-progress',
+      },
+    });
+    expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
+  });
+
+  it('rejects retry when the file has no extracted text', async () => {
+    prismaMock.notebookFile.findFirst.mockResolvedValue({
+      extractedText: '   ',
+      id: 'file-1',
+    });
+
+    const response = await POST(new Request('http://localhost', { method: 'POST' }), {
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'file-1' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toBe('No extracted text is available to summarize.');
+    expect(startNotebookFileSummaryJob).not.toHaveBeenCalled();
   });
 });
 

@@ -123,7 +123,7 @@ Required config:
 Optional config:
 
 - `CHAT_API_BASE_URL`, default `https://api.openai.com/v1`
-- `SUMMARY_REQUEST_TIMEOUT_MS`, default `90000`
+- `SUMMARY_REQUEST_TIMEOUT_MS`, default `180000`
 
 Behavior:
 
@@ -138,12 +138,12 @@ Behavior:
 The current system does not:
 
 - request JSON output
-- retry failed summary calls
+- retry failed summary calls automatically
 - persist intermediate prompt data
 
 ## API surface
 
-There is no dedicated summary read or regenerate route for notebook files.
+Failed notebook-file summaries can be retried manually with `POST /api/notebooks/:notebookId/files/:fileId`.
 
 Summary state is exposed through:
 
@@ -202,7 +202,7 @@ Chat-provider presence is treated as optional in startup health because grounded
 ## Current caveats
 
 1. Summary generation is fire-and-forget in-process work. If the server exits after upload succeeds, the summary can remain `in-progress` or never complete.
-2. There is no retry or regeneration endpoint for notebook-file summaries.
+2. Summary retry is manual; there is still no durable queue for automatic retry after process restarts.
 3. There is no structured summary schema anymore; downstream consumers should treat `summary` as plain text.
 4. Non-image summary generation depends entirely on `extractedText`, so poor extraction quality directly degrades summary quality.
 5. Missing chat configuration does not block upload, but it does prevent successful summary completion.

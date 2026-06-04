@@ -14,7 +14,7 @@ type ChatCompletionResponse = {
 };
 
 const MAX_SUMMARY_SOURCE_CHARS = 12000;
-const DEFAULT_SUMMARY_REQUEST_TIMEOUT_MS = 90000;
+const DEFAULT_SUMMARY_REQUEST_TIMEOUT_MS = 180000;
 const LOG_SNIPPET_CHARS = 280;
 
 function getOptionalEnv(name: string) {
