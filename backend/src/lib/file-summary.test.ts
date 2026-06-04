@@ -11,7 +11,7 @@ vi.mock('@/lib/backend-logger', async () => {
   };
 });
 
-import { generateNotebookFileSummary } from './file-summary';
+import { buildSummarySource, generateNotebookFileSummary } from './file-summary';
 
 function restoreEnv(name: string, value: string | undefined) {
   if (value === undefined) {
@@ -20,6 +20,13 @@ function restoreEnv(name: string, value: string | undefined) {
   }
 
   process.env[name] = value;
+}
+
+function buildLargeSourceText(sectionCount = 24) {
+  return Array.from({ length: sectionCount }, (_, index) => [
+    `# Section ${index}`,
+    Array.from({ length: 140 }, (__, wordIndex) => `section-${index}-term-${wordIndex}`).join(' '),
+  ].join('\n')).join('\n\n');
 }
 
 describe('generateNotebookFileSummary', () => {
@@ -39,6 +46,69 @@ describe('generateNotebookFileSummary', () => {
     restoreEnv('CHAT_API_KEY', originalChatApiKey);
     restoreEnv('CHAT_MODEL', originalChatModel);
     vi.unstubAllGlobals();
+  });
+
+  it('keeps short summary sources as normalized full text', () => {
+    const result = buildSummarySource('  Truth tables\n\nand\tDe Morgan laws.  ');
+
+    expect(result).toEqual({
+      mode: 'full-text',
+      selectedChunkIndexes: [],
+      text: 'Truth tables and De Morgan laws.',
+      totalChunkCount: 1,
+    });
+  });
+
+  it('samples large summary sources across the full file within the character budget', () => {
+    const result = buildSummarySource(buildLargeSourceText());
+
+    expect(result.mode).toBe('chunk-sampled');
+    expect(result.text.length).toBeLessThanOrEqual(12000);
+    expect(result.totalChunkCount).toBeGreaterThan(2);
+    expect(result.selectedChunkIndexes[0]).toBe(0);
+    expect(result.selectedChunkIndexes.at(-1)).toBe(result.totalChunkCount - 1);
+    expect(result.text).toContain('Section 0');
+    expect(result.text).toContain('Section 23');
+    expect(result.text).toMatch(/Section (?:8|9|10|11|12|13|14|15)/);
+  });
+
+  it('uses selected chunks instead of first-only truncation in the provider request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [
+        {
+          finish_reason: 'stop',
+          message: {
+            content: 'Course file summary.',
+          },
+        },
+      ],
+    })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateNotebookFileSummary({
+      fileName: 'large-notes.pdf',
+      fileType: 'pdf',
+      text: buildLargeSourceText(),
+    });
+
+    const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string) as {
+      messages: Array<{ content: string; role: string }>;
+    };
+    const userMessage = requestBody.messages.find((message) => message.role === 'user')?.content || '';
+    const systemMessage = requestBody.messages.find((message) => message.role === 'system')?.content || '';
+
+    expect(systemMessage).toContain('representative excerpts sampled from across the file');
+    expect(userMessage).toContain('Section 0');
+    expect(userMessage).toContain('Section 23');
+    expect(userMessage.length).toBeLessThan(12500);
+    expect(logBackendProcessMock).toHaveBeenCalledWith(
+      'info',
+      'file.summary.request.started',
+      expect.objectContaining({
+        sourceMode: 'chunk-sampled',
+        totalChunkCount: expect.any(Number),
+      }),
+    );
   });
 
   it('logs parsed response status and returns the summary', async () => {

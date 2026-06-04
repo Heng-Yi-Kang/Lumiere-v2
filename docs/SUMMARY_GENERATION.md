@@ -129,7 +129,9 @@ Behavior:
 
 - skips generation and returns `undefined` if `CHAT_API_KEY` or `CHAT_MODEL` is missing
 - normalizes whitespace in the extracted text
-- truncates the summary source to `12000` characters
+- uses the full extracted text when it fits within `12000` characters
+- samples representative chunks across long files when extracted text exceeds `12000` characters
+- always keeps the summary prompt source within the `12000` character budget
 - sends a single chat completion request to `/chat/completions`
 - uses temperature `0.2`
 - requests a concise 3 to 5 sentence study summary

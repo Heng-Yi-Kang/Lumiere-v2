@@ -1,4 +1,5 @@
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
+import { splitIntoRagChunks } from '@/lib/rag';
 
 type ChatCompletionMessage = {
   content?: string | null;
@@ -16,6 +17,14 @@ type ChatCompletionResponse = {
 const MAX_SUMMARY_SOURCE_CHARS = 12000;
 const DEFAULT_SUMMARY_REQUEST_TIMEOUT_MS = 180000;
 const LOG_SNIPPET_CHARS = 280;
+const SUMMARY_EXCERPT_SEPARATOR = '\n\n';
+
+type SummarySource = {
+  mode: 'chunk-sampled' | 'full-text';
+  selectedChunkIndexes: number[];
+  text: string;
+  totalChunkCount: number;
+};
 
 function getOptionalEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -60,6 +69,113 @@ function parseChatCompletionPayload(text: string) {
   return JSON.parse(text) as ChatCompletionResponse;
 }
 
+function normalizeSummarySourceText(text: string) {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function buildExcerptText(chunks: string[], indexes: number[]) {
+  return indexes
+    .slice()
+    .sort((a, b) => a - b)
+    .map((index) => chunks[index])
+    .filter(Boolean)
+    .join(SUMMARY_EXCERPT_SEPARATOR)
+    .trim();
+}
+
+function getEvenCoverageCandidateIndexes(totalChunks: number) {
+  if (totalChunks <= 2) {
+    return [];
+  }
+
+  const candidates: number[] = [];
+  const queuedGaps = [{ end: totalChunks - 1, start: 0 }];
+  const queuedIndexes = new Set([0, totalChunks - 1]);
+
+  while (queuedGaps.length) {
+    queuedGaps.sort((a, b) => (b.end - b.start) - (a.end - a.start) || a.start - b.start);
+    const gap = queuedGaps.shift();
+
+    if (!gap || gap.end - gap.start <= 1) {
+      continue;
+    }
+
+    const middle = Math.floor((gap.start + gap.end) / 2);
+    if (!queuedIndexes.has(middle)) {
+      candidates.push(middle);
+      queuedIndexes.add(middle);
+    }
+
+    queuedGaps.push({ end: middle, start: gap.start }, { end: gap.end, start: middle });
+  }
+
+  return candidates;
+}
+
+export function buildSummarySource(text: string, maxChars = MAX_SUMMARY_SOURCE_CHARS): SummarySource {
+  const sourceCharLimit = Math.max(1, Math.floor(maxChars));
+  const normalizedText = normalizeSummarySourceText(text);
+
+  if (!normalizedText || normalizedText.length <= sourceCharLimit) {
+    return {
+      mode: 'full-text',
+      selectedChunkIndexes: [],
+      text: normalizedText,
+      totalChunkCount: normalizedText ? 1 : 0,
+    };
+  }
+
+  const chunks = splitIntoRagChunks(text)
+    .map((chunk) => normalizeSummarySourceText(chunk.content))
+    .filter(Boolean);
+
+  if (chunks.length <= 1) {
+    return {
+      mode: 'full-text',
+      selectedChunkIndexes: chunks.length ? [0] : [],
+      text: normalizedText.slice(0, sourceCharLimit),
+      totalChunkCount: chunks.length,
+    };
+  }
+
+  const selectedIndexes = new Set([0, chunks.length - 1]);
+  const firstAndLastText = buildExcerptText(chunks, [...selectedIndexes]);
+
+  if (firstAndLastText.length > sourceCharLimit) {
+    const separatorBudget = SUMMARY_EXCERPT_SEPARATOR.length;
+    const availableTextBudget = Math.max(0, sourceCharLimit - separatorBudget);
+    const firstBudget = Math.floor(availableTextBudget / 2);
+    const lastBudget = availableTextBudget - firstBudget;
+    return {
+      mode: 'chunk-sampled',
+      selectedChunkIndexes: [0, chunks.length - 1],
+      text: [
+        firstBudget > 0 ? chunks[0]?.slice(0, firstBudget) : '',
+        lastBudget > 0 ? chunks[chunks.length - 1]?.slice(-lastBudget) : '',
+      ].filter(Boolean).join(SUMMARY_EXCERPT_SEPARATOR).trim(),
+      totalChunkCount: chunks.length,
+    };
+  }
+
+  for (const candidateIndex of getEvenCoverageCandidateIndexes(chunks.length)) {
+    const candidateIndexes = [...selectedIndexes, candidateIndex];
+    const candidateText = buildExcerptText(chunks, candidateIndexes);
+
+    if (candidateText.length > sourceCharLimit) {
+      continue;
+    }
+
+    selectedIndexes.add(candidateIndex);
+  }
+
+  return {
+    mode: 'chunk-sampled',
+    selectedChunkIndexes: [...selectedIndexes].sort((a, b) => a - b),
+    text: buildExcerptText(chunks, [...selectedIndexes]).slice(0, sourceCharLimit),
+    totalChunkCount: chunks.length,
+  };
+}
+
 export async function generateNotebookFileSummary(params: {
   fileName: string;
   fileType: string;
@@ -79,8 +195,8 @@ export async function generateNotebookFileSummary(params: {
     return undefined;
   }
 
-  const sourceText = params.text.replace(/\s+/g, ' ').trim();
-  if (!sourceText) {
+  const sourceText = buildSummarySource(params.text);
+  if (!sourceText.text) {
     logBackendProcess('warn', 'file.summary.skipped', {
       fileName: params.fileName,
       fileType: params.fileType,
@@ -90,18 +206,20 @@ export async function generateNotebookFileSummary(params: {
   }
 
   const baseUrl = getOptionalEnv('CHAT_API_BASE_URL') || 'https://api.openai.com/v1';
-  const clippedText = sourceText.slice(0, MAX_SUMMARY_SOURCE_CHARS);
   const timeoutMs = getSummaryRequestTimeoutMs();
   const requestStartedAt = performance.now();
 
   logBackendProcess('info', 'file.summary.request.started', {
-    clippedTextChars: clippedText.length,
     fileName: params.fileName,
     fileType: params.fileType,
     model,
     providerHost: getProviderHost(baseUrl),
-    sourceTextChars: sourceText.length,
+    selectedChunkIndexes: sourceText.selectedChunkIndexes.join(','),
+    selectedTextChars: sourceText.text.length,
+    sourceMode: sourceText.mode,
+    sourceTextChars: normalizeSummarySourceText(params.text).length,
     timeoutMs,
+    totalChunkCount: sourceText.totalChunkCount,
   });
 
   let response: Response;
@@ -122,6 +240,7 @@ export async function generateNotebookFileSummary(params: {
             content: [
               'You generate concise study summaries for uploaded course files.',
               'Use only the supplied extracted file text.',
+              'For long files, the supplied text may contain representative excerpts sampled from across the file.',
               'Write 3 to 5 sentences focused on main ideas, likely study value, and key terms.',
               'Do not invent details that are not present in the text.',
             ].join(' '),
@@ -133,7 +252,7 @@ export async function generateNotebookFileSummary(params: {
               `File type: ${params.fileType}`,
               '',
               'Extracted text:',
-              clippedText,
+              sourceText.text,
             ].join('\n'),
           },
         ],
