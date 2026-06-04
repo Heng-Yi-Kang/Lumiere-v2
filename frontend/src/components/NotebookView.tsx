@@ -32,8 +32,10 @@ import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview 
 import { getGroundedChatErrorMessage } from '../lib/apiErrors';
 import {
   NOTEBOOK_UPLOAD_ACCEPT,
+  isVideoNotebookExtension,
   validateNotebookUploadBatch,
 } from '../lib/notebookUpload';
+import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useFileNotes } from '../hooks/useFileNotes';
@@ -169,6 +171,7 @@ export default function NotebookView({
   const [uploadQueue, setUploadQueue] = useState<Array<{
     id: string;
     name: string;
+    extension: SupportedNotebookExtension;
     progress: number;
     status: 'queued' | 'validating' | 'uploading' | 'extracting' | 'done' | 'failed';
   }>>([]);
@@ -325,7 +328,7 @@ export default function NotebookView({
   const summaryError = activePreview?.summaryError || selectedMaterial?.summaryError;
   const summaryText = activePreview?.summary || selectedMaterial?.summary;
   const summaryDisplayText = isVideoIngestionProcessing
-    ? 'Video ingestion is processing. Description generation will start after transcript and search indexing complete.'
+    ? 'Video ingestion is processing. Description generation will start after transcript and search indexing complete. Keep this page open for automatic updates, or refresh and check later.'
     : isVideoIngestionError
       ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
       : summaryStatus === 'in-progress'
@@ -344,6 +347,7 @@ export default function NotebookView({
           ? 100
           : 0;
   const uploadProgress = uploadProgressValue;
+  const hasVideoUpload = uploadQueue.some((item) => isVideoNotebookExtension(item.extension));
   const uploadStatusLabel = uploadPhase === 'validating'
     ? uploadFileCount > 1
       ? `Validating ${uploadFileCount} files before upload...`
@@ -353,13 +357,17 @@ export default function NotebookView({
         ? `Sending ${uploadFileCount} files to notebook storage...`
         : 'Sending file to notebook storage...'
       : uploadPhase === 'extracting'
-        ? uploadFileCount > 1
-          ? `Extracting ${uploadFileCount} files and refreshing notebook...`
-          : 'Extracting preview content and refreshing notebook...'
+        ? hasVideoUpload
+          ? 'Video uploaded. Backend transcript extraction and indexing are running; keep this page open or refresh and check later.'
+          : uploadFileCount > 1
+            ? `Extracting ${uploadFileCount} files and refreshing notebook...`
+            : 'Extracting preview content and refreshing notebook...'
         : uploadPhase === 'success'
-          ? uploadFileCount > 1
-            ? `Uploaded ${uploadFileCount} files successfully.`
-            : 'Upload finished. Material is ready.'
+          ? hasVideoUpload
+            ? 'Upload finished. Video processing continues in the background; refresh and check later if you leave this page.'
+            : uploadFileCount > 1
+              ? `Uploaded ${uploadFileCount} files successfully.`
+              : 'Upload finished. Material is ready.'
           : '';
   const isUploadActive = uploadPhase === 'validating' || uploadPhase === 'uploading' || uploadPhase === 'extracting';
   const hasUploadFailure = uploadQueue.some((item) => item.status === 'failed');
@@ -510,6 +518,7 @@ export default function NotebookView({
     setUploadQueue(files.map((file, index) => ({
       id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
       name: file.name,
+      extension: (file.name.split('.').pop()?.toLowerCase() as SupportedNotebookExtension) || 'pdf',
       progress: 0,
       status: 'queued',
     })));
@@ -831,7 +840,7 @@ export default function NotebookView({
               <p className="text-[11px] text-text-muted">
                 {isSearchActive
                   ? `${filteredFiles.length} file${filteredFiles.length === 1 ? '' : 's'} matched "${searchQuery.trim()}".`
-                  : 'Open inline previews or delete files directly from this notebook.'}
+                  : 'Open inline previews or delete files directly from this notebook. Videos upload first, then transcript extraction and indexing finish in the background; refresh and check later if you leave this page.'}
               </p>
             </div>
           </div>
@@ -926,7 +935,7 @@ export default function NotebookView({
                       setSelectedMaterial(file);
                     }
                   }}
-                  className={`flex cursor-pointer flex-col gap-3 rounded-2xl border border-border-subtle bg-bg-elevated/30 p-4 text-left transition hover:bg-bg-elevated/50 focus:outline-none focus:ring-2 focus:ring-accent/40 sm:flex-row sm:items-center sm:justify-between ${colorTone?.borderGlow || ''}`}
+                  className={`flex cursor-pointer flex-col gap-3 rounded-2xl border border-border-subtle bg-bg-elevated/30 p-4 text-left transition hover:bg-bg-elevated/50 focus:outline-none focus:ring-2 focus:ring-accent/40 sm:flex-row sm:items-center sm:justify-between ${file.type === 'video' && file.status === 'processing' ? 'animate-pulse border-accent/30 bg-accent-subtle/40' : ''} ${colorTone?.borderGlow || ''}`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="rounded-xl border border-border-default bg-bg-elevated/60 p-2.5 shrink-0">{getFileIcon(file.type)}</div>
@@ -938,8 +947,13 @@ export default function NotebookView({
                         <span>{file.uploadDate}</span>
                         {file.siteName ? <span>{file.siteName}</span> : null}
                         {file.totalPages ? <span>{file.totalPages} pages</span> : null}
-                        {file.status === 'processing' ? <span>Processing video</span> : null}
-                        {file.status === 'error' ? <span>Ingestion failed</span> : null}
+                        {file.status === 'processing' ? (
+                          <span className="inline-flex items-center gap-1 text-accent-hover">
+                            <LoaderCircle className="h-3 w-3 animate-spin" />
+                            Processing video
+                          </span>
+                        ) : null}
+                        {file.status === 'error' ? <span className="text-error">Ingestion failed</span> : null}
                         {file.summaryStatus === 'in-progress' ? <span>Generating description</span> : null}
                         {file.summaryStatus === 'error' ? <span>Description failed</span> : null}
                       </div>
@@ -1086,9 +1100,14 @@ export default function NotebookView({
                       />
                     </div>
                     <div className={`rounded-xl border p-4 text-sm font-semibold ${isVideoIngestionError ? 'border-error/20 bg-error-subtle text-error' : 'border-accent-border bg-accent-subtle text-accent-hover'}`}>
-                      {isVideoIngestionError
-                        ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
-                        : 'Video uploaded. Transcript extraction and search indexing are processing in the background.'}
+                      {isVideoIngestionError ? (
+                        ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
+                      ) : (
+                        <span className="inline-flex items-center gap-2">
+                          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+                          Video uploaded. Transcript extraction and search indexing are processing in the background. Keep this page open for polling, or refresh and check later.
+                        </span>
+                      )}
                     </div>
                   </div>
                 ) : null}
@@ -1281,9 +1300,14 @@ export default function NotebookView({
                     >
                       {isVideoIngestionUnavailable ? (
                         <div className={`rounded-2xl border p-4 text-sm font-semibold ${isVideoIngestionError ? 'border-error/20 bg-error-subtle text-error' : 'border-accent-border bg-accent-subtle text-accent-hover'}`}>
-                          {isVideoIngestionError
-                            ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
-                            : 'Grounded file chat will be available after video transcript extraction and search indexing finish.'}
+                          {isVideoIngestionError ? (
+                            ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
+                          ) : (
+                            <span className="inline-flex items-center gap-2">
+                              <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+                              Grounded file chat will be available after video transcript extraction and search indexing finish. Keep this page open, or refresh and check later.
+                            </span>
+                          )}
                         </div>
                       ) : activeFileChatMessages.map((message) => (
                         <div

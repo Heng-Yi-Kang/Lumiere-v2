@@ -30,6 +30,13 @@ export const NOTEBOOK_UPLOAD_ACCEPT = NOTEBOOK_ACCEPTED_EXTENSIONS
 
 export type SupportedNotebookExtension = (typeof NOTEBOOK_ACCEPTED_EXTENSIONS)[number];
 
+const VIDEO_NOTEBOOK_EXTENSIONS = new Set<SupportedNotebookExtension>([
+  'mp4',
+  'mov',
+  'm4v',
+  'webm',
+]);
+
 function getFileExtension(fileName: string) {
   return fileName.split('.').pop()?.toLowerCase();
 }
@@ -38,6 +45,12 @@ export function isSupportedNotebookExtension(
   value: string | undefined,
 ): value is SupportedNotebookExtension {
   return NOTEBOOK_ACCEPTED_EXTENSIONS.includes(value as SupportedNotebookExtension);
+}
+
+export function isVideoNotebookExtension(
+  value: SupportedNotebookExtension | undefined,
+) {
+  return value ? VIDEO_NOTEBOOK_EXTENSIONS.has(value) : false;
 }
 
 export function validateNotebookUpload(file: File) {

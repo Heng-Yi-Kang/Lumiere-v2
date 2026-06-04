@@ -20,6 +20,7 @@ import {
 import { StudyStreak } from '../types';
 import {
   NOTEBOOK_UPLOAD_ACCEPT,
+  isVideoNotebookExtension,
   validateNotebookUploadBatch,
 } from '../lib/notebookUpload';
 import type { SupportedNotebookExtension } from '../lib/notebookUpload';
@@ -199,6 +200,8 @@ export default function DashboardView({
   const uploadProgressValue = uploadPhase === 'idle'
     ? -1
     : uploadProgress;
+  const hasUploadFailure = uploadQueue.some((item) => item.status === 'failed');
+  const hasVideoUpload = uploadQueue.some((item) => isVideoNotebookExtension(item.extension));
 
   const uploadStatus = uploadPhase === 'validating'
     ? selectedFileCount > 1
@@ -209,16 +212,19 @@ export default function DashboardView({
         ? `Uploading ${selectedFileCount} files to notebook storage...`
         : 'Uploading file to notebook storage...'
       : uploadPhase === 'extracting'
-        ? selectedFileCount > 1
-          ? `Extracting ${selectedFileCount} files and refreshing notebook...`
-          : 'Extracting preview and refreshing notebook...'
+        ? hasVideoUpload
+          ? 'Video uploaded. Backend transcript extraction and indexing are running; keep this page open or refresh and check later.'
+          : selectedFileCount > 1
+            ? `Extracting ${selectedFileCount} files and refreshing notebook...`
+            : 'Extracting preview and refreshing notebook...'
         : uploadPhase === 'success'
-          ? selectedFileCount > 1
-            ? `Uploaded ${selectedFileCount} files successfully.`
-            : 'Upload completed successfully.'
+          ? hasVideoUpload
+            ? 'Upload finished. Video processing continues in the background.'
+            : selectedFileCount > 1
+              ? `Uploaded ${selectedFileCount} files successfully.`
+              : 'Upload completed successfully.'
           : '';
   const isUploadActive = uploadPhase === 'validating' || uploadPhase === 'uploading' || uploadPhase === 'extracting';
-  const hasUploadFailure = uploadQueue.some((item) => item.status === 'failed');
   const shouldShowUploadQueue = uploadQueue.length > 0 && (isUploadActive || uploadPhase === 'success' || Boolean(uploadError));
   const uploadSummaryLabel = hasUploadFailure
     ? `${completedFileCount} of ${selectedFileCount} files uploaded before the batch stopped`
@@ -344,7 +350,7 @@ export default function DashboardView({
               Upload Materials & Audio Recordings
             </h2>
             <p className="text-xs text-text-secondary">
-              Drag PDF, DOCX, PPTX, TXT, image, audio, or video files directly into a notebook.
+              Drag PDF, DOCX, PPTX, TXT, image, audio, or video files directly into a notebook. Videos upload first, then transcript extraction and indexing continue in the background; refresh and check the notebook later if you leave this page.
             </p>
           </div>
 
@@ -498,7 +504,7 @@ export default function DashboardView({
                 <div className="text-[10px] text-text-muted">
                   {notebooks.length === 0
                     ? 'Your first upload target will appear after notebook setup.'
-                    : 'Supports PDF, DOCX, PPTX, TXT, image, audio, and video. Select multiple files as long as the total stays under 100MB.'}
+                    : 'Supports PDF, DOCX, PPTX, TXT, image, audio, and video. Video transcripts and search indexing may finish after upload; refresh and check later if needed.'}
                 </div>
               </div>
             ) : uploadPhase === 'success' ? (
@@ -506,11 +512,13 @@ export default function DashboardView({
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success-subtle text-success border border-success/20">
                   <Check className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-success">Processed &amp; Indexed!</span>
+                <span className="text-xs font-bold text-success">Uploaded Successfully</span>
                 <span className="text-[10px] text-text-muted">
-                  {selectedFileCount > 1
-                    ? `${selectedFileCount} files were processed successfully.`
-                    : 'Concept linkages, descriptions and flashcards populated successfully.'}
+                  {hasVideoUpload
+                    ? 'Video processing continues in the background. Keep this page open for polling, or refresh the notebook and check later.'
+                    : selectedFileCount > 1
+                      ? `${selectedFileCount} files were processed successfully.`
+                      : 'Concept linkages, descriptions and flashcards populated successfully.'}
                 </span>
               </div>
             ) : (
