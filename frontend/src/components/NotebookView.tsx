@@ -1117,69 +1117,84 @@ export default function NotebookView({
                           alt={selectedMaterial.name}
                           className="max-h-[420px] w-full rounded-lg object-contain"
                         />
+                        <div className="mt-4 border-t border-border-subtle pt-4">
+                          <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
+                            <Sparkles className="h-4 w-4 text-accent-hover" />
+                            Description
+                          </div>
+                          <p className="text-base leading-relaxed text-text-primary font-serif">
+                            {summaryDisplayText}
+                          </p>
+                        </div>
                       </div>
                     ) : null}
 
-                    <pre className="whitespace-pre-wrap break-words text-base leading-6 text-text-primary font-serif">
-                      {activePreview.previewContent || ''}
-                    </pre>
+                    {!isImagePreview ? (
+                      <pre className="whitespace-pre-wrap break-words text-base leading-6 text-text-primary font-serif">
+                        {activePreview.previewContent || ''}
+                      </pre>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
             </div>
 
             <div className="flex min-h-0 w-full flex-col p-5 xl:w-[55%]">
-              <button
-                type="button"
-                onClick={() => setIsSummaryOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-2xl border border-border-default bg-bg-elevated/40 px-4 py-2.5 text-left transition hover:bg-bg-elevated/60"
-              >
-                <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-secondary font-mono">
-                  <Sparkles className="h-4 w-4 text-accent-hover" />
-                  Description & Details
-                </span>
-                <ChevronDown className={`h-4 w-4 text-text-muted transition-transform ${isSummaryOpen ? 'rotate-180' : ''}`} />
-              </button>
+              {!isImagePreview ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsSummaryOpen((prev) => !prev)}
+                    className="flex w-full items-center justify-between rounded-2xl border border-border-default bg-bg-elevated/40 px-4 py-2.5 text-left transition hover:bg-bg-elevated/60"
+                  >
+                    <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-secondary font-mono">
+                      <Sparkles className="h-4 w-4 text-accent-hover" />
+                      Description & Details
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-text-muted transition-transform ${isSummaryOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-              <div
-                className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isSummaryOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-              >
-                <div className="overflow-hidden">
-                  <div className="grid gap-3 pt-3 md:grid-cols-2 xl:grid-cols-1">
-                    <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
-                      <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
-                        <Sparkles className="h-4 w-4" />
-                        Description
-                      </div>
-                      <p className="mt-3 text-base leading-relaxed text-text-primary font-serif">
-                        {summaryDisplayText}
-                      </p>
-                      {summaryStatus === 'error' && onRetryFileSummary ? (
-                        <div className="mt-4">
-                          <button
-                            type="button"
-                            onClick={handleRetrySummary}
-                            disabled={isRetryingSummary}
-                            className="inline-flex items-center gap-2 rounded-lg border border-border-default bg-bg-elevated/60 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-text-secondary transition hover:border-accent/40 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isRetryingSummary ? (
-                              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <RotateCcw className="h-3.5 w-3.5" />
-                            )}
-                            Retry
-                          </button>
-                          {summaryRetryError ? (
-                            <p className="mt-2 text-xs font-semibold text-error">{summaryRetryError}</p>
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isSummaryOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="grid gap-3 pt-3 md:grid-cols-2 xl:grid-cols-1">
+                        <div className={`rounded-2xl border p-4 ${colorTone?.subtleBlock || 'border-border-default bg-bg-elevated/40'}`}>
+                          <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${colorTone?.text || 'text-accent-hover'}`}>
+                            <Sparkles className="h-4 w-4" />
+                            Description
+                          </div>
+                          <p className="mt-3 text-base leading-relaxed text-text-primary font-serif">
+                            {summaryDisplayText}
+                          </p>
+                          {summaryStatus === 'error' && onRetryFileSummary ? (
+                            <div className="mt-4">
+                              <button
+                                type="button"
+                                onClick={handleRetrySummary}
+                                disabled={isRetryingSummary}
+                                className="inline-flex items-center gap-2 rounded-lg border border-border-default bg-bg-elevated/60 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-text-secondary transition hover:border-accent/40 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {isRetryingSummary ? (
+                                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                )}
+                                Retry
+                              </button>
+                              {summaryRetryError ? (
+                                <p className="mt-2 text-xs font-semibold text-error">{summaryRetryError}</p>
+                              ) : null}
+                            </div>
                           ) : null}
                         </div>
-                      ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </>
+              ) : null}
 
-              <div className="mt-4 flex items-center gap-1 rounded-xl border border-border-subtle bg-bg-elevated/40 p-1">
+              <div className={`${isImagePreview ? '' : 'mt-4'} flex items-center gap-1 rounded-xl border border-border-subtle bg-bg-elevated/40 p-1`}>
                 <button
                   type="button"
                   onClick={() => setFileDetailTab('chat')}
