@@ -94,6 +94,42 @@ Generation behavior:
 
 The RAG layer rejects vectors unless they have exactly 4096 dimensions.
 
+## Reranking
+
+Retrieval can optionally rerank vector-search candidates with a dedicated reranker provider. The reranker client lives in `backend/src/lib/reranker.ts`.
+
+Reranking is disabled by default. Enable it with:
+
+- `ENABLE_RERANKING=true`
+- `RERANKER_API_BASE`
+- `RERANKER_API_KEY`
+- `RERANKER_MODEL`
+
+When enabled, retrieval asks Qdrant for a larger candidate pool before final result selection:
+
+- reranking enabled: `min(max(limit * 10, 50), 100)` candidates
+- reranking disabled: `min(max(limit * 4, 20), 100)` candidates
+
+The reranker request is sent to `${RERANKER_API_BASE}/rerank` with a bearer token and JSON body:
+
+```json
+{
+  "model": "RERANKER_MODEL",
+  "query": "user query",
+  "texts": ["candidate chunk text"],
+  "truncate": true
+}
+```
+
+The provider must return an array with one score per input text. Each item must include:
+
+- `index`: zero-based input text index
+- `score`: numeric reranker relevance score
+
+When reranking succeeds, the returned scores become both `score` and `rerankScore` in the final RAG results, while the original Qdrant score remains available as `vectorScore`. Final ordering sorts by reranker score descending, then by original vector-result order as a tie-breaker.
+
+When reranking fails, retrieval logs `rag.rerank.failed` and falls back to vector-ranked results. It does not fail the search or chat request.
+
 ## Ingestion Flow
 
 Uploads enter RAG through `POST /api/notebooks/[notebookId]/files`.
@@ -148,7 +184,8 @@ Behavior:
 4. request extra candidates so stale Qdrant hits can be discarded
 5. load matching `NotebookFile` rows from PostgreSQL
 6. discard Qdrant hits whose files no longer exist in the requested notebook or file scope
-7. return the best validated chunks in the existing API shape
+7. rerank validated candidates when reranking is enabled
+8. return the best validated chunks in the existing API shape
 
 The search and chat routes keep their existing request and response contracts.
 
