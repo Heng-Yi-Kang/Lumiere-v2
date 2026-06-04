@@ -103,7 +103,7 @@ Pull requests should include:
 - notes on any environment changes or new config values
 
 ## Security & Configuration Tips
-Do not commit secrets. Copy `backend/.env.example` to `backend/.env` before running the backend, and copy `frontend/.env.example` to `.env.local` only if you add frontend-local configuration. Keep Docker database settings aligned with backend Prisma settings.
+Do not commit secrets. Copy `backend/.env.example` to `backend/.env` before running the backend, and copy `frontend/.env.example` to `.env.local` only if you add frontend-local configuration. Keep Docker database settings aligned with backend Prisma settings. Example Docker configuration is only a template; on deployment servers it should be copied into the production Docker configuration, which is not tracked by git.
 
 ## pnpm Workflow Notes
 Follow the repository guide in [`docs/pnpm-agent-guide.md`](docs/pnpm-agent-guide.md) when changing dependencies or running package scripts.
