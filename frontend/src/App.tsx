@@ -227,12 +227,12 @@ export default function App() {
   }, [curNotebooksList]);
 
   const activeNotebook = curNotebooksList.find(nb => nb.id === activeNotebookId);
-  const hasGeneratingSummaries = curNotebooksList.some((notebook) =>
-    notebook.files.some((file) => file.summaryStatus === 'in-progress'),
+  const hasPendingFileWork = curNotebooksList.some((notebook) =>
+    notebook.files.some((file) => file.summaryStatus === 'in-progress' || file.status === 'processing'),
   );
 
   useEffect(() => {
-    if (!hasGeneratingSummaries) {
+    if (!hasPendingFileWork) {
       return;
     }
 
@@ -260,7 +260,7 @@ export default function App() {
       isActive = false;
       window.clearInterval(intervalId);
     };
-  }, [hasGeneratingSummaries]);
+  }, [hasPendingFileWork]);
 
   const setCurrentPage = useCallback((page: string) => {
     navigate(pageToPath[page as keyof typeof pageToPath] ?? pageToPath.Dashboard);

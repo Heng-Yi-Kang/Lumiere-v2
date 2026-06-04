@@ -5,4 +5,7 @@ export async function register() {
 
   const { runStartupHealthCheckOnce } = await import('@/lib/startup-health');
   await runStartupHealthCheckOnce();
+
+  const { startVideoIngestionWorker } = await import('@/lib/video-ingestion-job');
+  startVideoIngestionWorker();
 }

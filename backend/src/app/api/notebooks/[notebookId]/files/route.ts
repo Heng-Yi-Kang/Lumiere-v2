@@ -6,6 +6,7 @@ import {
   MAX_UPLOAD_BYTES,
   NotebookFileValidationError,
   persistNotebookUpload,
+  persistNotebookUploadShell,
 } from '@/lib/notebook-files';
 import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
 import { serializeNotebook } from '@/lib/notebooks';
@@ -13,12 +14,18 @@ import { deleteNotebookFileRagIndex, indexNotebookFileForRag } from '@/lib/rag';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 import { getNotebookFileHlsDirectory, startNotebookFileHlsJob } from '@/lib/hls-service';
 import { isFrameDescriptionRateLimitError, RETRY_LATER_UPLOAD_ERROR } from '@/lib/upload-errors';
+import { enqueueNotebookFileVideoIngestionJob } from '@/lib/video-ingestion-job';
 
 export async function OPTIONS() {
   return optionsResponse();
 }
 
 type NotebookUploadData = Awaited<ReturnType<typeof persistNotebookUpload>>;
+type NotebookUploadShell = Awaited<ReturnType<typeof persistNotebookUploadShell>>;
+
+function isVideoUpload(upload: File) {
+  return upload.type.startsWith('video/') || /\.(?:m4v|mov|mp4|webm)$/i.test(upload.name);
+}
 
 async function persistNotebookUploadRecord(
   notebookId: string,
@@ -38,6 +45,7 @@ async function persistNotebookUploadRecord(
       files: {
         create: {
           extractedText: uploadData.extractedText || null,
+          ingestionError: null,
           mimeType: uploadData.mimeType,
           name: uploadData.name,
           previewContent: uploadData.previewContent || null,
@@ -132,6 +140,79 @@ async function persistNotebookUploadRecord(
   return createdFile;
 }
 
+async function persistVideoUploadRecord(
+  notebookId: string,
+  uploadData: NotebookUploadShell,
+) {
+  const databaseStartedAt = performance.now();
+  logBackendProcess('info', 'file.database.create.started', {
+    fileName: uploadData.name,
+    fileType: uploadData.type,
+    notebookId,
+  });
+
+  const notebook = await prisma.notebook.update({
+    where: { id: notebookId },
+    data: {
+      files: {
+        create: {
+          extractedText: null,
+          ingestionError: null,
+          mimeType: uploadData.mimeType,
+          name: uploadData.name,
+          previewContent: null,
+          previewFormat: null,
+          size: uploadData.size,
+          sourcePath: uploadData.sourcePath,
+          status: 'processing',
+          summary: null,
+          summaryError: null,
+          summaryGeneratedAt: null,
+          summaryStatus: 'idle',
+          type: uploadData.type,
+          uploadDate: uploadData.uploadDate,
+        },
+      },
+    },
+    include: {
+      files: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+
+  const createdFile = notebook.files.find((file) => file.sourcePath === uploadData.sourcePath);
+
+  if (!createdFile?.sourcePath) {
+    if (createdFile) {
+      await prisma.notebookFile.delete({
+        where: { id: createdFile.id },
+      }).catch(() => undefined);
+    }
+    await deleteNotebookStoredFile([uploadData.sourcePath]);
+    throw new Error('Failed to persist uploaded video.');
+  }
+
+  try {
+    await enqueueNotebookFileVideoIngestionJob(createdFile.id);
+  } catch (error) {
+    await prisma.notebookFile.delete({
+      where: { id: createdFile.id },
+    }).catch(() => undefined);
+    await deleteNotebookStoredFile([createdFile.sourcePath]);
+    throw error;
+  }
+
+  logBackendProcess('info', 'file.database.create.completed', {
+    elapsedMs: getElapsedMs(databaseStartedAt),
+    fileId: createdFile.id,
+    fileName: createdFile.name,
+    notebookId,
+  });
+
+  return createdFile;
+}
+
 async function rollbackNotebookUploads(notebookId: string, files: Array<{ id: string; sourcePath: string }>) {
   await Promise.all(
     files.map(async (file) => {
@@ -205,8 +286,12 @@ export async function POST(
 
   try {
     for (const upload of uploads) {
-      const uploadData = await persistNotebookUpload(notebookId, upload);
-      const createdFile = await persistNotebookUploadRecord(notebookId, uploadData, requestStartedAt);
+      const uploadData = isVideoUpload(upload)
+        ? await persistNotebookUploadShell(notebookId, upload)
+        : await persistNotebookUpload(notebookId, upload);
+      const createdFile = uploadData.type === 'video'
+        ? await persistVideoUploadRecord(notebookId, uploadData)
+        : await persistNotebookUploadRecord(notebookId, uploadData, requestStartedAt);
       createdFiles.push({
         extractedText: createdFile.extractedText,
         id: createdFile.id,

@@ -28,6 +28,21 @@ vi.mock('@/lib/notebook-file-summary-job', () => ({
   startNotebookFileSummaryJob: vi.fn(),
 }));
 
+vi.mock('@/lib/video-ingestion-job', () => ({
+  enqueueNotebookFileVideoIngestionJob: vi.fn().mockResolvedValue({
+    attempts: 0,
+    availableAt: new Date('2026-06-01T00:00:00.000Z'),
+    createdAt: new Date('2026-06-01T00:00:00.000Z'),
+    id: 'job-1',
+    lastError: null,
+    lockedAt: null,
+    maxAttempts: 3,
+    notebookFileId: 'file-1',
+    status: 'queued',
+    updatedAt: new Date('2026-06-01T00:00:00.000Z'),
+  }),
+}));
+
 vi.mock('@/lib/hls-service', () => ({
   getNotebookFileHlsDirectory: vi.fn((notebookId: string, fileId: string) => path.join('/tmp/hls', notebookId, fileId)),
   serializeHlsStatus: vi.fn((file: { hlsStatus?: string }) => ({
@@ -40,6 +55,7 @@ import { POST } from './route';
 import { deleteNotebookFileRagIndex, indexNotebookFileForRag } from '@/lib/rag';
 import { startNotebookFileHlsJob } from '@/lib/hls-service';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
+import { enqueueNotebookFileVideoIngestionJob } from '@/lib/video-ingestion-job';
 
 describe('POST /api/notebooks/[notebookId]/files', () => {
   const originalUploadRoot = process.env.NOTEBOOK_UPLOAD_ROOT;
@@ -67,6 +83,19 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     vi.mocked(deleteNotebookFileRagIndex).mockResolvedValue(undefined);
     vi.mocked(startNotebookFileSummaryJob).mockReset();
     vi.mocked(startNotebookFileHlsJob).mockReset();
+    vi.mocked(enqueueNotebookFileVideoIngestionJob).mockReset();
+    vi.mocked(enqueueNotebookFileVideoIngestionJob).mockResolvedValue({
+      attempts: 0,
+      availableAt: new Date('2026-06-01T00:00:00.000Z'),
+      createdAt: new Date('2026-06-01T00:00:00.000Z'),
+      id: 'job-1',
+      lastError: null,
+      lockedAt: null,
+      maxAttempts: 3,
+      notebookFileId: 'file-1',
+      status: 'queued',
+      updatedAt: new Date('2026-06-01T00:00:00.000Z'),
+    });
   });
 
   afterEach(async () => {
@@ -416,6 +445,95 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     expect(prismaMock.notebook.update.mock.calls[0][0].data.files.create.summaryStatus).toBe('in-progress');
     expect(payload.notebook.files[0].summaryStatus).toBe('in-progress');
     expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
+  });
+
+  it('uploads a video as a processing file and enqueues durable ingestion without inline extraction', async () => {
+    process.env.STT_API_BASE = 'https://stt.example.test/v1';
+    process.env.STT_API_KEY = 'test-stt-key';
+    process.env.STT_MODEL = 'qwen3-asr-1.7b';
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const returnedNotebook = {
+      id: 'nb-1',
+      name: 'Algorithms',
+      courseCode: 'CS101',
+      color: 'indigo',
+      description: 'Notes',
+      conceptCount: 4,
+      files: [],
+    };
+    prismaMock.notebook.findUnique
+      .mockResolvedValueOnce({ id: 'nb-1' })
+      .mockResolvedValueOnce({
+        ...returnedNotebook,
+        files: [
+          {
+            id: 'file-video-1',
+            name: 'lecture.mp4',
+            type: 'video',
+            mimeType: 'video/mp4',
+            size: '11 B',
+            uploadDate: '30 May 2026',
+            status: 'processing',
+            ingestionError: null,
+            sourcePath: 'stored-path',
+            extractedText: null,
+            summary: null,
+            summaryError: null,
+            summaryGeneratedAt: null,
+            summaryStatus: 'idle',
+            totalPages: null,
+          },
+        ],
+      });
+    prismaMock.notebook.update.mockImplementation(async ({ data }: { data: { files: { create: Record<string, unknown> } } }) => ({
+      ...returnedNotebook,
+      files: [
+        {
+          id: 'file-video-1',
+          extractedText: data.files.create.extractedText,
+          ingestionError: data.files.create.ingestionError,
+          name: data.files.create.name,
+          type: data.files.create.type,
+          mimeType: data.files.create.mimeType,
+          size: data.files.create.size,
+          uploadDate: data.files.create.uploadDate,
+          status: data.files.create.status,
+          sourcePath: data.files.create.sourcePath,
+          summary: data.files.create.summary,
+          summaryError: data.files.create.summaryError,
+          summaryGeneratedAt: data.files.create.summaryGeneratedAt,
+          summaryStatus: data.files.create.summaryStatus,
+          totalPages: data.files.create.totalPages,
+        },
+      ],
+    }));
+
+    const formData = new FormData();
+    formData.append('file', new File(['video-bytes'], 'lecture.mp4', { type: 'video/mp4' }));
+
+    const response = await POST(new Request('http://localhost/api/notebooks/nb-1/files', {
+      method: 'POST',
+      body: formData,
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1' }),
+    });
+    const payload = await response.json();
+    const createdFileData = prismaMock.notebook.update.mock.calls[0][0].data.files.create;
+
+    expect(response.status).toBe(201);
+    expect(createdFileData.type).toBe('video');
+    expect(createdFileData.status).toBe('processing');
+    expect(createdFileData.extractedText).toBeNull();
+    expect(createdFileData.previewContent).toBeNull();
+    expect(createdFileData.summaryStatus).toBe('idle');
+    expect(payload.notebook.files[0].status).toBe('processing');
+    expect(enqueueNotebookFileVideoIngestionJob).toHaveBeenCalledWith('file-video-1');
+    expect(startNotebookFileHlsJob).toHaveBeenCalledWith('file-video-1');
+    expect(indexNotebookFileForRag).not.toHaveBeenCalled();
+    expect(startNotebookFileSummaryJob).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('stores an image VLM description as the file description without scheduling a second summary job', async () => {

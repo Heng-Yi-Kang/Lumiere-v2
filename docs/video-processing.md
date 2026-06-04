@@ -37,28 +37,26 @@ Main files:
 - [backend/src/app/api/notebooks/[notebookId]/files/route.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/app/api/notebooks/[notebookId]/files/route.ts)
 - [backend/src/lib/notebook-files.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/notebook-files.ts)
 - [backend/src/lib/video-processing.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/video-processing.ts)
+- [backend/src/lib/video-ingestion-job.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/video-ingestion-job.ts)
 
 ## Processing model
 
-Video processing is synchronous during upload.
+Video ingestion is asynchronous after the stored file row is created.
 
-The upload request does not return until the backend has:
+The upload request returns after the backend has:
 
 1. written the uploaded file to disk
-2. probed duration with `ffprobe`
-3. extracted audio with `ffmpeg`
-4. transcribed the WAV track
-5. sampled frames
-6. described frames through the VLM provider
-7. built video RAG segments
-8. created the `NotebookFile`
-9. indexed the chunks into Qdrant and `NotebookFileChunk`
+2. created a `NotebookFile` with `status = "processing"`
+3. enqueued a durable `NotebookFileIngestionJob`
+4. started independent HLS generation
 
-Summary generation is separate and starts only after the file row and RAG index exist.
+The backend worker then claims queued video ingestion jobs from PostgreSQL and runs transcript extraction, frame description, RAG indexing, and summary scheduling in the background. Jobs run sequentially in-process with up to three attempts. If all attempts fail, the file remains visible with `status = "error"` and `ingestionError` set.
 
 ## Pipeline
 
-`persistNotebookUpload()` routes video files to `buildVideoPreview()`, which calls `processVideoFile()`.
+`persistNotebookUploadShell()` validates and stores the upload without extracting video content. The upload route creates the processing file row and enqueues the durable ingestion job.
+
+`processVideoIngestionJob()` loads the stored file and calls `processVideoFile()`.
 
 `processVideoFile()` performs these steps:
 
@@ -165,7 +163,7 @@ The frontend displays the preview through:
 
 ## RAG storage
 
-Video uploads pass prebuilt `ragSegments` into `indexNotebookFileForRag()` in [backend/src/lib/rag.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/rag.ts).
+The video ingestion worker passes prebuilt `ragSegments` into `indexNotebookFileForRag()` in [backend/src/lib/rag.ts](/home/arch_Kang/projects/Lumiere-v2/backend/src/lib/rag.ts).
 
 Each segment is embedded as one chunk. Chunk metadata includes:
 
@@ -185,7 +183,7 @@ Chunk records are stored in:
 
 ## Summary generation
 
-After upload succeeds, the route starts `startNotebookFileSummaryJob()` for non-image files that have non-empty `extractedText`.
+After video ingestion and RAG indexing succeed, the worker starts `startNotebookFileSummaryJob()` when the transcript is non-empty.
 
 For video, the summary source is the plain transcript in `NotebookFile.extractedText`, not the timestamped preview and not the frame descriptions.
 
@@ -212,8 +210,9 @@ Startup health checks validate these dependencies in [backend/src/lib/startup-he
 
 ## Current caveats
 
-1. Video processing is synchronous, so upload latency grows with media length and provider latency.
+1. Video upload returns before transcript extraction, frame description, and RAG indexing complete.
 2. Transcript timestamps are synthetic because the STT helper returns plain text only.
 3. Frame sampling is uniform over time and can miss fast scene changes.
-4. Frame descriptions are sequential and can make uploads slow or rate-limited.
+4. Frame descriptions are sequential and can make ingestion slow or rate-limited.
 5. Summaries are transcript-only; visual frame descriptions do not feed the summary job.
+6. Summary generation is still fire-and-forget after video ingestion succeeds.

@@ -14,7 +14,8 @@ export interface FileItem {
   sourceUrl?: string;
   size: string;
   uploadDate: string;
-  status: 'processing' | 'ready';
+  status: 'processing' | 'ready' | 'error';
+  ingestionError?: string;
   transcript?: TranscriptSegment[];
   summary?: string;
   summaryError?: string;
@@ -35,6 +36,8 @@ export interface NotebookFilePreview {
   mimeType?: string;
   siteName?: string;
   sourceUrl?: string;
+  status?: 'processing' | 'ready' | 'error';
+  ingestionError?: string;
   previewFormat?: 'pdf' | 'html' | 'text';
   previewContent?: string;
   totalPages?: number;

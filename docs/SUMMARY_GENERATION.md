@@ -67,7 +67,9 @@ The upload route:
 4. indexes chunks into Qdrant and `NotebookFileChunk`
 5. starts `startNotebookFileSummaryJob(fileId)` when appropriate
 
-There is no separate summary endpoint to trigger generation and no background queue worker.
+Video uploads are the exception: the route creates a `NotebookFile` with `status = "processing"` and enqueues a durable video ingestion job. The video worker extracts transcript/preview content, indexes RAG chunks, marks the file `ready`, then starts summary generation when transcript text exists.
+
+There is no separate summary endpoint to trigger generation.
 
 ## Source text by file type
 
@@ -176,7 +178,7 @@ Current behavior in [frontend/src/components/NotebookView.tsx](/home/arch_Kang/p
 - `summaryStatus === "error"` shows the stored error
 - `summaryStatus === "done"` shows the summary text
 
-The app also checks whether any file in a notebook is still `in-progress` to drive refresh behavior.
+The app also checks whether any summary is `in-progress` or any file has `status === "processing"` to drive refresh behavior.
 
 ## Relationship to previews
 

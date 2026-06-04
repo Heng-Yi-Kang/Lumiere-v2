@@ -13,7 +13,7 @@ import type { RagIndexChunk } from '@/lib/rag';
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
-type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image';
+export type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image';
 type PreviewFormat = 'pdf' | 'html' | 'text';
 
 const MIME_TYPE_MAP: Record<SupportedNotebookFileType, string[]> = {
@@ -65,6 +65,15 @@ type UploadResult = {
   size: string;
   sourcePath: string;
   totalPages?: number;
+  type: SupportedNotebookFileType;
+  uploadDate: string;
+};
+
+type StoredUploadShell = {
+  mimeType: string;
+  name: string;
+  size: string;
+  sourcePath: string;
   type: SupportedNotebookFileType;
   uploadDate: string;
 };
@@ -305,7 +314,7 @@ async function buildDerivedPreview(
   }
 }
 
-export async function persistNotebookUpload(notebookId: string, file: File): Promise<UploadResult> {
+async function validateAndStoreNotebookUpload(notebookId: string, file: File): Promise<StoredUploadShell> {
   const uploadStartedAt = performance.now();
   const extension = getFileExtension(file.name);
   const fileType = getNotebookFileType(extension);
@@ -373,26 +382,47 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
     storedName,
   });
 
+  return {
+    mimeType: file.type || allowedMimeTypes[0],
+    name: file.name,
+    size: formatBytes(file.size),
+    sourcePath: storedPath,
+    type: fileType,
+    uploadDate: formatUploadDate(new Date()),
+  };
+}
+
+export async function persistNotebookUploadShell(notebookId: string, file: File): Promise<StoredUploadShell> {
+  return validateAndStoreNotebookUpload(notebookId, file);
+}
+
+export async function persistNotebookUpload(notebookId: string, file: File): Promise<UploadResult> {
+  const uploadStartedAt = performance.now();
+  const shell = await validateAndStoreNotebookUpload(notebookId, file);
+  const allowedMimeTypes = MIME_TYPE_MAP[shell.type];
+  const fileType = shell.type;
+  const storedPath = shell.sourcePath;
+
   try {
     const extractionStartedAt = performance.now();
     logBackendProcess('info', 'file.extraction.started', {
-      fileName: file.name,
+      fileName: shell.name,
       fileType,
       notebookId,
     });
 
     const preview = fileType === 'audio'
-      ? await buildAudioPreview(storedPath, file.name, file.type || allowedMimeTypes[0])
+      ? await buildAudioPreview(storedPath, shell.name, shell.mimeType || allowedMimeTypes[0])
       : fileType === 'video'
-        ? await buildVideoPreview(storedPath, file.name)
+        ? await buildVideoPreview(storedPath, shell.name)
         : fileType === 'image'
-          ? await buildImagePreview(storedPath, file.name, file.type || allowedMimeTypes[0])
+          ? await buildImagePreview(storedPath, shell.name, shell.mimeType || allowedMimeTypes[0])
           : await buildDerivedPreview(fileType, storedPath);
 
     logBackendProcess('info', 'file.extraction.completed', {
       elapsedMs: getElapsedMs(extractionStartedAt),
       extractedTextChars: preview.extractedText.length,
-      fileName: file.name,
+      fileName: shell.name,
       fileType,
       notebookId,
       previewFormat: preview.previewFormat,
@@ -402,7 +432,7 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
     logBackendProcess('info', 'file.upload.completed', {
       elapsedMs: getElapsedMs(uploadStartedAt),
       extractedTextChars: preview.extractedText.length,
-      fileName: file.name,
+      fileName: shell.name,
       fileType,
       notebookId,
     });
@@ -411,23 +441,23 @@ export async function persistNotebookUpload(notebookId: string, file: File): Pro
 
     return {
       extractedText: preview.extractedText,
-      mimeType: file.type || allowedMimeTypes[0],
-      name: file.name,
+      mimeType: shell.mimeType,
+      name: shell.name,
       previewContent: preview.previewContent,
       previewFormat: preview.previewFormat,
       ragChunks,
-      size: formatBytes(file.size),
+      size: shell.size,
       sourcePath: storedPath,
       totalPages: preview.totalPages,
       type: fileType,
-      uploadDate: formatUploadDate(new Date()),
+      uploadDate: shell.uploadDate,
     };
   } catch (error) {
     await fs.unlink(storedPath).catch(() => undefined);
     logBackendProcess('error', 'file.upload.failed', {
       elapsedMs: getElapsedMs(uploadStartedAt),
       error: error instanceof Error ? error.message : 'Unknown upload processing error',
-      fileName: file.name,
+      fileName: shell.name,
       notebookId,
     });
     throw error;

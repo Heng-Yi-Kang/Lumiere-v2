@@ -316,10 +316,19 @@ export default function NotebookView({
   const isVideoPreview = selectedMaterial?.type === 'video';
   const isImagePreview = selectedMaterial?.type === 'image';
   const isLinkPreview = selectedMaterial?.type === 'link';
+  const fileStatus = activePreview?.status || selectedMaterial?.status || 'ready';
+  const ingestionError = activePreview?.ingestionError || selectedMaterial?.ingestionError;
+  const isVideoIngestionProcessing = isVideoPreview && fileStatus === 'processing';
+  const isVideoIngestionError = isVideoPreview && fileStatus === 'error';
+  const isVideoIngestionUnavailable = isVideoIngestionProcessing || isVideoIngestionError;
   const summaryStatus = activePreview?.summaryStatus || selectedMaterial?.summaryStatus || 'idle';
   const summaryError = activePreview?.summaryError || selectedMaterial?.summaryError;
   const summaryText = activePreview?.summary || selectedMaterial?.summary;
-  const summaryDisplayText = summaryStatus === 'in-progress'
+  const summaryDisplayText = isVideoIngestionProcessing
+    ? 'Video ingestion is processing. Description generation will start after transcript and search indexing complete.'
+    : isVideoIngestionError
+      ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
+      : summaryStatus === 'in-progress'
     ? 'Generating description...'
     : summaryStatus === 'error'
       ? summaryError || 'Description generation failed.'
@@ -432,7 +441,7 @@ export default function NotebookView({
   };
 
   const handleFileChatSubmit = async (question: string) => {
-    if (!notebook || !selectedMaterial || !question.trim() || isFileChatTyping) {
+    if (!notebook || !selectedMaterial || !question.trim() || isFileChatTyping || isVideoIngestionUnavailable) {
       return;
     }
 
@@ -929,6 +938,8 @@ export default function NotebookView({
                         <span>{file.uploadDate}</span>
                         {file.siteName ? <span>{file.siteName}</span> : null}
                         {file.totalPages ? <span>{file.totalPages} pages</span> : null}
+                        {file.status === 'processing' ? <span>Processing video</span> : null}
+                        {file.status === 'error' ? <span>Ingestion failed</span> : null}
                         {file.summaryStatus === 'in-progress' ? <span>Generating description</span> : null}
                         {file.summaryStatus === 'error' ? <span>Description failed</span> : null}
                       </div>
@@ -1055,6 +1066,33 @@ export default function NotebookView({
                   />
                 ) : null}
 
+                {isVideoPreview && selectedViewerUrl && activePreview && activePreview.previewFormat !== 'text' ? (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-border-subtle bg-bg-elevated/70 p-4">
+                      <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-muted font-mono">
+                        <MonitorPlay className="h-4 w-4" />
+                        Video Player
+                      </div>
+                      <HlsVideoPlayer
+                        fileId={selectedMaterial.id}
+                        initialHls={{
+                          hlsGeneratedAt: activePreview.hlsGeneratedAt || selectedMaterial.hlsGeneratedAt,
+                          hlsMasterPlaylistUrl: activePreview.hlsMasterPlaylistUrl || selectedMaterial.hlsMasterPlaylistUrl,
+                          hlsStatus: activePreview.hlsStatus || selectedMaterial.hlsStatus || 'PENDING',
+                          videoDurationSeconds: activePreview.videoDurationSeconds ?? selectedMaterial.videoDurationSeconds,
+                          videoResolution: activePreview.videoResolution || selectedMaterial.videoResolution,
+                        }}
+                        originalVideoUrl={selectedViewerUrl}
+                      />
+                    </div>
+                    <div className={`rounded-xl border p-4 text-sm font-semibold ${isVideoIngestionError ? 'border-error/20 bg-error-subtle text-error' : 'border-accent-border bg-accent-subtle text-accent-hover'}`}>
+                      {isVideoIngestionError
+                        ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
+                        : 'Video uploaded. Transcript extraction and search indexing are processing in the background.'}
+                    </div>
+                  </div>
+                ) : null}
+
                 {activePreview?.previewFormat === 'text' ? (
                   <div className="space-y-4">
                     {isVideoPreview && selectedViewerUrl ? (
@@ -1173,7 +1211,7 @@ export default function NotebookView({
                           <p className="mt-3 text-base leading-relaxed text-text-primary font-serif">
                             {summaryDisplayText}
                           </p>
-                          {summaryStatus === 'error' && onRetryFileSummary ? (
+                          {summaryStatus === 'error' && !isVideoIngestionUnavailable && onRetryFileSummary ? (
                             <div className="mt-4">
                               <button
                                 type="button"
@@ -1241,7 +1279,13 @@ export default function NotebookView({
                       ref={fileChatScrollRef}
                       className="min-h-0 flex-1 space-y-3 overflow-y-scroll p-3"
                     >
-                      {activeFileChatMessages.map((message) => (
+                      {isVideoIngestionUnavailable ? (
+                        <div className={`rounded-2xl border p-4 text-sm font-semibold ${isVideoIngestionError ? 'border-error/20 bg-error-subtle text-error' : 'border-accent-border bg-accent-subtle text-accent-hover'}`}>
+                          {isVideoIngestionError
+                            ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
+                            : 'Grounded file chat will be available after video transcript extraction and search indexing finish.'}
+                        </div>
+                      ) : activeFileChatMessages.map((message) => (
                         <div
                           key={message.id}
                           className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -1295,7 +1339,7 @@ export default function NotebookView({
                                     key={prompt}
                                     type="button"
                                     onClick={() => void handleFileChatSubmit(prompt)}
-                                    disabled={isFileChatTyping}
+                                    disabled={isFileChatTyping || isVideoIngestionUnavailable}
                                     className="w-full rounded-lg border border-border-subtle bg-bg-elevated/40 px-2 py-1.5 text-left text-[9.5px] font-bold text-text-secondary transition hover:border-accent/30 hover:bg-bg-elevated/70 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     {prompt}
@@ -1328,12 +1372,13 @@ export default function NotebookView({
                         type="text"
                         value={fileChatInput}
                         onChange={(event) => setFileChatInput(event.target.value)}
-                        placeholder="Ask a grounded question..."
+                        placeholder={isVideoIngestionUnavailable ? 'Video is not indexed yet...' : 'Ask a grounded question...'}
+                        disabled={isVideoIngestionUnavailable}
                         className="min-w-0 flex-1 rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2 text-xs font-semibold text-text-primary outline-none transition placeholder:text-text-muted focus:border-accent"
                       />
                       <button
                         type="submit"
-                        disabled={!fileChatInput.trim() || isFileChatTyping}
+                        disabled={!fileChatInput.trim() || isFileChatTyping || isVideoIngestionUnavailable}
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label="Send grounded file question"
                         title="Send grounded file question"
