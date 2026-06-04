@@ -20,6 +20,11 @@ export interface FileItem {
   summaryError?: string;
   summaryGeneratedAt?: string;
   summaryStatus?: 'idle' | 'in-progress' | 'done' | 'error';
+  hlsGeneratedAt?: string;
+  hlsMasterPlaylistUrl?: string;
+  hlsStatus?: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  videoDurationSeconds?: number;
+  videoResolution?: string;
   totalPages?: number;
 }
 
@@ -37,6 +42,19 @@ export interface NotebookFilePreview {
   summaryError?: string;
   summaryGeneratedAt?: string;
   summaryStatus?: 'idle' | 'in-progress' | 'done' | 'error';
+  hlsGeneratedAt?: string;
+  hlsMasterPlaylistUrl?: string;
+  hlsStatus?: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  videoDurationSeconds?: number;
+  videoResolution?: string;
+}
+
+export interface HlsStatus {
+  hlsGeneratedAt?: string;
+  hlsMasterPlaylistUrl?: string;
+  hlsStatus: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  videoDurationSeconds?: number;
+  videoResolution?: string;
 }
 
 export interface TranscriptSegment {

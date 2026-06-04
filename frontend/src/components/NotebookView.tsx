@@ -38,6 +38,7 @@ import { getNotebookColorTone } from '../lib/notebookColors';
 import { ChatMarkdown } from './ChatMarkdown';
 import { useFileNotes } from '../hooks/useFileNotes';
 import FileNotesPanel from './FileNotesPanel';
+import HlsVideoPlayer from './HlsVideoPlayer';
 import NotebookChatPanel from './NotebookChatPanel';
 import AddLinkModal from './AddLinkModal';
 
@@ -1060,14 +1061,17 @@ export default function NotebookView({
                           <MonitorPlay className="h-4 w-4" />
                           Video Player
                         </div>
-                        <video
-                          controls
-                          preload="metadata"
-                          src={selectedViewerUrl}
-                          className="max-h-[360px] w-full rounded-lg bg-black"
-                        >
-                          <a href={selectedViewerUrl}>Download video</a>
-                        </video>
+                        <HlsVideoPlayer
+                          fileId={selectedMaterial.id}
+                          initialHls={{
+                            hlsGeneratedAt: activePreview.hlsGeneratedAt || selectedMaterial.hlsGeneratedAt,
+                            hlsMasterPlaylistUrl: activePreview.hlsMasterPlaylistUrl || selectedMaterial.hlsMasterPlaylistUrl,
+                            hlsStatus: activePreview.hlsStatus || selectedMaterial.hlsStatus || 'PENDING',
+                            videoDurationSeconds: activePreview.videoDurationSeconds ?? selectedMaterial.videoDurationSeconds,
+                            videoResolution: activePreview.videoResolution || selectedMaterial.videoResolution,
+                          }}
+                          originalVideoUrl={selectedViewerUrl}
+                        />
                       </div>
                     ) : null}
 

@@ -28,8 +28,17 @@ vi.mock('@/lib/notebook-file-summary-job', () => ({
   startNotebookFileSummaryJob: vi.fn(),
 }));
 
+vi.mock('@/lib/hls-service', () => ({
+  getNotebookFileHlsDirectory: vi.fn((notebookId: string, fileId: string) => path.join('/tmp/hls', notebookId, fileId)),
+  serializeHlsStatus: vi.fn((file: { hlsStatus?: string }) => ({
+    hlsStatus: file.hlsStatus || 'PENDING',
+  })),
+  startNotebookFileHlsJob: vi.fn(),
+}));
+
 import { POST } from './route';
 import { deleteNotebookFileRagIndex, indexNotebookFileForRag } from '@/lib/rag';
+import { startNotebookFileHlsJob } from '@/lib/hls-service';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 
 describe('POST /api/notebooks/[notebookId]/files', () => {
@@ -57,6 +66,7 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     vi.mocked(indexNotebookFileForRag).mockResolvedValue(1);
     vi.mocked(deleteNotebookFileRagIndex).mockResolvedValue(undefined);
     vi.mocked(startNotebookFileSummaryJob).mockReset();
+    vi.mocked(startNotebookFileHlsJob).mockReset();
   });
 
   afterEach(async () => {
@@ -589,7 +599,7 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
 
     const request = {
       formData: vi.fn().mockResolvedValue({
-        get: vi.fn().mockReturnValue(oversizedFile),
+        getAll: vi.fn((field: string) => (field === 'file' ? [oversizedFile] : [])),
       }),
     } as unknown as Request;
 
@@ -618,14 +628,13 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
       configurable: true,
     });
 
-    const formData = new FormData();
-    formData.append('file', firstFile);
-    formData.append('file', secondFile);
+    const request = {
+      formData: vi.fn().mockResolvedValue({
+        getAll: vi.fn((field: string) => (field === 'file' ? [firstFile, secondFile] : [])),
+      }),
+    } as unknown as Request;
 
-    const response = await POST(new Request('http://localhost/api/notebooks/nb-1/files', {
-      method: 'POST',
-      body: formData,
-    }), {
+    const response = await POST(request, {
       params: Promise.resolve({ notebookId: 'nb-1' }),
     });
     const payload = await response.json();

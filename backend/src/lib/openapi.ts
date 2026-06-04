@@ -296,6 +296,24 @@ export const openApiDocument = {
         },
       },
     },
+    '/api/files/{fileId}/hls-status': {
+      get: {
+        tags: ['Files'],
+        summary: 'Get HLS generation status for a file',
+        parameters: [{ $ref: '#/components/parameters/FileId' }],
+        responses: {
+          '200': {
+            description: 'HLS playback metadata',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/HlsStatusResponse' },
+              },
+            },
+          },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
     '/api/notebooks/{notebookId}/files/{fileId}/notes': {
       get: {
         tags: ['Notes'],
@@ -602,6 +620,11 @@ export const openApiDocument = {
           summaryError: { type: 'string' },
           summaryGeneratedAt: { type: 'string', format: 'date-time' },
           summaryStatus: { type: 'string', enum: ['idle', 'in-progress', 'done', 'error'] },
+          hlsGeneratedAt: { type: 'string', format: 'date-time' },
+          hlsMasterPlaylistUrl: { type: 'string' },
+          hlsStatus: { type: 'string', enum: ['PENDING', 'PROCESSING', 'READY', 'FAILED'] },
+          videoDurationSeconds: { type: 'number' },
+          videoResolution: { type: 'string' },
           totalPages: { type: 'integer' },
         },
       },
@@ -660,8 +683,30 @@ export const openApiDocument = {
           summaryError: { type: 'string' },
           summaryGeneratedAt: { type: 'string', format: 'date-time' },
           summaryStatus: { type: 'string', enum: ['idle', 'in-progress', 'done', 'error'] },
+          hlsGeneratedAt: { type: 'string', format: 'date-time' },
+          hlsMasterPlaylistUrl: { type: 'string' },
+          hlsStatus: { type: 'string', enum: ['PENDING', 'PROCESSING', 'READY', 'FAILED'] },
+          videoDurationSeconds: { type: 'number' },
+          videoResolution: { type: 'string' },
           totalPages: { type: 'integer' },
           type: { type: 'string' },
+        },
+      },
+      HlsStatusResponse: {
+        type: 'object',
+        required: ['hls'],
+        properties: {
+          hls: {
+            type: 'object',
+            required: ['hlsStatus'],
+            properties: {
+              hlsGeneratedAt: { type: 'string', format: 'date-time' },
+              hlsMasterPlaylistUrl: { type: 'string' },
+              hlsStatus: { type: 'string', enum: ['PENDING', 'PROCESSING', 'READY', 'FAILED'] },
+              videoDurationSeconds: { type: 'number' },
+              videoResolution: { type: 'string' },
+            },
+          },
         },
       },
       FileNote: {

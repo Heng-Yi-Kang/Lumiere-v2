@@ -85,6 +85,13 @@ enum UserRole {
   USER
 }
 
+enum HlsStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
 model NotebookFile {
   id                 String   @id @default(cuid())
   notebookId         String
@@ -98,6 +105,11 @@ model NotebookFile {
   summaryStatus      String   @default("idle")
   summaryError       String?
   summaryGeneratedAt DateTime?
+  hlsStatus          HlsStatus @default(PENDING)
+  hlsMasterPlaylistUrl String?
+  hlsGeneratedAt     DateTime?
+  videoDurationSeconds Float?
+  videoResolution    String?
   totalPages         Int?
   sourcePath         String?
   sourceUrl          String?

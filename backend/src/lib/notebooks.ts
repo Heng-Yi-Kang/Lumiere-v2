@@ -1,4 +1,5 @@
 import type { Notebook as PrismaNotebook, NotebookFile as PrismaNotebookFile } from '@prisma/client';
+import { serializeHlsStatus } from '@/lib/hls-service';
 
 type NotebookWithFiles = PrismaNotebook & {
   files: PrismaNotebookFile[];
@@ -27,6 +28,7 @@ export function serializeNotebook(notebook: NotebookWithFiles) {
       summaryError: file.summaryError ?? undefined,
       summaryGeneratedAt: file.summaryGeneratedAt?.toISOString(),
       summaryStatus: file.summaryStatus as 'idle' | 'in-progress' | 'done' | 'error',
+      ...serializeHlsStatus(file),
       totalPages: file.totalPages ?? undefined,
     })),
   };

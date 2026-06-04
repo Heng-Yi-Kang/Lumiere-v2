@@ -10,12 +10,18 @@ const corsHeaders = {
   'Access-Control-Allow-Credentials': 'true',
 };
 
-export function jsonResponse(body: unknown, init?: ResponseInit) {
-  const headers = new Headers(init?.headers);
-
+export function applyCorsHeaders(headers: Headers) {
   for (const [key, value] of Object.entries(corsHeaders)) {
     headers.set(key, value);
   }
+
+  return headers;
+}
+
+export function jsonResponse(body: unknown, init?: ResponseInit) {
+  const headers = new Headers(init?.headers);
+
+  applyCorsHeaders(headers);
 
   return NextResponse.json(body, {
     ...init,

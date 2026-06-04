@@ -11,6 +11,7 @@ import { jsonResponse, optionsResponse, unauthorizedResponse } from '@/lib/http'
 import { serializeNotebook } from '@/lib/notebooks';
 import { deleteNotebookFileRagIndex, indexNotebookFileForRag } from '@/lib/rag';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
+import { getNotebookFileHlsDirectory, startNotebookFileHlsJob } from '@/lib/hls-service';
 import { isFrameDescriptionRateLimitError, RETRY_LATER_UPLOAD_ERROR } from '@/lib/upload-errors';
 
 export async function OPTIONS() {
@@ -141,7 +142,7 @@ async function rollbackNotebookUploads(notebookId: string, files: Array<{ id: st
         fileId: file.id,
         notebookId,
       });
-      await deleteNotebookStoredFile([file.sourcePath]);
+      await deleteNotebookStoredFile([file.sourcePath, getNotebookFileHlsDirectory(notebookId, file.id)]);
     }),
   );
 }
@@ -233,6 +234,10 @@ export async function POST(
   for (const createdFile of createdFiles) {
     if (createdFile.type !== 'image' && createdFile.extractedText?.trim()) {
       startNotebookFileSummaryJob(createdFile.id);
+    }
+
+    if (createdFile.type === 'video') {
+      startNotebookFileHlsJob(createdFile.id);
     }
   }
 

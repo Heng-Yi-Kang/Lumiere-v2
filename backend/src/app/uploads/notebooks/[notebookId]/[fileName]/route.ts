@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import path from 'node:path';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { jsonResponse, unauthorizedResponse } from '@/lib/http';
+import { applyCorsHeaders, jsonResponse, unauthorizedResponse } from '@/lib/http';
 import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 import { prisma } from '@/lib/prisma';
 
@@ -103,10 +103,10 @@ export async function GET(
     });
   }
 
-  const headers = new Headers({
+  const headers = applyCorsHeaders(new Headers({
     'Accept-Ranges': 'bytes',
     'Content-Type': file.mimeType || DEFAULT_MIME_TYPE,
-  });
+  }));
 
   if (!range) {
     headers.set('Content-Length', String(fileStat.size));

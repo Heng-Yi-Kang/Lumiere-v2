@@ -13,7 +13,7 @@ Lumiere is an AI-assisted study workspace for organizing course notebooks, uploa
 - **Authenticated study workspaces:** first-party email/password accounts with HTTP-only cookie sessions keep notebooks, files, notes, goals, and RAG queries scoped to the signed-in user.
 - **Notebook-centered course organization:** learners can create notebooks by course or topic, edit notebook metadata, upload materials, browse files, and keep contextual detail state through direct URLs such as `/notebooks?notebookId=<id>`.
 - **Multi-format material ingestion:** notebook uploads support PDF, DOCX, PPTX, TXT, common image files, audio files, and video files, with local upload storage and preview generation for supported content.
-- **Audio and video understanding:** audio uploads are transcribed through the configured STT provider; video uploads extract audio, sample frames with `ffmpeg`, describe frames through the VLM provider, and index timestamped transcript/visual segments.
+- **Audio and video understanding:** audio uploads are transcribed through the configured STT provider; video uploads extract audio, sample frames with `ffmpeg`, describe frames through the VLM provider, and index timestamped transcript/visual segments. Uploaded videos also get background HLS playback assets while the original upload remains the source for STT, frame sampling, summaries, embeddings, and Qdrant indexing.
 - **Grounded notebook chat:** Study Buddy and file-level chat use retrieved notebook chunks to answer questions with citations, and can be scoped to a whole notebook or a single uploaded file.
 - **Retrieval-augmented search:** the backend chunks extracted material, generates embeddings, stores vectors in Qdrant, keeps chunk manifests in PostgreSQL, and validates retrieval hits against the current notebook/file records.
 - **AI-generated file summaries:** uploaded files with extracted text can receive asynchronous summaries with visible generation states (`idle`, `in-progress`, `done`, `error`).
@@ -34,7 +34,7 @@ Install:
 - Node.js 22 LTS or another recent Node.js release compatible with the project dependencies
 - Corepack, usually bundled with Node.js
 - Docker Desktop or Docker Engine with Docker Compose
-- `ffmpeg` if you plan to ingest audio or video files
+- `ffmpeg` and `ffprobe` if you plan to ingest audio or video files or generate HLS playback assets
 
 Enable the pnpm version pinned by the workspace:
 
@@ -227,7 +227,8 @@ pnpm --dir backend test:vlm
 - Prisma cannot connect: make sure `.env` and `backend/.env` use the same database credentials and port, then check `docker compose ps`.
 - Browser login succeeds but later requests are unauthenticated: keep local `FRONTEND_ORIGIN=http://localhost:3000` and `SESSION_COOKIE_SAME_SITE=lax`; avoid cross-origin `VITE_API_BASE_URL` unless you also configure cookies for that flow.
 - Upload or preview files fail: make sure `backend/public/uploads/notebooks/` exists and is writable by the backend process.
-- Audio or video ingestion fails: install `ffmpeg` and configure `STT_*`; configure `VLM_*` for video frame descriptions.
+- Audio or video ingestion fails: install `ffmpeg`/`ffprobe` and configure `STT_*`; configure `VLM_*` for video frame descriptions.
+- Video preview falls back to the original file: HLS generation runs after upload in a background job. Check `NotebookFile.hlsStatus`; failed HLS generation does not block transcript extraction, VLM analysis, summaries, embeddings, or Qdrant indexing.
 - LLM connectivity tests fail: verify the provider base URL, API key, model name, timeout, and whether the provider expects multipart or JSON STT requests.
 
 ## Sign Up, Sign In, and Use Lumiere

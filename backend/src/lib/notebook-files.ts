@@ -439,7 +439,7 @@ export async function deleteNotebookStoredFile(paths: Array<string | null | unde
     paths
       .filter((value): value is string => Boolean(value))
       .map(async (targetPath) => {
-        await fs.unlink(targetPath).catch(() => undefined);
+        await fs.rm(targetPath, { recursive: true, force: true }).catch(() => undefined);
       }),
   );
 }

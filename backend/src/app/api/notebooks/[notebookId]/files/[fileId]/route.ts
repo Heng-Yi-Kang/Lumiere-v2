@@ -5,6 +5,7 @@ import { deleteNotebookFileRagIndex } from '@/lib/rag';
 import { serializeNotebook } from '@/lib/notebooks';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 import { prisma } from '@/lib/prisma';
+import { getNotebookFileHlsDirectory, serializeHlsStatus } from '@/lib/hls-service';
 
 export async function OPTIONS() {
   return optionsResponse();
@@ -39,12 +40,17 @@ export async function GET(
       sourcePath: true,
       sourceUrl: true,
       siteName: true,
+      hlsGeneratedAt: true,
+      hlsMasterPlaylistUrl: true,
+      hlsStatus: true,
       summary: true,
       summaryError: true,
       summaryGeneratedAt: true,
       summaryStatus: true,
       totalPages: true,
       type: true,
+      videoDurationSeconds: true,
+      videoResolution: true,
     },
   });
 
@@ -65,6 +71,7 @@ export async function GET(
       summaryError: file.summaryError ?? undefined,
       summaryGeneratedAt: file.summaryGeneratedAt?.toISOString(),
       summaryStatus: file.summaryStatus,
+      ...serializeHlsStatus(file),
       totalPages: file.totalPages ?? undefined,
       type: file.type,
     },
@@ -171,7 +178,7 @@ export async function DELETE(
     notebookId,
   });
 
-  await deleteNotebookStoredFile([file.sourcePath]);
+  await deleteNotebookStoredFile([file.sourcePath, getNotebookFileHlsDirectory(notebookId, file.id)]);
 
   const notebook = await prisma.notebook.findUnique({
     where: { id: notebookId },

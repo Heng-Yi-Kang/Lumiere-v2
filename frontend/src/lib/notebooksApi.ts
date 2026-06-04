@@ -1,4 +1,4 @@
-import { FileNote, GroundedChatResponse, Notebook, NotebookFilePreview } from '../types';
+import { FileNote, GroundedChatResponse, HlsStatus, Notebook, NotebookFilePreview } from '../types';
 
 export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
 
@@ -10,6 +10,11 @@ type NotebookResponse = {
 
 type NotebookPreviewResponse = {
   preview?: NotebookFilePreview;
+  error?: string;
+};
+
+type HlsStatusResponse = {
+  hls?: HlsStatus;
   error?: string;
 };
 
@@ -140,6 +145,18 @@ export async function fetchNotebookFilePreview(notebookId: string, fileId: strin
   }
 
   return payload.preview;
+}
+
+export async function fetchNotebookFileHlsStatus(fileId: string) {
+  const payload = await requestJson<HlsStatusResponse>(
+    `/api/files/${encodeURIComponent(fileId)}/hls-status`,
+  );
+
+  if (!payload.hls) {
+    throw new Error('HLS status was not returned by the API');
+  }
+
+  return payload.hls;
 }
 
 export async function retryNotebookFileSummary(notebookId: string, fileId: string) {
