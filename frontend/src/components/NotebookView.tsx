@@ -62,6 +62,8 @@ interface NotebookViewProps {
   onCreateNotebookRequested?: () => void;
 }
 
+const SELECTED_FILE_REFRESH_INTERVAL_MS = 3000;
+
 function getFileIcon(type: FileItem['type']) {
   switch (type) {
     case 'pdf':
@@ -130,6 +132,10 @@ function countMatchingFiles(notebook: Notebook, searchQuery: string) {
   }
 
   return notebook.files.filter((file) => fileMatchesSearch(file, searchQuery)).length;
+}
+
+function hasPendingFileWork(file: Pick<FileItem | NotebookFilePreview, 'status' | 'summaryStatus'> | null | undefined) {
+  return file?.status === 'processing' || file?.summaryStatus === 'in-progress';
 }
 
 function createFileChatInitialMessage(fileName: string): ChatMessage {
@@ -288,6 +294,109 @@ export default function NotebookView({
     };
   }, [notebook, previewCache, selectedMaterial]);
 
+  useEffect(() => {
+    if (!selectedMaterial) {
+      return;
+    }
+
+    setPreviewCache((current) => {
+      const preview = current[selectedMaterial.id];
+
+      if (!preview) {
+        return current;
+      }
+
+      const nextPreview = {
+        ...preview,
+        hlsGeneratedAt: selectedMaterial.hlsGeneratedAt,
+        hlsMasterPlaylistUrl: selectedMaterial.hlsMasterPlaylistUrl,
+        hlsStatus: selectedMaterial.hlsStatus,
+        ingestionError: selectedMaterial.ingestionError,
+        summary: selectedMaterial.summary,
+        summaryError: selectedMaterial.summaryError,
+        summaryGeneratedAt: selectedMaterial.summaryGeneratedAt,
+        summaryStatus: selectedMaterial.summaryStatus,
+        status: selectedMaterial.status,
+        videoDurationSeconds: selectedMaterial.videoDurationSeconds,
+        videoResolution: selectedMaterial.videoResolution,
+      };
+
+      const didChange =
+        preview.hlsGeneratedAt !== nextPreview.hlsGeneratedAt ||
+        preview.hlsMasterPlaylistUrl !== nextPreview.hlsMasterPlaylistUrl ||
+        preview.hlsStatus !== nextPreview.hlsStatus ||
+        preview.ingestionError !== nextPreview.ingestionError ||
+        preview.summary !== nextPreview.summary ||
+        preview.summaryError !== nextPreview.summaryError ||
+        preview.summaryGeneratedAt !== nextPreview.summaryGeneratedAt ||
+        preview.summaryStatus !== nextPreview.summaryStatus ||
+        preview.status !== nextPreview.status ||
+        preview.videoDurationSeconds !== nextPreview.videoDurationSeconds ||
+        preview.videoResolution !== nextPreview.videoResolution;
+
+      if (!didChange) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [selectedMaterial.id]: nextPreview,
+      };
+    });
+  }, [selectedMaterial]);
+
+  useEffect(() => {
+    if (!notebook || !selectedMaterial) {
+      return;
+    }
+
+    const cachedPreview = previewCache[selectedMaterial.id];
+    const shouldRefreshSelectedFile = hasPendingFileWork(cachedPreview) || hasPendingFileWork(selectedMaterial);
+
+    if (!shouldRefreshSelectedFile) {
+      return;
+    }
+
+    let isActive = true;
+    let timeoutId: number | undefined;
+
+    const refreshSelectedFile = () => {
+      void fetchNotebookFilePreview(notebook.id, selectedMaterial.id)
+        .then((preview) => {
+          if (!isActive) {
+            return;
+          }
+
+          setPreviewCache((current) => ({
+            ...current,
+            [selectedMaterial.id]: preview,
+          }));
+          setPreviewError('');
+
+          if (hasPendingFileWork(preview)) {
+            timeoutId = window.setTimeout(refreshSelectedFile, SELECTED_FILE_REFRESH_INTERVAL_MS);
+          }
+        })
+        .catch((error) => {
+          if (!isActive) {
+            return;
+          }
+
+          setPreviewError(error instanceof Error ? error.message : 'Failed to refresh file preview.');
+          timeoutId = window.setTimeout(refreshSelectedFile, SELECTED_FILE_REFRESH_INTERVAL_MS);
+        });
+    };
+
+    timeoutId = window.setTimeout(refreshSelectedFile, SELECTED_FILE_REFRESH_INTERVAL_MS);
+
+    return () => {
+      isActive = false;
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [notebook, previewCache, selectedMaterial]);
+
   const filteredFiles = useMemo(() => {
     if (!notebook) {
       return [];
@@ -363,13 +472,13 @@ export default function NotebookView({
         : 'Sending file to notebook storage...'
       : uploadPhase === 'extracting'
         ? hasVideoUpload
-          ? 'Video uploaded. Backend transcript extraction and indexing are running; keep this page open or refresh and check later.'
+          ? 'Video uploaded. Backend transcript extraction and indexing are running; this page will update automatically while open.'
           : uploadFileCount > 1
             ? `Extracting ${uploadFileCount} files and refreshing notebook...`
             : 'Extracting preview content and refreshing notebook...'
         : uploadPhase === 'success'
           ? hasVideoUpload
-            ? 'Upload finished. Video processing continues in the background; refresh and check later if you leave this page.'
+            ? 'Upload finished. Video processing continues in the background; this page will update automatically while open.'
             : uploadFileCount > 1
               ? `Uploaded ${uploadFileCount} files successfully.`
               : 'Upload finished. Material is ready.'
@@ -854,7 +963,7 @@ export default function NotebookView({
               <p className="text-[11px] text-text-muted">
                 {isSearchActive
                   ? `${filteredFiles.length} file${filteredFiles.length === 1 ? '' : 's'} matched "${searchQuery.trim()}".`
-                  : 'Open inline previews or delete files directly from this notebook. Videos upload first, then transcript extraction and indexing finish in the background; refresh and check later if you leave this page.'}
+                  : 'Open inline previews or delete files directly from this notebook. Videos upload first, then transcript extraction and indexing finish in the background while this page checks for updates.'}
               </p>
             </div>
           </div>
@@ -1127,7 +1236,7 @@ export default function NotebookView({
                       ) : (
                         <span className="inline-flex items-center gap-2">
                           <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
-                          Video uploaded. Transcript extraction and search indexing are processing in the background. Keep this page open for polling, or refresh and check later.
+                          Video uploaded. Transcript extraction and search indexing are processing in the background. Keep this page open for automatic updates.
                         </span>
                       )}
                     </div>
