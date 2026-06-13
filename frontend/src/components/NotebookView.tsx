@@ -45,6 +45,8 @@ import HlsVideoPlayer from './HlsVideoPlayer';
 import NotebookChatPanel from './NotebookChatPanel';
 import AddLinkModal from './AddLinkModal';
 import AddYoutubeLinkModal from './AddYoutubeLinkModal';
+import { NotebookUploadFileIcon } from './NotebookUploadFileIcon';
+import { LabeledProgressBar, ProgressBar } from './ProgressBar';
 
 interface NotebookViewProps {
   notebook: Notebook | null;
@@ -198,6 +200,7 @@ export default function NotebookView({
   const [fileDetailTab, setFileDetailTab] = useState<'chat' | 'notes'>('chat');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const [isAddYoutubeLinkModalOpen, setIsAddYoutubeLinkModalOpen] = useState(false);
+  const [videoIngestionProgress, setVideoIngestionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -441,15 +444,20 @@ export default function NotebookView({
   const summaryStatus = activePreview?.summaryStatus || selectedMaterial?.summaryStatus || 'idle';
   const summaryError = activePreview?.summaryError || selectedMaterial?.summaryError;
   const summaryText = activePreview?.summary || selectedMaterial?.summary;
-  const summaryDisplayText = isVideoIngestionProcessing
-    ? 'Video ingestion is processing. Description generation will start after transcript and search indexing complete. Keep this page open for automatic updates, or refresh and check later.'
-    : isVideoIngestionError
-      ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
-      : summaryStatus === 'in-progress'
-    ? 'Generating description...'
-    : summaryStatus === 'error'
-      ? summaryError || 'Description generation failed.'
-      : summaryText || 'No generated description is available for this file.';
+  const summaryDisplayText = isVideoIngestionError
+    ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
+    : summaryStatus === 'in-progress'
+      ? 'Generating description...'
+      : summaryStatus === 'error'
+        ? summaryError || 'Description generation failed.'
+        : summaryText || 'No generated description is available for this file.';
+  const videoIngestionStatus = videoIngestionProgress >= 86
+    ? 'Finalizing transcript and search index...'
+    : videoIngestionProgress >= 62
+      ? 'Indexing transcript for grounded search...'
+      : videoIngestionProgress >= 34
+        ? 'Extracting timestamped transcript...'
+        : 'Preparing video for transcript extraction...';
   const isRetryingSummary = Boolean(selectedMaterial && retryingSummaryFileId === selectedMaterial.id);
   const uploadProgressValue = uploadPhase === 'validating'
     ? 10
@@ -524,6 +532,23 @@ export default function NotebookView({
       setRetryingSummaryFileId(null);
     }
   };
+
+  useEffect(() => {
+    if (!isVideoIngestionProcessing || !selectedMaterial) {
+      setVideoIngestionProgress(0);
+      return;
+    }
+
+    setVideoIngestionProgress((currentProgress) => Math.max(currentProgress, 8));
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const nextProgress = Math.min(94, 8 + Math.floor((elapsed / 90000) * 86));
+      setVideoIngestionProgress((currentProgress) => Math.max(currentProgress, nextProgress));
+    }, 300);
+
+    return () => window.clearInterval(intervalId);
+  }, [isVideoIngestionProcessing, selectedMaterial?.id]);
 
   useEffect(() => {
     if (!fileChatScrollRef.current) {
@@ -983,12 +1008,13 @@ export default function NotebookView({
                 </span>
                 <span className={`font-black ${colorTone?.text || 'text-accent-hover'}`}>{uploadProgress}%</span>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-bg-elevated">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-200"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={uploadProgress}
+                ariaLabel="Upload progress"
+                className="mt-3 h-2"
+                tone="upload"
+                trackClassName="bg-bg-elevated"
+              />
               <p className="mt-3 text-sm text-text-secondary">
                 {hasUploadFailure ? 'Resolve the failed file and retry the remaining upload.' : uploadStatusLabel}
               </p>
@@ -996,7 +1022,10 @@ export default function NotebookView({
                 {uploadQueue.map((item) => (
                   <div key={item.id} className="rounded-xl border border-border-subtle bg-bg-overlay/30 px-3 py-2.5">
                     <div className="flex items-center justify-between gap-3 text-xs">
-                      <span className="min-w-0 truncate font-semibold text-text-primary">{item.name}</span>
+                      <span className="flex min-w-0 items-center gap-2 font-semibold text-text-primary">
+                        <NotebookUploadFileIcon extension={item.extension} />
+                        <span className="truncate">{item.name}</span>
+                      </span>
                       <span className={`shrink-0 text-[10px] font-black uppercase tracking-wider ${
                         item.status === 'failed'
                           ? 'text-error'
@@ -1010,12 +1039,13 @@ export default function NotebookView({
                       </span>
                     </div>
                     {uploadQueue.length > 1 && (
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-elevated">
-                        <div
-                          className={`h-full rounded-full transition-all duration-200 ${item.status === 'failed' ? 'bg-error' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400'}`}
-                          style={{ width: `${item.progress}%` }}
-                        />
-                      </div>
+                      <ProgressBar
+                        value={item.progress}
+                        ariaLabel={`${item.name} upload progress`}
+                        className="mt-2 h-1.5"
+                        tone={item.status === 'failed' ? 'error' : 'upload'}
+                        trackClassName="bg-bg-elevated"
+                      />
                     )}
                   </div>
                 ))}
@@ -1230,16 +1260,28 @@ export default function NotebookView({
                         originalVideoUrl={selectedViewerUrl}
                       />
                     </div>
-                    <div className={`rounded-xl border p-4 text-sm font-semibold ${isVideoIngestionError ? 'border-error/20 bg-error-subtle text-error' : 'border-accent-border bg-accent-subtle text-accent-hover'}`}>
-                      {isVideoIngestionError ? (
-                        ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
-                      ) : (
-                        <span className="inline-flex items-center gap-2">
-                          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
-                          Video uploaded. Transcript extraction and search indexing are processing in the background. Keep this page open for automatic updates.
-                        </span>
-                      )}
-                    </div>
+                    {isVideoIngestionUnavailable ? (
+                      <div className={`rounded-xl border p-4 text-sm font-semibold ${isVideoIngestionError ? 'border-error/20 bg-error-subtle text-error' : 'border-accent-border bg-accent-subtle text-accent-hover'}`}>
+                        {isVideoIngestionError ? (
+                          ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
+                        ) : (
+                          <LabeledProgressBar
+                            value={videoIngestionProgress}
+                            label={
+                              <span className="inline-flex items-center gap-2">
+                                <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+                                {videoIngestionStatus}
+                              </span>
+                            }
+                            ariaLabel="Video transcript extraction progress"
+                            className="mt-3 h-2"
+                            tone="upload"
+                            indicatorClassName="duration-150"
+                            valueClassName="text-accent-hover"
+                          />
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -1434,10 +1476,20 @@ export default function NotebookView({
                           {isVideoIngestionError ? (
                             ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
                           ) : (
-                            <span className="inline-flex items-center gap-2">
-                              <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
-                              Grounded file chat will be available after video transcript extraction and search indexing finish. Keep this page open, or refresh and check later.
-                            </span>
+                            <LabeledProgressBar
+                              value={videoIngestionProgress}
+                              label={
+                                <span className="inline-flex items-center gap-2">
+                                  <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+                                  {videoIngestionStatus}
+                                </span>
+                              }
+                              ariaLabel="Video transcript extraction progress"
+                              className="mt-3 h-2"
+                              tone="upload"
+                              indicatorClassName="duration-150"
+                              valueClassName="text-accent-hover"
+                            />
                           )}
                         </div>
                       ) : activeFileChatMessages.map((message) => (
