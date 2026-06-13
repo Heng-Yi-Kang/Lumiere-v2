@@ -3,6 +3,10 @@ export async function register() {
     return;
   }
 
-  const { registerNodeInstrumentation } = require('./instrumentation.node') as typeof import('./instrumentation.node');
+  const { registerNodeInstrumentation } = await (
+    new Function('specifier', 'return import(specifier)') as (
+      specifier: string,
+    ) => Promise<typeof import('./instrumentation.node')>
+  )('./instrumentation.node');
   await registerNodeInstrumentation();
 }
