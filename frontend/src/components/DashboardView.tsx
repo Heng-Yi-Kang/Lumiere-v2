@@ -4,10 +4,9 @@ import {
   ArrowUpRight,
   Plus, 
   UploadCloud, 
-  BookMarked, 
+  BookMarked,
   Sparkles, 
   ArrowRight,
-  FileText,
   Check,
   Edit3,
   Trash2,
@@ -28,6 +27,8 @@ import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import AddLinkModal from './AddLinkModal';
 import AddYoutubeLinkModal from './AddYoutubeLinkModal';
+import { NotebookUploadFileIcon } from './NotebookUploadFileIcon';
+import { ProgressBar } from './ProgressBar';
 
 interface DashboardViewProps {
   currentUserName: string;
@@ -67,9 +68,9 @@ export default function DashboardView({
   const [uploadQueue, setUploadQueue] = useState<Array<{
     id: string;
     name: string;
-    extension: SupportedNotebookExtension;
+    extension: SupportedNotebookExtension | 'link';
     progress: number;
-    status: 'queued' | 'validating' | 'uploading' | 'extracting' | 'done' | 'failed';
+    status: 'queued' | 'validating' | 'uploading' | 'extracting' | 'scraping' | 'done' | 'failed';
   }>>([]);
   const [uploadError, setUploadError] = useState('');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
@@ -189,7 +190,28 @@ export default function DashboardView({
     }
 
     setUploadError('');
-    await Promise.resolve(onAddLink(selectedNotebookId, url));
+    setSelectedFileName(url);
+    setSelectedFileCount(1);
+    setCompletedFileCount(0);
+    setUploadQueue([{
+      id: `web-link-${Date.now()}`,
+      name: url,
+      extension: 'link',
+      progress: 8,
+      status: 'scraping',
+    }]);
+    setUploadPhase('extracting');
+
+    try {
+      await Promise.resolve(onAddLink(selectedNotebookId, url));
+      setUploadQueue((current) => current.map((item) => ({ ...item, progress: 100, status: 'done' })));
+      setCompletedFileCount(1);
+      setUploadPhase('success');
+    } catch (error) {
+      setUploadPhase('idle');
+      setUploadQueue((current) => current.map((item) => ({ ...item, status: 'failed' })));
+      setUploadError(error instanceof Error ? error.message : 'Failed to add web link.');
+    }
   };
 
   const executeAddYoutubeLink = async (url: string) => {
@@ -201,7 +223,10 @@ export default function DashboardView({
     await Promise.resolve(onAddYoutubeLink(selectedNotebookId, url));
   };
 
-  const uploadProgress = uploadPhase === 'validating'
+  const activeLinkUpload = uploadQueue.find((item) => item.extension === 'link');
+  const uploadProgress = activeLinkUpload
+    ? activeLinkUpload.progress
+    : uploadPhase === 'validating'
     ? 10
     : uploadPhase === 'uploading'
       ? 45
@@ -215,7 +240,8 @@ export default function DashboardView({
     ? -1
     : uploadProgress;
   const hasUploadFailure = uploadQueue.some((item) => item.status === 'failed');
-  const hasVideoUpload = uploadQueue.some((item) => isVideoNotebookExtension(item.extension));
+  const hasVideoUpload = uploadQueue.some((item) => item.extension !== 'link' && isVideoNotebookExtension(item.extension));
+  const hasLinkUpload = uploadQueue.some((item) => item.extension === 'link');
 
   const uploadStatus = uploadPhase === 'validating'
     ? selectedFileCount > 1
@@ -225,14 +251,22 @@ export default function DashboardView({
       ? selectedFileCount > 1
         ? `Uploading ${selectedFileCount} files to notebook storage...`
         : 'Uploading file to notebook storage...'
-      : uploadPhase === 'extracting'
-        ? hasVideoUpload
+    : uploadPhase === 'extracting'
+        ? hasLinkUpload
+          ? activeLinkUpload && activeLinkUpload.progress >= 70
+            ? 'Indexing readable study context...'
+            : activeLinkUpload && activeLinkUpload.progress >= 36
+              ? 'Extracting readable page text...'
+              : 'Fetching web page...'
+        : hasVideoUpload
           ? 'Video uploaded. Backend transcript extraction and indexing are running; keep this page open or refresh and check later.'
           : selectedFileCount > 1
             ? `Extracting ${selectedFileCount} files and refreshing notebook...`
             : 'Extracting preview and refreshing notebook...'
-        : uploadPhase === 'success'
-          ? hasVideoUpload
+    : uploadPhase === 'success'
+          ? hasLinkUpload
+            ? 'Web link indexed and added to the notebook.'
+            : hasVideoUpload
             ? 'Upload finished. Video processing continues in the background.'
             : selectedFileCount > 1
               ? `Uploaded ${selectedFileCount} files successfully.`
@@ -242,9 +276,30 @@ export default function DashboardView({
   const shouldShowUploadQueue = uploadQueue.length > 0 && (isUploadActive || uploadPhase === 'success' || Boolean(uploadError));
   const uploadSummaryLabel = hasUploadFailure
     ? `${completedFileCount} of ${selectedFileCount} files uploaded before the batch stopped`
-    : selectedFileCount > 1
+    : hasLinkUpload
+      ? selectedFileName
+      : selectedFileCount > 1
       ? `${completedFileCount} of ${selectedFileCount} files complete`
       : selectedFileName;
+
+  useEffect(() => {
+    if (!activeLinkUpload || activeLinkUpload.status !== 'scraping') {
+      return;
+    }
+
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const nextProgress = Math.min(94, 10 + Math.floor((elapsed / 10000) * 84));
+      setUploadQueue((current) => current.map((item) =>
+        item.id === activeLinkUpload.id && item.status === 'scraping'
+          ? { ...item, progress: Math.max(item.progress, nextProgress) }
+          : item,
+      ));
+    }, 120);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeLinkUpload?.id, activeLinkUpload?.status]);
 
   return (
     <div className="space-y-8 text-left">
@@ -470,12 +525,14 @@ export default function DashboardView({
                     {uploadProgressValue < 100 ? `${uploadProgressValue}%` : 'Ready'}
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-bg-elevated overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-150"
-                    style={{ width: `${uploadProgressValue}%` }}
-                  />
-                </div>
+                <ProgressBar
+                  value={uploadProgressValue}
+                  ariaLabel="Upload progress"
+                  className="h-2"
+                  tone="upload"
+                  trackClassName="bg-bg-elevated"
+                  indicatorClassName="duration-150"
+                />
                 <div className="flex items-center gap-1.5 text-[10px] text-text-muted justify-center">
                   <Sparkles className="h-3 w-3 text-cta" />
                   <span>{hasUploadFailure ? 'Resolve the failed file and retry the remaining upload.' : uploadStatus}</span>
@@ -485,10 +542,10 @@ export default function DashboardView({
                     <div key={item.id} className="rounded-xl border border-border-subtle bg-bg-elevated/40 px-3 py-2.5">
                       <div className="flex items-center justify-between gap-3 text-xs">
                         <span className="flex min-w-0 items-center gap-2 font-semibold text-text-primary">
-                          {item.extension === 'pdf' ? (
-                            <FileText className="h-3.5 w-3.5 shrink-0 text-error" />
+                          {item.extension === 'link' ? (
+                            <LinkIcon className="h-3.5 w-3.5 shrink-0 text-accent-hover" />
                           ) : (
-                            <BookMarked className="h-3.5 w-3.5 shrink-0 text-accent-hover" />
+                            <NotebookUploadFileIcon extension={item.extension} />
                           )}
                           <span className="truncate">{item.name}</span>
                         </span>
@@ -505,12 +562,12 @@ export default function DashboardView({
                         </span>
                       </div>
                       {uploadQueue.length > 1 && (
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-overlay">
-                          <div
-                            className={`h-full rounded-full transition-all duration-200 ${item.status === 'failed' ? 'bg-error' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400'}`}
-                            style={{ width: `${item.progress}%` }}
-                          />
-                        </div>
+                        <ProgressBar
+                          value={item.progress}
+                          ariaLabel={`${item.name} upload progress`}
+                          className="mt-2 h-1.5"
+                          tone={item.status === 'failed' ? 'error' : 'upload'}
+                        />
                       )}
                     </div>
                   ))}
@@ -551,7 +608,7 @@ export default function DashboardView({
                     {uploadPhase === 'validating' ? (
                       <LoaderCircle className="h-4 w-4 animate-spin text-accent-hover" />
                     ) : (
-                      <BookMarked className="h-4 w-4 text-accent-hover" />
+                      <NotebookUploadFileIcon extension={selectedFileType} className="h-4 w-4 shrink-0" />
                     )}
                     <span className="truncate max-w-[220px]">{selectedFileCount > 1 ? `${selectedFileCount} files` : selectedFileName}</span>
                   </span>
@@ -559,12 +616,14 @@ export default function DashboardView({
                     {uploadProgressValue < 100 ? `${uploadProgressValue}%` : 'Ready'}
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-bg-elevated overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-150"
-                    style={{ width: `${uploadProgressValue}%` }}
-                  />
-                </div>
+                <ProgressBar
+                  value={uploadProgressValue}
+                  ariaLabel="Upload progress"
+                  className="h-2"
+                  tone="upload"
+                  trackClassName="bg-bg-elevated"
+                  indicatorClassName="duration-150"
+                />
                 <div className="flex items-center gap-1.5 text-[10px] text-text-muted justify-center">
                   <Sparkles className="h-3 w-3 text-cta" />
                   <span>{uploadStatus}</span>

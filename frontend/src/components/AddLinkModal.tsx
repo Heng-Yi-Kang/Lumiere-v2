@@ -51,11 +51,10 @@ export default function AddLinkModal({
     setIsSubmitting(true);
 
     try {
-      await Promise.resolve(onSubmit(url.trim()));
+      void Promise.resolve(onSubmit(url.trim())).catch(() => undefined);
       onClose();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Failed to add web link.');
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -113,12 +112,6 @@ export default function AddLinkModal({
         {error ? (
           <div className="mt-3 rounded-2xl border border-cta/20 bg-cta-subtle px-4 py-3 text-sm font-semibold text-cta">
             {error}
-          </div>
-        ) : null}
-
-        {isSubmitting ? (
-          <div className="mt-3 rounded-2xl border border-border-subtle bg-bg-elevated/40 px-4 py-3 text-sm text-text-secondary">
-            Rendering the page, extracting readable text, and indexing study context...
           </div>
         ) : null}
 

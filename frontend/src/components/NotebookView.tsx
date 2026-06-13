@@ -171,6 +171,12 @@ export default function NotebookView({
   onCreateNotebookRequested,
 }: NotebookViewProps) {
   type UploadPhase = 'idle' | 'validating' | 'uploading' | 'extracting' | 'success';
+  type PendingWebLink = {
+    id: string;
+    progress: number;
+    status: 'scraping' | 'done' | 'failed';
+    url: string;
+  };
   const [selectedMaterial, setSelectedMaterial] = useState<FileItem | null>(null);
   const [previewCache, setPreviewCache] = useState<Record<string, NotebookFilePreview>>({});
   const [previewError, setPreviewError] = useState('');
@@ -200,6 +206,7 @@ export default function NotebookView({
   const [fileDetailTab, setFileDetailTab] = useState<'chat' | 'notes'>('chat');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const [isAddYoutubeLinkModalOpen, setIsAddYoutubeLinkModalOpen] = useState(false);
+  const [pendingWebLink, setPendingWebLink] = useState<PendingWebLink | null>(null);
   const [videoIngestionProgress, setVideoIngestionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
@@ -213,6 +220,7 @@ export default function NotebookView({
     setPreviewError('');
     setUploadError('');
     setFileChatInput('');
+    setPendingWebLink(null);
   }, [notebook?.id]);
 
   useEffect(() => {
@@ -499,6 +507,35 @@ export default function NotebookView({
     : uploadFileCount > 1
       ? `${completedUploadCount} of ${uploadFileCount} files complete`
       : uploadFileName;
+  const isWebLinkActive = pendingWebLink?.status === 'scraping';
+  const webLinkStatusLabel = !pendingWebLink
+    ? ''
+    : pendingWebLink.status === 'failed'
+      ? 'Web link failed'
+      : pendingWebLink.progress >= 100
+        ? 'Web link indexed'
+        : pendingWebLink.progress >= 70
+          ? 'Indexing readable study context...'
+          : pendingWebLink.progress >= 36
+            ? 'Extracting readable page text...'
+            : 'Fetching web page...';
+
+  useEffect(() => {
+    if (pendingWebLink?.status !== 'scraping') {
+      return;
+    }
+
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const nextProgress = Math.min(94, 10 + Math.floor((elapsed / 10000) * 84));
+      setPendingWebLink((current) => current && current.status === 'scraping'
+        ? { ...current, progress: Math.max(current.progress, nextProgress) }
+        : current);
+    }, 120);
+
+    return () => window.clearInterval(intervalId);
+  }, [pendingWebLink?.id, pendingWebLink?.status]);
   const handleRetrySummary = async () => {
     if (!notebook || !selectedMaterial || !onRetryFileSummary) {
       return;
@@ -694,7 +731,27 @@ export default function NotebookView({
     }
 
     setUploadError('');
-    await Promise.resolve(onAddLink(notebook.id, url));
+    setPendingWebLink({
+      id: `web-link-${Date.now()}`,
+      progress: 8,
+      status: 'scraping',
+      url,
+    });
+
+    try {
+      await Promise.resolve(onAddLink(notebook.id, url));
+      setPendingWebLink((current) => current
+        ? { ...current, progress: 100, status: 'done' }
+        : current);
+      window.setTimeout(() => {
+        setPendingWebLink((current) => current?.status === 'done' ? null : current);
+      }, 1200);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Failed to add web link.');
+      setPendingWebLink((current) => current
+        ? { ...current, status: 'failed' }
+        : current);
+    }
   };
 
   const handleAddYoutubeLink = async (url: string) => {
@@ -1068,7 +1125,57 @@ export default function NotebookView({
           />
 
           <div className="mt-4 space-y-3">
-            {filteredFiles.length === 0 ? (
+            {pendingWebLink ? (
+              <div className={`flex flex-col gap-3 rounded-2xl border p-4 text-left sm:flex-row sm:items-center sm:justify-between ${
+                pendingWebLink.status === 'failed'
+                  ? 'border-error/25 bg-error-subtle/60'
+                  : pendingWebLink.status === 'done'
+                    ? 'border-success/25 bg-success-subtle/60'
+                    : 'animate-pulse border-accent/30 bg-accent-subtle/40'
+              }`}>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="rounded-xl border border-border-default bg-bg-elevated/60 p-2.5 shrink-0">
+                    {pendingWebLink.status === 'failed' ? (
+                      <X className="h-5 w-5 text-error" />
+                    ) : pendingWebLink.status === 'done' ? (
+                      <ShieldCheck className="h-5 w-5 text-success" />
+                    ) : (
+                      <LinkIcon className="h-5 w-5 text-accent-hover" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-bold text-text-primary">{pendingWebLink.url}</div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-medium uppercase tracking-widest text-text-muted">
+                      <span>link</span>
+                      <span>{webLinkStatusLabel}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="w-full shrink-0 sm:w-44">
+                  <div className={`mb-1 text-right text-[10px] font-black font-mono ${
+                    pendingWebLink.status === 'failed'
+                      ? 'text-error'
+                      : pendingWebLink.status === 'done'
+                        ? 'text-success'
+                        : colorTone?.text || 'text-accent-hover'
+                  }`}>
+                    {pendingWebLink.status === 'failed'
+                      ? 'Failed'
+                      : pendingWebLink.progress >= 100
+                        ? 'Ready'
+                        : `${pendingWebLink.progress}%`}
+                  </div>
+                  <ProgressBar
+                    value={pendingWebLink.status === 'failed' ? 100 : pendingWebLink.progress}
+                    ariaLabel="Web link indexing progress"
+                    className="h-1.5"
+                    tone={pendingWebLink.status === 'failed' ? 'error' : pendingWebLink.status === 'done' ? 'success' : 'upload'}
+                    trackClassName="bg-bg-elevated"
+                  />
+                </div>
+              </div>
+            ) : null}
+            {filteredFiles.length === 0 && !pendingWebLink ? (
               <div className="rounded-2xl border border-dashed border-border-default px-4 py-12 text-center text-sm text-text-muted">
                 <FolderOpen className="mx-auto mb-3 h-8 w-8 text-text-muted" />
                 {isSearchActive
@@ -1134,11 +1241,11 @@ export default function NotebookView({
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <button
               onClick={() => setIsAddLinkModalOpen(true)}
-              disabled={uploadPhase !== 'idle' || !onAddLink}
+              disabled={uploadPhase !== 'idle' || isWebLinkActive || !onAddLink}
               className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
             >
-              <LinkIcon className="h-4 w-4" />
-              Add Link
+              {isWebLinkActive ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />}
+              {isWebLinkActive ? 'Adding Link...' : 'Add Link'}
             </button>
             <button
               onClick={() => setIsAddYoutubeLinkModalOpen(true)}
