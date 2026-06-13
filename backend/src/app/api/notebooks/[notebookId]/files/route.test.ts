@@ -65,6 +65,7 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
   const originalSttApiBase = process.env.STT_API_BASE;
   const originalSttApiKey = process.env.STT_API_KEY;
   const originalSttModel = process.env.STT_MODEL;
+  const originalUploadLimitMb = process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB;
   let tempDir = '';
 
   beforeEach(async () => {
@@ -129,6 +130,11 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
       delete process.env.STT_MODEL;
     } else {
       process.env.STT_MODEL = originalSttModel;
+    }
+    if (originalUploadLimitMb === undefined) {
+      delete process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB;
+    } else {
+      process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB = originalUploadLimitMb;
     }
     vi.unstubAllGlobals();
     if (tempDir) {
@@ -759,6 +765,38 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
 
     expect(response.status).toBe(400);
     expect(payload.error).toMatch(/100 MB/);
+    expect(prismaMock.notebook.update).not.toHaveBeenCalled();
+  });
+
+  it('uses NOTEBOOK_FILE_UPLOAD_LIMIT_MB for batched upload validation', async () => {
+    process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB = '1';
+    prismaMock.notebook.findUnique.mockResolvedValue({ id: 'nb-1' });
+
+    const firstFile = new File(['x'], 'week-1.txt', { type: 'text/plain' });
+    const secondFile = new File(['y'], 'week-2.txt', { type: 'text/plain' });
+
+    Object.defineProperty(firstFile, 'size', {
+      value: 600 * 1024,
+      configurable: true,
+    });
+    Object.defineProperty(secondFile, 'size', {
+      value: 500 * 1024,
+      configurable: true,
+    });
+
+    const request = {
+      formData: vi.fn().mockResolvedValue({
+        getAll: vi.fn((field: string) => (field === 'file' ? [firstFile, secondFile] : [])),
+      }),
+    } as unknown as Request;
+
+    const response = await POST(request, {
+      params: Promise.resolve({ notebookId: 'nb-1' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toMatch(/1 MB/);
     expect(prismaMock.notebook.update).not.toHaveBeenCalled();
   });
 });

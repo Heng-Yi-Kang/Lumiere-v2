@@ -10,7 +10,10 @@ import { processVideoFile, type VideoRagSegment } from '@/lib/video-processing';
 import { describeImageFile } from '@/lib/vlm';
 import type { RagIndexChunk } from '@/lib/rag';
 
-export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const BYTES_PER_MB = 1024 * 1024;
+const DEFAULT_MAX_UPLOAD_MB = 100;
+
+export const MAX_UPLOAD_BYTES = DEFAULT_MAX_UPLOAD_MB * BYTES_PER_MB;
 
 export type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image';
 type PreviewFormat = 'pdf' | 'html' | 'text';
@@ -153,6 +156,20 @@ function formatBytes(bytes: number) {
   }
 
   return `${value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+export function getMaxUploadBytes() {
+  const configuredMegabytes = Number(process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB);
+  return Number.isFinite(configuredMegabytes) && configuredMegabytes > 0
+    ? Math.floor(configuredMegabytes * BYTES_PER_MB)
+    : MAX_UPLOAD_BYTES;
+}
+
+export function getUploadLimitLabel(maxUploadBytes = getMaxUploadBytes()) {
+  const megabytes = maxUploadBytes / BYTES_PER_MB;
+  return Number.isInteger(megabytes)
+    ? `${megabytes} MB`
+    : formatBytes(maxUploadBytes);
 }
 
 function sanitizePreviewHtml(html: string) {
@@ -342,14 +359,15 @@ async function validateAndStoreNotebookUpload(notebookId: string, file: File): P
     throw new NotebookFileValidationError('Uploaded file is empty.');
   }
 
-  if (file.size > MAX_UPLOAD_BYTES) {
+  const maxUploadBytes = getMaxUploadBytes();
+  if (file.size > maxUploadBytes) {
     logBackendProcess('warn', 'file.upload.rejected', {
       fileName: file.name,
       fileSizeBytes: file.size,
-      maxUploadBytes: MAX_UPLOAD_BYTES,
+      maxUploadBytes,
       reason: 'file_too_large',
     });
-    throw new NotebookFileValidationError('File exceeds the 100 MB upload limit.');
+    throw new NotebookFileValidationError(`File exceeds the ${getUploadLimitLabel(maxUploadBytes)} upload limit.`);
   }
 
   const allowedMimeTypes = MIME_TYPE_MAP[fileType];

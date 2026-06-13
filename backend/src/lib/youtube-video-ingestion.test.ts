@@ -5,6 +5,16 @@ import {
 } from './youtube-video-ingestion';
 
 describe('YouTube video ingestion helpers', () => {
+  const originalUploadLimitMb = process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB;
+
+  afterEach(() => {
+    if (originalUploadLimitMb === undefined) {
+      delete process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB;
+    } else {
+      process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB = originalUploadLimitMb;
+    }
+  });
+
   it.each([
     ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'],
     ['https://youtu.be/dQw4w9WgXcQ?t=42', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'],
@@ -67,5 +77,21 @@ describe('YouTube video ingestion helpers', () => {
     await expect(probeYoutubeVideoMetadata('https://youtu.be/dQw4w9WgXcQ', { runCommand }))
       .rejects
       .toThrow('100 MB upload limit');
+  });
+
+  it('uses NOTEBOOK_FILE_UPLOAD_LIMIT_MB when validating metadata size', async () => {
+    process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB = '1';
+    const runCommand = vi.fn().mockResolvedValue({
+      stderr: '',
+      stdout: JSON.stringify({
+        filesize: 2 * 1024 * 1024,
+        id: 'dQw4w9WgXcQ',
+        title: 'Large lecture video',
+      }),
+    });
+
+    await expect(probeYoutubeVideoMetadata('https://youtu.be/dQw4w9WgXcQ', { runCommand }))
+      .rejects
+      .toThrow('1 MB upload limit');
   });
 });

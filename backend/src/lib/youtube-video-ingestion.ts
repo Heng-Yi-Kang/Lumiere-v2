@@ -3,13 +3,12 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
-import { MAX_UPLOAD_BYTES, NotebookFileValidationError } from '@/lib/notebook-files';
+import { getMaxUploadBytes, getUploadLimitLabel, NotebookFileValidationError } from '@/lib/notebook-files';
 import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 
 const execFileAsync = promisify(execFile);
 const YOUTUBE_VIDEO_ID_PATTERN = /^[a-zA-Z0-9_-]{11}$/;
 const DEFAULT_YOUTUBE_COMMAND_TIMEOUT_MS = 20 * 60 * 1000;
-const YOUTUBE_MAX_FILESIZE_ARG = '100M';
 const YOUTUBE_DOWNLOAD_FORMAT = [
   'bv*[height<=720][ext=mp4]+ba[ext=m4a]',
   'b[height<=720][ext=mp4]',
@@ -78,6 +77,10 @@ function formatBytes(bytes: number) {
   }
 
   return `${value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function getYtDlpMaxFilesizeArg(maxUploadBytes = getMaxUploadBytes()) {
+  return `${Math.ceil(maxUploadBytes / 1024 / 1024)}M`;
 }
 
 function sanitizeFileName(fileName: string) {
@@ -192,8 +195,9 @@ export async function probeYoutubeVideoMetadata(url: string, deps: YoutubeComman
   }
 
   const estimatedSizeBytes = Number(payload.filesize ?? payload.filesize_approx);
-  if (Number.isFinite(estimatedSizeBytes) && estimatedSizeBytes > MAX_UPLOAD_BYTES) {
-    throw new YoutubeVideoValidationError('YouTube video exceeds the 100 MB upload limit.');
+  const maxUploadBytes = getMaxUploadBytes();
+  if (Number.isFinite(estimatedSizeBytes) && estimatedSizeBytes > maxUploadBytes) {
+    throw new YoutubeVideoValidationError(`YouTube video exceeds the ${getUploadLimitLabel(maxUploadBytes)} upload limit.`);
   }
 
   return {
@@ -240,7 +244,7 @@ export async function downloadYoutubeVideoForNotebook(params: {
     await runYtDlp([
       '--no-playlist',
       '--max-filesize',
-      YOUTUBE_MAX_FILESIZE_ARG,
+      getYtDlpMaxFilesizeArg(),
       '-f',
       YOUTUBE_DOWNLOAD_FORMAT,
       '--merge-output-format',
@@ -255,8 +259,9 @@ export async function downloadYoutubeVideoForNotebook(params: {
       throw new YoutubeVideoValidationError('Downloaded YouTube video is empty.');
     }
 
-    if (stats.size > MAX_UPLOAD_BYTES) {
-      throw new YoutubeVideoValidationError('YouTube video exceeds the 100 MB upload limit.');
+    const maxUploadBytes = getMaxUploadBytes();
+    if (stats.size > maxUploadBytes) {
+      throw new YoutubeVideoValidationError(`YouTube video exceeds the ${getUploadLimitLabel(maxUploadBytes)} upload limit.`);
     }
 
     logBackendProcess('info', 'youtube.download.completed', {

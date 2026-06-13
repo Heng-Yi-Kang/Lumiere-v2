@@ -3,7 +3,8 @@ import { getAuthenticatedUser } from '@/lib/auth';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import {
   deleteNotebookStoredFile,
-  MAX_UPLOAD_BYTES,
+  getMaxUploadBytes,
+  getUploadLimitLabel,
   NotebookFileValidationError,
   persistNotebookUpload,
   persistNotebookUploadShell,
@@ -272,14 +273,16 @@ export async function POST(
   }
 
   const totalUploadBytes = uploads.reduce((sum, upload) => sum + upload.size, 0);
-  if (totalUploadBytes > MAX_UPLOAD_BYTES) {
+  const maxUploadBytes = getMaxUploadBytes();
+  if (totalUploadBytes > maxUploadBytes) {
     logBackendProcess('warn', 'file.api.upload.rejected', {
       fileCount: uploads.length,
+      maxUploadBytes,
       notebookId,
       reason: 'batch_too_large',
       totalUploadBytes,
     });
-    return jsonResponse({ error: 'Selected files exceed the 100 MB upload limit.' }, { status: 400 });
+    return jsonResponse({ error: `Selected files exceed the ${getUploadLimitLabel(maxUploadBytes)} upload limit.` }, { status: 400 });
   }
 
   const createdFiles: Array<{ id: string; sourcePath: string; type: string; extractedText?: string | null }> = [];

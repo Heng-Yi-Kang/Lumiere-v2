@@ -24,6 +24,7 @@ describe('persistNotebookUpload', () => {
   const originalChatApiBaseUrl = process.env.CHAT_API_BASE_URL;
   const originalChatApiKey = process.env.CHAT_API_KEY;
   const originalChatModel = process.env.CHAT_MODEL;
+  const originalUploadLimitMb = process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB;
   let tempDir = '';
 
   beforeEach(async () => {
@@ -42,6 +43,7 @@ describe('persistNotebookUpload', () => {
     restoreEnv('CHAT_API_BASE_URL', originalChatApiBaseUrl);
     restoreEnv('CHAT_API_KEY', originalChatApiKey);
     restoreEnv('CHAT_MODEL', originalChatModel);
+    restoreEnv('NOTEBOOK_FILE_UPLOAD_LIMIT_MB', originalUploadLimitMb);
     vi.unstubAllGlobals();
     if (tempDir) {
       await rm(tempDir, { recursive: true, force: true });
@@ -119,6 +121,26 @@ describe('persistNotebookUpload', () => {
     await expect(persistNotebookUpload('nb-1', oversizedFile)).rejects.toBeInstanceOf(
       NotebookFileValidationError,
     );
+  });
+
+  it('uses NOTEBOOK_FILE_UPLOAD_LIMIT_MB when validating uploads', async () => {
+    process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB = '1';
+    const oversizedFile = new File(['x'], 'too-large.txt', {
+      type: 'text/plain',
+    });
+
+    Object.defineProperty(oversizedFile, 'size', {
+      value: 1024 * 1024 + 1,
+      configurable: true,
+    });
+
+    await expect(persistNotebookUpload('nb-1', oversizedFile))
+      .rejects
+      .toThrow('1 MB upload limit');
+
+    await expect(readdir(path.join(tempDir, 'nb-1')))
+      .rejects
+      .toThrow();
   });
 
   it('transcribes audio uploads and stores a timestamped transcript as text preview content', async () => {
