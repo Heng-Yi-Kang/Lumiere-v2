@@ -100,16 +100,21 @@ Behavior:
    - `summaryStatus = "error"`
    - `summaryError = "No extracted text is available to summarize."`
 4. otherwise set:
+   - `summary = null`
    - `summaryStatus = "in-progress"`
    - `summaryError = null`
 5. call `generateNotebookFileSummary()`
-6. on success, store:
+6. while the provider streams text, periodically store accumulated partial text in `summary` while keeping:
+   - `summaryStatus = "in-progress"`
+   - `summaryGeneratedAt = null`
+7. on success, store:
    - `summary`
    - `summaryStatus = "done"`
    - `summaryGeneratedAt = new Date()`
-7. on failure, store:
+8. on failure, store:
    - `summaryStatus = "error"`
    - `summaryError = <message>`
+   - any already-streamed partial `summary` remains visible
 
 The job is started with `setImmediate()`, so it is in-process only.
 
@@ -174,7 +179,7 @@ The notebook UI reads summary state from notebook/file payloads and the file pre
 
 Current behavior in [frontend/src/components/NotebookView.tsx](/home/arch_Kang/projects/Lumiere-v2/frontend/src/components/NotebookView.tsx):
 
-- `summaryStatus === "in-progress"` shows a generating state
+- `summaryStatus === "in-progress"` shows the partial `summary` text when present, otherwise a generating state
 - `summaryStatus === "error"` shows the stored error
 - `summaryStatus === "done"` shows the summary text
 

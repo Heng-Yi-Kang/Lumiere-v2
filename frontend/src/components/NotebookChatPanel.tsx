@@ -3,7 +3,7 @@ import { FileText, Link as LinkIcon, LoaderCircle, Send, ShieldCheck, Sparkles, 
 import { ChatMessage } from '../types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { getNotebookColorTone } from '../lib/notebookColors';
-import { askGroundedNotebookChat } from '../lib/notebooksApi';
+import { askGroundedNotebookChatStream } from '../lib/notebooksApi';
 import { getGroundedChatErrorMessage } from '../lib/apiErrors';
 
 interface NotebookChatPanelProps {
@@ -78,31 +78,55 @@ export default function NotebookChatPanel({
     setInput('');
     setIsTyping(true);
 
-    try {
-      const response = await askGroundedNotebookChat({
-        notebookId,
-        question: submittedQuestion,
-      });
+    const assistantMessageId = `bot-${Date.now()}`;
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      text: '',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      citations: [],
+      grounded: true,
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
 
-      const assistantMessage: ChatMessage = {
-        id: `bot-${Date.now()}`,
-        role: 'assistant',
-        text: response.answer,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        citations: response.citations,
-        grounded: response.grounded,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+    try {
+      const response = await askGroundedNotebookChatStream(
+        {
+          notebookId,
+          question: submittedQuestion,
+        },
+        {
+          onDelta: (delta) => {
+            setMessages((prev) => prev.map((message) => (
+              message.id === assistantMessageId
+                ? { ...message, text: `${message.text}${delta}` }
+                : message
+            )));
+          },
+        },
+      );
+
+      setMessages((prev) => prev.map((message) => (
+        message.id === assistantMessageId
+          ? {
+              ...message,
+              citations: response.citations,
+              grounded: response.grounded,
+              text: response.answer,
+            }
+          : message
+      )));
     } catch (error) {
-      const assistantMessage: ChatMessage = {
-        id: `bot-error-${Date.now()}`,
-        role: 'assistant',
-        text: getGroundedChatErrorMessage(error),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        citations: [],
-        grounded: false,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => prev.map((message) => (
+        message.id === assistantMessageId
+          ? {
+              ...message,
+              citations: [],
+              grounded: false,
+              text: getGroundedChatErrorMessage(error),
+            }
+          : message
+      )));
     } finally {
       setIsTyping(false);
     }

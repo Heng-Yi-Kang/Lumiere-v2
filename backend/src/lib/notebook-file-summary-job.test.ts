@@ -40,7 +40,9 @@ describe('generateAndStoreNotebookFileSummary', () => {
     expect(prismaMock.notebookFile.update).toHaveBeenNthCalledWith(1, {
       where: { id: 'file-1' },
       data: {
+        summary: null,
         summaryError: null,
+        summaryGeneratedAt: null,
         summaryStatus: 'in-progress',
       },
     });
@@ -48,6 +50,41 @@ describe('generateAndStoreNotebookFileSummary', () => {
       where: { id: 'file-1' },
       data: expect.objectContaining({
         summary: 'Generated summary.',
+        summaryError: null,
+        summaryStatus: 'done',
+      }),
+    });
+  });
+
+  it('stores partial summary text while generation is in progress', async () => {
+    prismaMock.notebookFile.findUnique.mockResolvedValue({
+      extractedText: 'Course material about architecture patterns.',
+      id: 'file-1',
+      name: 'patterns.pdf',
+      type: 'pdf',
+    });
+    prismaMock.notebookFile.update.mockResolvedValue({});
+    vi.mocked(generateNotebookFileSummary).mockImplementation(async (params) => {
+      await params.onDelta?.('Partial');
+      await params.onDelta?.(' summary.');
+      return 'Partial summary.';
+    });
+
+    await generateAndStoreNotebookFileSummary('file-1');
+
+    expect(prismaMock.notebookFile.update).toHaveBeenCalledWith({
+      where: { id: 'file-1' },
+      data: {
+        summary: 'Partial',
+        summaryError: null,
+        summaryGeneratedAt: null,
+        summaryStatus: 'in-progress',
+      },
+    });
+    expect(prismaMock.notebookFile.update).toHaveBeenLastCalledWith({
+      where: { id: 'file-1' },
+      data: expect.objectContaining({
+        summary: 'Partial summary.',
         summaryError: null,
         summaryStatus: 'done',
       }),

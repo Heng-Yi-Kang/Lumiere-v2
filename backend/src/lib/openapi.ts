@@ -478,6 +478,47 @@ export const openApiDocument = {
         },
       },
     },
+    '/api/notebooks/{notebookId}/rag/chat/stream': {
+      post: {
+        tags: ['RAG'],
+        summary: 'Stream a grounded answer about notebook content',
+        description: [
+          'Returns Server-Sent Events from a POST request.',
+          '`delta` events contain `{ "text": string }`.',
+          '`done` events contain the final `RagChatResponse` payload.',
+          '`error` events contain `{ "error": string }`.',
+        ].join(' '),
+        parameters: [{ $ref: '#/components/parameters/NotebookId' }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/RagChatRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'SSE stream of grounded chat events',
+            content: {
+              'text/event-stream': {
+                schema: { $ref: '#/components/schemas/RagChatStreamEvent' },
+              },
+            },
+          },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '404': { $ref: '#/components/responses/NotFound' },
+          '502': {
+            description: 'RAG retrieval failed',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
     '/api/streak/activity': {
       post: {
         tags: ['Streak'],
@@ -617,7 +658,10 @@ export const openApiDocument = {
           uploadDate: { type: 'string' },
           status: { type: 'string', enum: ['processing', 'ready', 'error'] },
           ingestionError: { type: 'string' },
-          summary: { type: 'string' },
+          summary: {
+            type: 'string',
+            description: 'Final summary when done; may contain partial generated text while summaryStatus is in-progress.',
+          },
           summaryError: { type: 'string' },
           summaryGeneratedAt: { type: 'string', format: 'date-time' },
           summaryStatus: { type: 'string', enum: ['idle', 'in-progress', 'done', 'error'] },
@@ -682,7 +726,10 @@ export const openApiDocument = {
           ingestionError: { type: 'string' },
           siteName: { type: 'string' },
           sourceUrl: { type: 'string' },
-          summary: { type: 'string' },
+          summary: {
+            type: 'string',
+            description: 'Final summary when done; may contain partial generated text while summaryStatus is in-progress.',
+          },
           summaryError: { type: 'string' },
           summaryGeneratedAt: { type: 'string', format: 'date-time' },
           summaryStatus: { type: 'string', enum: ['idle', 'in-progress', 'done', 'error'] },
@@ -823,6 +870,30 @@ export const openApiDocument = {
           grounded: { type: 'boolean' },
           scope: { $ref: '#/components/schemas/RagScope' },
         },
+      },
+      RagChatStreamEvent: {
+        oneOf: [
+          {
+            type: 'object',
+            required: ['text'],
+            properties: {
+              text: { type: 'string' },
+            },
+            description: 'Payload for `delta` events.',
+          },
+          {
+            allOf: [{ $ref: '#/components/schemas/RagChatResponse' }],
+            description: 'Payload for `done` events.',
+          },
+          {
+            type: 'object',
+            required: ['error'],
+            properties: {
+              error: { type: 'string' },
+            },
+            description: 'Payload for `error` events.',
+          },
+        ],
       },
       RagCitation: {
         type: 'object',

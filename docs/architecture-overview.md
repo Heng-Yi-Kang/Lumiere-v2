@@ -225,7 +225,7 @@ Images are handled slightly differently: their vision-generated description can 
 
 ## Retrieval and grounded chat flow
 
-Grounded chat is implemented at `POST /api/notebooks/[notebookId]/rag/chat`.
+Grounded chat is implemented at `POST /api/notebooks/[notebookId]/rag/chat`. Live chat uses `POST /api/notebooks/[notebookId]/rag/chat/stream`, which returns Server-Sent Events from the same retrieval and citation pipeline.
 
 Current flow:
 
@@ -236,7 +236,8 @@ Current flow:
 5. If retrieval returns nothing, fall back to stored extracted text chunking.
 6. Select and diversify the final context set.
 7. Send grounded context plus the question to the chat-completions provider.
-8. Return answer, citations, grounded flag, and notebook/file scope metadata.
+8. For the stream route, emit `delta` events as answer text arrives, then a `done` event with the final answer, citations, grounded flag, and notebook/file scope metadata.
+9. For the JSON route, return answer, citations, grounded flag, and notebook/file scope metadata after generation completes.
 
 Important implementation detail: the backend instructs the chat model to answer only from the provided context and to say what is missing instead of guessing.
 

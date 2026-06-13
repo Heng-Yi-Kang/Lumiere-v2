@@ -111,7 +111,7 @@ describe('generateNotebookFileSummary', () => {
     );
   });
 
-  it('logs parsed response status and returns the summary', async () => {
+  it('logs completion and returns the summary', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [
         {
@@ -136,20 +136,14 @@ describe('generateNotebookFileSummary', () => {
     expect(result).toBe('Course file summary.');
     expect(logBackendProcessMock).toHaveBeenCalledWith(
       'info',
-      'file.summary.response.received',
+      'file.summary.request.completed',
       expect.objectContaining({
-        choiceCount: 1,
-        contentType: 'application/json',
-        firstChoiceFinishReason: 'stop',
-        firstMessageContentChars: 'Course file summary.'.length,
-        firstMessageContentSnippet: 'Course file summary.',
-        parsedJson: true,
-        status: 200,
+        summaryChars: 'Course file summary.'.length,
       }),
     );
   });
 
-  it('logs provider body snippets for non-2xx responses', async () => {
+  it('logs provider errors for non-2xx responses', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       error: {
         message: 'model is not available for this account',
@@ -166,21 +160,18 @@ describe('generateNotebookFileSummary', () => {
       fileName: 'logic.txt',
       fileType: 'txt',
       text: 'Truth tables and De Morgan laws.',
-    })).rejects.toThrow('Summary generation failed with 429');
+    })).rejects.toThrow('Chat completion failed with 429');
 
     expect(logBackendProcessMock).toHaveBeenCalledWith(
-      'warn',
+      'error',
       'file.summary.request.failed',
       expect.objectContaining({
-        bodySnippet: expect.stringContaining('model is not available'),
-        contentType: 'application/json',
-        status: 429,
-        statusText: 'Too Many Requests',
+        error: expect.stringContaining('model is not available'),
       }),
     );
   });
 
-  it('logs parse failures for invalid JSON responses', async () => {
+  it('logs request failures for invalid JSON responses', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not-json', {
       headers: {
         'content-type': 'text/plain',
@@ -194,12 +185,10 @@ describe('generateNotebookFileSummary', () => {
     })).rejects.toThrow();
 
     expect(logBackendProcessMock).toHaveBeenCalledWith(
-      'warn',
-      'file.summary.response.parse_failed',
+      'error',
+      'file.summary.request.failed',
       expect.objectContaining({
-        bodySnippet: 'not-json',
-        contentType: 'text/plain',
-        status: 200,
+        error: expect.stringContaining('not-json'),
       }),
     );
   });
@@ -227,10 +216,8 @@ describe('generateNotebookFileSummary', () => {
       'warn',
       'file.summary.empty_response',
       expect.objectContaining({
-        choiceCount: 1,
-        firstChoiceFinishReason: 'length',
-        firstMessageContentChars: 3,
-        responseBodySnippet: expect.stringContaining('"choices"'),
+        fileName: 'logic.txt',
+        fileType: 'txt',
       }),
     );
   });

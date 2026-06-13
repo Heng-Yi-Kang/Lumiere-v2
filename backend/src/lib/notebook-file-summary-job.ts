@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma';
 
 export type NotebookFileSummaryStatus = 'idle' | 'in-progress' | 'done' | 'error';
 
+const PARTIAL_SUMMARY_UPDATE_INTERVAL_MS = 750;
+const PARTIAL_SUMMARY_UPDATE_CHAR_DELTA = 80;
+
 function getSummaryErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Unknown summary generation error';
 }
@@ -53,15 +56,51 @@ export async function generateAndStoreNotebookFileSummary(fileId: string) {
   await prisma.notebookFile.update({
     where: { id: file.id },
     data: {
+      summary: null,
       summaryError: null,
+      summaryGeneratedAt: null,
       summaryStatus: 'in-progress',
     },
   });
+
+  let partialSummary = '';
+  let lastPersistedSummary = '';
+  let lastPersistedAt = 0;
+
+  const persistPartialSummary = async (force = false) => {
+    const normalizedPartial = partialSummary.replace(/\s+/g, ' ').trim();
+    if (!normalizedPartial || normalizedPartial === lastPersistedSummary) {
+      return;
+    }
+
+    const now = Date.now();
+    const charDelta = normalizedPartial.length - lastPersistedSummary.length;
+    if (!force && now - lastPersistedAt < PARTIAL_SUMMARY_UPDATE_INTERVAL_MS && charDelta < PARTIAL_SUMMARY_UPDATE_CHAR_DELTA) {
+      return;
+    }
+
+    await prisma.notebookFile.update({
+      where: { id: file.id },
+      data: {
+        summary: normalizedPartial,
+        summaryError: null,
+        summaryGeneratedAt: null,
+        summaryStatus: 'in-progress',
+      },
+    });
+
+    lastPersistedSummary = normalizedPartial;
+    lastPersistedAt = now;
+  };
 
   try {
     const summary = await generateNotebookFileSummary({
       fileName: file.name,
       fileType: file.type,
+      onDelta: async (text) => {
+        partialSummary += text;
+        await persistPartialSummary();
+      },
       text: file.extractedText || '',
     });
 
@@ -87,6 +126,7 @@ export async function generateAndStoreNotebookFileSummary(fileId: string) {
     });
   } catch (error) {
     const errorMessage = getSummaryErrorMessage(error);
+    await persistPartialSummary(true);
     await prisma.notebookFile.update({
       where: { id: file.id },
       data: {

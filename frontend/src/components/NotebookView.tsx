@@ -29,7 +29,7 @@ import {
   Youtube,
 } from 'lucide-react';
 import { ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
-import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
+import { askGroundedNotebookChatStream, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
 import { getGenericUploadErrorMessage, getGroundedChatErrorMessage } from '../lib/apiErrors';
 import {
   NOTEBOOK_UPLOAD_ACCEPT,
@@ -456,7 +456,7 @@ export default function NotebookView({
   const summaryDisplayText = isVideoIngestionError
     ? ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
     : summaryStatus === 'in-progress'
-      ? 'Generating description...'
+      ? summaryText || 'Generating description...'
       : summaryStatus === 'error'
         ? summaryError || 'Description generation failed.'
         : summaryText || 'No generated description is available for this file.';
@@ -657,33 +657,57 @@ export default function NotebookView({
     setFileChatInput('');
     setIsFileChatTyping(true);
 
+    const assistantMessageId = `file-chat-assistant-${Date.now()}`;
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      text: '',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      citations: [],
+      grounded: true,
+    };
+
+    updateFileChatMessages(file.id, (messages) => [...messages, assistantMessage]);
+
     try {
-      const response = await askGroundedNotebookChat({
-        fileId: file.id,
-        notebookId: notebook.id,
-        question: submittedQuestion,
-      });
+      const response = await askGroundedNotebookChatStream(
+        {
+          fileId: file.id,
+          notebookId: notebook.id,
+          question: submittedQuestion,
+        },
+        {
+          onDelta: (delta) => {
+            updateFileChatMessages(file.id, (messages) => messages.map((message) => (
+              message.id === assistantMessageId
+                ? { ...message, text: `${message.text}${delta}` }
+                : message
+            )));
+          },
+        },
+      );
 
-      const assistantMessage: ChatMessage = {
-        id: `file-chat-assistant-${Date.now()}`,
-        role: 'assistant',
-        text: response.answer,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        citations: response.citations,
-        grounded: response.grounded,
-      };
-
-      updateFileChatMessages(file.id, (messages) => [...messages, assistantMessage]);
+      updateFileChatMessages(file.id, (messages) => messages.map((message) => (
+        message.id === assistantMessageId
+          ? {
+              ...message,
+              citations: response.citations,
+              grounded: response.grounded,
+              text: response.answer,
+            }
+          : message
+      )));
     } catch (error) {
-      const assistantMessage: ChatMessage = {
-        id: `file-chat-error-${Date.now()}`,
-        role: 'assistant',
-        text: getGroundedChatErrorMessage(error),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        citations: [],
-      };
-
-      updateFileChatMessages(file.id, (messages) => [...messages, assistantMessage]);
+      updateFileChatMessages(file.id, (messages) => messages.map((message) => (
+        message.id === assistantMessageId
+          ? {
+              ...message,
+              citations: [],
+              grounded: false,
+              text: getGroundedChatErrorMessage(error),
+            }
+          : message
+      )));
     } finally {
       setIsFileChatTyping(false);
     }

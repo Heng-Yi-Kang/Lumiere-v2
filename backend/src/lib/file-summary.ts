@@ -1,4 +1,5 @@
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
+import { generateChatCompletionFromMessages, streamChatCompletionFromMessages } from '@/lib/openai-chat';
 import { splitIntoRagChunks } from '@/lib/rag';
 
 type ChatCompletionMessage = {
@@ -179,6 +180,7 @@ export function buildSummarySource(text: string, maxChars = MAX_SUMMARY_SOURCE_C
 export async function generateNotebookFileSummary(params: {
   fileName: string;
   fileType: string;
+  onDelta?: (text: string) => void | Promise<void>;
   text: string;
 }) {
   const apiKey = getOptionalEnv('CHAT_API_KEY');
@@ -222,43 +224,75 @@ export async function generateNotebookFileSummary(params: {
     totalChunkCount: sourceText.totalChunkCount,
   });
 
-  let response: Response;
+  const messages = [
+    {
+      role: 'system' as const,
+      content: [
+        'You generate concise study summaries for uploaded course files.',
+        'Use only the supplied extracted file text.',
+        'For long files, the supplied text may contain representative excerpts sampled from across the file.',
+        'Write 3 to 5 sentences focused on main ideas, likely study value, and key terms.',
+        'Do not invent details that are not present in the text.',
+      ].join(' '),
+    },
+    {
+      role: 'user' as const,
+      content: [
+        `File name: ${params.fileName}`,
+        `File type: ${params.fileType}`,
+        '',
+        'Extracted text:',
+        sourceText.text,
+      ].join('\n'),
+    },
+  ];
+
   try {
-    response = await fetch(buildChatCompletionsUrl(baseUrl), {
-      method: 'POST',
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const generated = params.onDelta
+      ? await streamChatCompletionFromMessages({
+          messages,
+          onDelta: params.onDelta,
+          timeoutMs,
+        })
+      : await generateChatCompletionFromMessages({
+          messages,
+          timeoutMs,
+        });
+    const summary = generated.replace(/\s+/g, ' ').trim() || undefined;
+
+    if (!summary) {
+      logBackendProcess('warn', 'file.summary.empty_response', {
+        elapsedMs: getElapsedMs(requestStartedAt),
+        fileName: params.fileName,
+        fileType: params.fileType,
         model,
-        temperature: 0.2,
-        messages: [
-          {
-            role: 'system',
-            content: [
-              'You generate concise study summaries for uploaded course files.',
-              'Use only the supplied extracted file text.',
-              'For long files, the supplied text may contain representative excerpts sampled from across the file.',
-              'Write 3 to 5 sentences focused on main ideas, likely study value, and key terms.',
-              'Do not invent details that are not present in the text.',
-            ].join(' '),
-          },
-          {
-            role: 'user',
-            content: [
-              `File name: ${params.fileName}`,
-              `File type: ${params.fileType}`,
-              '',
-              'Extracted text:',
-              sourceText.text,
-            ].join('\n'),
-          },
-        ],
-      }),
+        providerHost: getProviderHost(baseUrl),
+      });
+      return undefined;
+    }
+
+    logBackendProcess('info', 'file.summary.request.completed', {
+      elapsedMs: getElapsedMs(requestStartedAt),
+      fileName: params.fileName,
+      fileType: params.fileType,
+      model,
+      providerHost: getProviderHost(baseUrl),
+      summaryChars: summary.length,
     });
+
+    return summary;
   } catch (error) {
+    if (error instanceof Error && error.message === 'Chat provider returned no answer.') {
+      logBackendProcess('warn', 'file.summary.empty_response', {
+        elapsedMs: getElapsedMs(requestStartedAt),
+        fileName: params.fileName,
+        fileType: params.fileType,
+        model,
+        providerHost: getProviderHost(baseUrl),
+      });
+      return undefined;
+    }
+
     logBackendProcess('error', 'file.summary.request.failed', {
       elapsedMs: getElapsedMs(requestStartedAt),
       error: error instanceof Error ? error.message : 'Unknown summary request error',
@@ -269,97 +303,4 @@ export async function generateNotebookFileSummary(params: {
     });
     throw error;
   }
-
-  const responseText = await response.text();
-  let payload: ChatCompletionResponse | undefined;
-  let parseError: Error | undefined;
-
-  try {
-    payload = parseChatCompletionPayload(responseText);
-  } catch (error) {
-    parseError = error instanceof Error ? error : new Error('Unknown JSON parse error');
-  }
-
-  const firstChoice = payload?.choices?.[0];
-  const firstMessageContent = firstChoice?.message?.content;
-  const responseLogFields = {
-    bodyChars: responseText.length,
-    bodySnippet: buildLogSnippet(responseText),
-    choiceCount: payload?.choices?.length || 0,
-    contentType: response.headers.get('content-type'),
-    elapsedMs: getElapsedMs(requestStartedAt),
-    fileName: params.fileName,
-    fileType: params.fileType,
-    firstChoiceFinishReason: firstChoice?.finish_reason,
-    firstMessageContentChars: firstMessageContent?.length || 0,
-    firstMessageContentSnippet: buildLogSnippet(firstMessageContent),
-    model,
-    parsedJson: Boolean(payload),
-    providerHost: getProviderHost(baseUrl),
-    status: response.status,
-    statusText: response.statusText,
-  };
-
-  logBackendProcess(response.ok ? 'info' : 'warn', 'file.summary.response.received', responseLogFields);
-
-  if (!response.ok) {
-    logBackendProcess('warn', 'file.summary.request.failed', {
-      bodyChars: responseText.length,
-      bodySnippet: buildLogSnippet(responseText),
-      contentType: response.headers.get('content-type'),
-      elapsedMs: responseLogFields.elapsedMs,
-      fileName: params.fileName,
-      fileType: params.fileType,
-      model,
-      providerHost: getProviderHost(baseUrl),
-      status: response.status,
-      statusText: response.statusText,
-    });
-    throw new Error(`Summary generation failed with ${response.status}: ${response.statusText}`);
-  }
-
-  if (parseError || !payload) {
-    logBackendProcess('warn', 'file.summary.response.parse_failed', {
-      bodyChars: responseText.length,
-      bodySnippet: buildLogSnippet(responseText),
-      contentType: response.headers.get('content-type'),
-      elapsedMs: responseLogFields.elapsedMs,
-      error: parseError?.message || 'Empty response body',
-      fileName: params.fileName,
-      fileType: params.fileType,
-      model,
-      providerHost: getProviderHost(baseUrl),
-      status: response.status,
-      statusText: response.statusText,
-    });
-    throw new Error(parseError?.message || 'Summary provider returned an empty response body.');
-  }
-
-  const summary = payload.choices?.[0]?.message?.content?.replace(/\s+/g, ' ').trim() || undefined;
-
-  if (!summary) {
-    logBackendProcess('warn', 'file.summary.empty_response', {
-      choiceCount: payload.choices?.length || 0,
-      elapsedMs: responseLogFields.elapsedMs,
-      fileName: params.fileName,
-      fileType: params.fileType,
-      firstChoiceFinishReason: firstChoice?.finish_reason,
-      firstMessageContentChars: firstMessageContent?.length || 0,
-      responseBodySnippet: buildLogSnippet(responseText),
-      model,
-      providerHost: getProviderHost(baseUrl),
-    });
-    return undefined;
-  }
-
-  logBackendProcess('info', 'file.summary.request.completed', {
-    elapsedMs: responseLogFields.elapsedMs,
-    fileName: params.fileName,
-    fileType: params.fileType,
-    model,
-    providerHost: getProviderHost(baseUrl),
-    summaryChars: summary.length,
-  });
-
-  return summary;
 }
