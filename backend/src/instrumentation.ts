@@ -3,10 +3,6 @@ export async function register() {
     return;
   }
 
-  const { registerNodeInstrumentation } = await (
-    new Function('specifier', 'return import(specifier)') as (
-      specifier: string,
-    ) => Promise<typeof import('./instrumentation.node')>
-  )('./instrumentation.node');
+  const { registerNodeInstrumentation } = await import('./instrumentation.node');
   await registerNodeInstrumentation();
 }
