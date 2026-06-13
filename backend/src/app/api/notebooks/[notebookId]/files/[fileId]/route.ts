@@ -60,6 +60,8 @@ export async function GET(
     return jsonResponse({ error: 'file not found' }, { status: 404 });
   }
 
+  const storedFileUrl = file.sourcePath ? buildNotebookStoredFileUrl(notebookId, file.sourcePath) : undefined;
+
   return jsonResponse({
     preview: {
       id: file.id,
@@ -69,7 +71,7 @@ export async function GET(
       previewContent: file.previewContent ?? undefined,
       previewFormat: file.previewFormat ?? undefined,
       siteName: file.siteName ?? undefined,
-      sourceUrl: file.sourceUrl ?? buildNotebookStoredFileUrl(notebookId, file.sourcePath),
+      sourceUrl: file.type === 'video' && storedFileUrl ? storedFileUrl : file.sourceUrl ?? storedFileUrl,
       status: file.status,
       summary: file.summary ?? undefined,
       summaryError: file.summaryError ?? undefined,

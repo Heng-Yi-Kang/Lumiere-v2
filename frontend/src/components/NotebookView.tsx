@@ -171,8 +171,9 @@ export default function NotebookView({
   onCreateNotebookRequested,
 }: NotebookViewProps) {
   type UploadPhase = 'idle' | 'validating' | 'uploading' | 'extracting' | 'success';
-  type PendingWebLink = {
+  type PendingLink = {
     id: string;
+    kind: 'web' | 'youtube';
     progress: number;
     status: 'scraping' | 'done' | 'failed';
     url: string;
@@ -206,7 +207,7 @@ export default function NotebookView({
   const [fileDetailTab, setFileDetailTab] = useState<'chat' | 'notes'>('chat');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const [isAddYoutubeLinkModalOpen, setIsAddYoutubeLinkModalOpen] = useState(false);
-  const [pendingWebLink, setPendingWebLink] = useState<PendingWebLink | null>(null);
+  const [pendingLink, setPendingLink] = useState<PendingLink | null>(null);
   const [videoIngestionProgress, setVideoIngestionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
@@ -220,7 +221,7 @@ export default function NotebookView({
     setPreviewError('');
     setUploadError('');
     setFileChatInput('');
-    setPendingWebLink(null);
+    setPendingLink(null);
   }, [notebook?.id]);
 
   useEffect(() => {
@@ -507,35 +508,48 @@ export default function NotebookView({
     : uploadFileCount > 1
       ? `${completedUploadCount} of ${uploadFileCount} files complete`
       : uploadFileName;
-  const isWebLinkActive = pendingWebLink?.status === 'scraping';
-  const webLinkStatusLabel = !pendingWebLink
+  const isPendingLinkActive = pendingLink?.status === 'scraping';
+  const isWebLinkActive = isPendingLinkActive && pendingLink?.kind === 'web';
+  const isYoutubeLinkActive = isPendingLinkActive && pendingLink?.kind === 'youtube';
+  const pendingLinkStatusLabel = !pendingLink
     ? ''
-    : pendingWebLink.status === 'failed'
-      ? 'Web link failed'
-      : pendingWebLink.progress >= 100
-        ? 'Web link indexed'
-        : pendingWebLink.progress >= 70
-          ? 'Indexing readable study context...'
-          : pendingWebLink.progress >= 36
-            ? 'Extracting readable page text...'
-            : 'Fetching web page...';
+    : pendingLink.kind === 'youtube'
+      ? pendingLink.status === 'failed'
+        ? 'YouTube video failed'
+        : pendingLink.progress >= 100
+          ? 'YouTube video queued'
+          : pendingLink.progress >= 70
+            ? 'Adding video to notebook...'
+            : pendingLink.progress >= 36
+              ? 'Fetching video metadata...'
+              : 'Validating YouTube video...'
+      : pendingLink.status === 'failed'
+        ? 'Web link failed'
+        : pendingLink.progress >= 100
+          ? 'Web link indexed'
+          : pendingLink.progress >= 70
+            ? 'Indexing readable study context...'
+            : pendingLink.progress >= 36
+              ? 'Extracting readable page text...'
+              : 'Fetching web page...';
 
   useEffect(() => {
-    if (pendingWebLink?.status !== 'scraping') {
+    if (pendingLink?.status !== 'scraping') {
       return;
     }
 
     const startedAt = Date.now();
     const intervalId = window.setInterval(() => {
       const elapsed = Date.now() - startedAt;
-      const nextProgress = Math.min(94, 10 + Math.floor((elapsed / 10000) * 84));
-      setPendingWebLink((current) => current && current.status === 'scraping'
+      const duration = pendingLink.kind === 'youtube' ? 12000 : 10000;
+      const nextProgress = Math.min(94, 10 + Math.floor((elapsed / duration) * 84));
+      setPendingLink((current) => current && current.status === 'scraping'
         ? { ...current, progress: Math.max(current.progress, nextProgress) }
         : current);
     }, 120);
 
     return () => window.clearInterval(intervalId);
-  }, [pendingWebLink?.id, pendingWebLink?.status]);
+  }, [pendingLink?.id, pendingLink?.kind, pendingLink?.status]);
   const handleRetrySummary = async () => {
     if (!notebook || !selectedMaterial || !onRetryFileSummary) {
       return;
@@ -731,8 +745,9 @@ export default function NotebookView({
     }
 
     setUploadError('');
-    setPendingWebLink({
+    setPendingLink({
       id: `web-link-${Date.now()}`,
+      kind: 'web',
       progress: 8,
       status: 'scraping',
       url,
@@ -740,15 +755,15 @@ export default function NotebookView({
 
     try {
       await Promise.resolve(onAddLink(notebook.id, url));
-      setPendingWebLink((current) => current
+      setPendingLink((current) => current
         ? { ...current, progress: 100, status: 'done' }
         : current);
       window.setTimeout(() => {
-        setPendingWebLink((current) => current?.status === 'done' ? null : current);
+        setPendingLink((current) => current?.status === 'done' ? null : current);
       }, 1200);
     } catch (error) {
       setUploadError(getGenericUploadErrorMessage(error));
-      setPendingWebLink((current) => current
+      setPendingLink((current) => current
         ? { ...current, status: 'failed' }
         : current);
       throw error;
@@ -761,10 +776,27 @@ export default function NotebookView({
     }
 
     setUploadError('');
+    setPendingLink({
+      id: `youtube-link-${Date.now()}`,
+      kind: 'youtube',
+      progress: 8,
+      status: 'scraping',
+      url,
+    });
+
     try {
       await Promise.resolve(onAddYoutubeLink(notebook.id, url));
+      setPendingLink((current) => current
+        ? { ...current, progress: 100, status: 'done' }
+        : current);
+      window.setTimeout(() => {
+        setPendingLink((current) => current?.status === 'done' ? null : current);
+      }, 1200);
     } catch (error) {
       setUploadError(getGenericUploadErrorMessage(error));
+      setPendingLink((current) => current
+        ? { ...current, status: 'failed' }
+        : current);
       throw error;
     }
   };
@@ -1131,57 +1163,59 @@ export default function NotebookView({
           />
 
           <div className="mt-4 space-y-3">
-            {pendingWebLink ? (
+            {pendingLink ? (
               <div className={`flex flex-col gap-3 rounded-2xl border p-4 text-left sm:flex-row sm:items-center sm:justify-between ${
-                pendingWebLink.status === 'failed'
+                pendingLink.status === 'failed'
                   ? 'border-error/25 bg-error-subtle/60'
-                  : pendingWebLink.status === 'done'
+                  : pendingLink.status === 'done'
                     ? 'border-success/25 bg-success-subtle/60'
                     : 'animate-pulse border-accent/30 bg-accent-subtle/40'
               }`}>
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="rounded-xl border border-border-default bg-bg-elevated/60 p-2.5 shrink-0">
-                    {pendingWebLink.status === 'failed' ? (
+                    {pendingLink.status === 'failed' ? (
                       <X className="h-5 w-5 text-error" />
-                    ) : pendingWebLink.status === 'done' ? (
+                    ) : pendingLink.status === 'done' ? (
                       <ShieldCheck className="h-5 w-5 text-success" />
+                    ) : pendingLink.kind === 'youtube' ? (
+                      <Youtube className="h-5 w-5 text-cta" />
                     ) : (
                       <LinkIcon className="h-5 w-5 text-accent-hover" />
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-bold text-text-primary">{pendingWebLink.url}</div>
+                    <div className="truncate text-sm font-bold text-text-primary">{pendingLink.url}</div>
                     <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-medium uppercase tracking-widest text-text-muted">
-                      <span>link</span>
-                      <span>{webLinkStatusLabel}</span>
+                      <span>{pendingLink.kind === 'youtube' ? 'youtube' : 'link'}</span>
+                      <span>{pendingLinkStatusLabel}</span>
                     </div>
                   </div>
                 </div>
                 <div className="w-full shrink-0 sm:w-44">
                   <div className={`mb-1 text-right text-[10px] font-black font-mono ${
-                    pendingWebLink.status === 'failed'
+                    pendingLink.status === 'failed'
                       ? 'text-error'
-                      : pendingWebLink.status === 'done'
+                      : pendingLink.status === 'done'
                         ? 'text-success'
                         : colorTone?.text || 'text-accent-hover'
                   }`}>
-                    {pendingWebLink.status === 'failed'
+                    {pendingLink.status === 'failed'
                       ? 'Failed'
-                      : pendingWebLink.progress >= 100
+                      : pendingLink.progress >= 100
                         ? 'Ready'
-                        : `${pendingWebLink.progress}%`}
+                        : `${pendingLink.progress}%`}
                   </div>
                   <ProgressBar
-                    value={pendingWebLink.status === 'failed' ? 100 : pendingWebLink.progress}
-                    ariaLabel="Web link indexing progress"
+                    value={pendingLink.status === 'failed' ? 100 : pendingLink.progress}
+                    ariaLabel={pendingLink.kind === 'youtube' ? 'YouTube video indexing progress' : 'Web link indexing progress'}
                     className="h-1.5"
-                    tone={pendingWebLink.status === 'failed' ? 'error' : pendingWebLink.status === 'done' ? 'success' : 'upload'}
+                    tone={pendingLink.status === 'failed' ? 'error' : pendingLink.status === 'done' ? 'success' : 'upload'}
                     trackClassName="bg-bg-elevated"
                   />
                 </div>
               </div>
             ) : null}
-            {filteredFiles.length === 0 && !pendingWebLink ? (
+            {filteredFiles.length === 0 && !pendingLink ? (
               <div className="rounded-2xl border border-dashed border-border-default px-4 py-12 text-center text-sm text-text-muted">
                 <FolderOpen className="mx-auto mb-3 h-8 w-8 text-text-muted" />
                 {isSearchActive
@@ -1247,7 +1281,7 @@ export default function NotebookView({
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <button
               onClick={() => setIsAddLinkModalOpen(true)}
-              disabled={uploadPhase !== 'idle' || isWebLinkActive || !onAddLink}
+              disabled={uploadPhase !== 'idle' || isPendingLinkActive || !onAddLink}
               className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
             >
               {isWebLinkActive ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />}
@@ -1255,11 +1289,11 @@ export default function NotebookView({
             </button>
             <button
               onClick={() => setIsAddYoutubeLinkModalOpen(true)}
-              disabled={uploadPhase !== 'idle' || !onAddYoutubeLink}
+              disabled={uploadPhase !== 'idle' || isPendingLinkActive || !onAddYoutubeLink}
               className="inline-flex items-center gap-1.5 rounded-xl border border-cta/20 bg-cta-subtle px-3 py-2 text-xs font-bold text-cta transition hover:bg-cta/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Youtube className="h-4 w-4" />
-              YouTube
+              {isYoutubeLinkActive ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Youtube className="h-4 w-4" />}
+              {isYoutubeLinkActive ? 'Adding Video...' : 'YouTube'}
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -1589,20 +1623,10 @@ export default function NotebookView({
                           {isVideoIngestionError ? (
                             ingestionError || 'Video ingestion failed. Delete and reupload this file to try again.'
                           ) : (
-                            <LabeledProgressBar
-                              value={videoIngestionProgress}
-                              label={
-                                <span className="inline-flex items-center gap-2">
-                                  <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
-                                  {videoIngestionStatus}
-                                </span>
-                              }
-                              ariaLabel="Video transcript extraction progress"
-                              className="mt-3 h-2"
-                              tone="upload"
-                              indicatorClassName="duration-150"
-                              valueClassName="text-accent-hover"
-                            />
+                            <span className="inline-flex items-center gap-2">
+                              <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+                              {videoIngestionStatus}
+                            </span>
                           )}
                         </div>
                       ) : activeFileChatMessages.map((message) => (
