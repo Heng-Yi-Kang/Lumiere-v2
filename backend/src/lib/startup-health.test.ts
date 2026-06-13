@@ -231,4 +231,30 @@ describe('startup health checks', () => {
       }),
     );
   });
+
+  it('accepts STT probe client errors caused by synthetic probe audio', async () => {
+    setEnv('STT_API_BASE', 'https://stt.example.test/v1');
+    setEnv('STT_API_KEY', 'stt-key');
+    setEnv('STT_MODEL', 'stt-model');
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        message: 'Failed to apply ASR processor',
+      },
+    }), { status: 400 }));
+
+    await expect(pingSttProvider()).resolves.toBeUndefined();
+  });
+
+  it('rejects STT probe authentication failures', async () => {
+    setEnv('STT_API_BASE', 'https://stt.example.test/v1');
+    setEnv('STT_API_KEY', 'stt-key');
+    setEnv('STT_MODEL', 'stt-model');
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        message: 'invalid api key',
+      },
+    }), { status: 401 }));
+
+    await expect(pingSttProvider()).rejects.toThrow('STT provider probe failed with 401');
+  });
 });

@@ -264,7 +264,21 @@ export async function pingSttProvider() {
     body: request.body,
   });
 
-  await parseJsonResponse(response, 'STT provider probe');
+  const text = await response.text();
+
+  if (!response.ok) {
+    if (response.status >= 400 && response.status < 500 && response.status !== 401 && response.status !== 403 && response.status !== 404) {
+      return;
+    }
+
+    throw new Error(`STT provider probe failed with ${response.status}: ${text || response.statusText}`);
+  }
+
+  try {
+    JSON.parse(text);
+  } catch {
+    throw new Error('STT provider probe returned non-JSON response.');
+  }
 }
 
 async function pingVlmProvider() {
