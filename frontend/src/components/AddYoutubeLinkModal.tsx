@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LoaderCircle, X, Youtube } from 'lucide-react';
 
 interface AddYoutubeLinkModalProps {
@@ -38,6 +38,22 @@ export default function AddYoutubeLinkModal({
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationProgress, setValidationProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      return;
+    }
+
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const nextProgress = Math.min(94, 12 + Math.floor((elapsed / 12000) * 82));
+      setValidationProgress((currentProgress) => Math.max(currentProgress, nextProgress));
+    }, 120);
+
+    return () => window.clearInterval(intervalId);
+  }, [isSubmitting]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -54,16 +70,27 @@ export default function AddYoutubeLinkModal({
 
     setError('');
     setIsSubmitting(true);
+    setValidationProgress(8);
 
     try {
       await Promise.resolve(onSubmit(url.trim()));
+      setValidationProgress(100);
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
       onClose();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Failed to add YouTube video.');
-    } finally {
       setIsSubmitting(false);
+      setValidationProgress(0);
     }
   };
+
+  const validationStatus = validationProgress >= 100
+    ? 'Video validated. Adding it to the notebook queue...'
+    : validationProgress >= 70
+      ? 'Confirming transcript and media availability...'
+      : validationProgress >= 36
+        ? 'Fetching video metadata...'
+        : 'Validating YouTube video...';
 
   return (
     <div
@@ -123,7 +150,23 @@ export default function AddYoutubeLinkModal({
 
         {isSubmitting ? (
           <div className="mt-3 rounded-2xl border border-border-subtle bg-bg-elevated/40 px-4 py-3 text-sm text-text-secondary">
-            Validating the video and adding it to the notebook queue...
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-semibold">{validationStatus}</span>
+              <span className="shrink-0 font-mono text-xs font-black text-cta">{validationProgress}%</span>
+            </div>
+            <div
+              className="mt-3 h-2 w-full overflow-hidden rounded-full bg-bg-overlay"
+              role="progressbar"
+              aria-label="YouTube video validation progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={validationProgress}
+            >
+              <div
+                className="h-full rounded-full bg-cta transition-[width] duration-150 ease-out"
+                style={{ width: `${validationProgress}%` }}
+              />
+            </div>
           </div>
         ) : null}
 
