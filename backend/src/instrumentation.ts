@@ -3,9 +3,6 @@ export async function register() {
     return;
   }
 
-  const { runStartupHealthCheckOnce } = await import('./lib/startup-health');
-  await runStartupHealthCheckOnce();
-
-  const { startVideoIngestionWorker } = await import('./lib/video-ingestion-job');
-  startVideoIngestionWorker();
+  const { registerNodeInstrumentation } = require('./instrumentation.node') as typeof import('./instrumentation.node');
+  await registerNodeInstrumentation();
 }

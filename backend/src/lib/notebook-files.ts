@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
@@ -368,7 +367,7 @@ async function validateAndStoreNotebookUpload(notebookId: string, file: File): P
   await fs.mkdir(notebookDirectory, { recursive: true });
 
   const safeName = sanitizeFileName(file.name);
-  const storedName = `${randomUUID()}-${safeName}`;
+  const storedName = `${crypto.randomUUID()}-${safeName}`;
   const storedPath = path.join(notebookDirectory, storedName);
 
   const buffer = Buffer.from(await file.arrayBuffer());

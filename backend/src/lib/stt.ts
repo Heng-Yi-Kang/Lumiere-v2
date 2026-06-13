@@ -22,12 +22,16 @@ export function getSttModel() {
   return getRequiredEnv('STT_MODEL');
 }
 
+function importRuntimeModule<T>(specifier: string): Promise<T> {
+  return (new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<T>)(specifier);
+}
+
 export async function transcribeAudioFile(params: {
   fileName: string;
   filePath: string;
   mimeType: string;
 }) {
-  const { promises: fs } = await import('fs');
+  const { promises: fs } = await importRuntimeModule<typeof import('node:fs')>('node:fs');
   const baseUrl = getRequiredEnv('STT_API_BASE');
   const apiKey = getRequiredEnv('STT_API_KEY');
   const model = getSttModel();

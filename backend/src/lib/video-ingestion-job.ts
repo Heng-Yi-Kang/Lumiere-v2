@@ -1,8 +1,5 @@
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { prisma } from '@/lib/prisma';
-import { indexNotebookFileForRag } from '@/lib/rag';
-import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
-import { processVideoFile } from '@/lib/video-processing';
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
@@ -208,6 +205,10 @@ export async function processVideoIngestionJob(job: IngestionJob) {
       notebookId: file.notebookId,
     });
 
+    const [{ processVideoFile }, { indexNotebookFileForRag }] = await Promise.all([
+      import('@/lib/video-processing'),
+      import('@/lib/rag'),
+    ]);
     const result = await processVideoFile({
       fileName: file.name,
       filePath: file.sourcePath,
@@ -245,6 +246,7 @@ export async function processVideoIngestionJob(job: IngestionJob) {
     await markJobSucceeded(job.id);
 
     if (result.transcript.trim()) {
+      const { startNotebookFileSummaryJob } = await import('@/lib/notebook-file-summary-job');
       startNotebookFileSummaryJob(file.id);
     }
 

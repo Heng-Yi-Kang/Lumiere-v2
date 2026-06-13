@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { getEmbeddingModel, generateEmbedding } from '@/lib/embeddings';
 import { prisma } from '@/lib/prisma';
@@ -660,7 +659,7 @@ export async function indexNotebookFileForRag(params: {
     });
 
     points.push({
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       metadata: {
         fileName: params.fileName,
         fileType: params.fileType,
@@ -710,7 +709,7 @@ export async function indexNotebookFileForRag(params: {
           "updatedAt"
         )
         VALUES (
-          ${randomUUID()},
+          ${crypto.randomUUID()},
           ${params.notebookId},
           ${params.fileId},
           ${point.id},

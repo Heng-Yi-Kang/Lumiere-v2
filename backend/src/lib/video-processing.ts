@@ -1,5 +1,4 @@
 import { execFile } from 'child_process';
-import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -248,7 +247,7 @@ export async function processVideoFile(params: {
   fileName: string;
   filePath: string;
 }) {
-  const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), `lumiere-video-${randomUUID()}-`));
+  const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), `lumiere-video-${crypto.randomUUID()}-`));
   const audioPath = path.join(tempDirectory, 'audio.wav');
 
   try {

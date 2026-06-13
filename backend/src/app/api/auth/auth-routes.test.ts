@@ -20,6 +20,7 @@ vi.mock('@/lib/prisma', () => ({
 
 import { PATCH as PATCH_ADMIN_USER } from '@/app/api/admin/users/[userId]/route';
 import { POST as LOGIN } from '@/app/api/auth/login/route';
+import { GET as ME } from '@/app/api/auth/me/route';
 import { POST as SIGNUP } from '@/app/api/auth/signup/route';
 import { SESSION_COOKIE_NAME, buildClearSessionCookie, buildSessionCookie, hashPassword } from '@/lib/auth';
 
@@ -143,6 +144,21 @@ describe('authentication routes', () => {
     expect(response.status).toBe(401);
     expect(payload.error).toBe('invalid credentials');
     expect(prismaMock.session.create).not.toHaveBeenCalled();
+  });
+
+  it('treats malformed session cookies as unauthenticated', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+
+    const response = await ME(new Request('http://localhost/api/auth/me', {
+      headers: {
+        cookie: `${SESSION_COOKIE_NAME}=%`,
+      },
+    }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(payload.error).toBe('authentication required');
+    expect(prismaMock.session.findUnique).not.toHaveBeenCalled();
   });
 
   it('lets admins disable users and revokes their active sessions', async () => {

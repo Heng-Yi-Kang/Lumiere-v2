@@ -57,7 +57,15 @@ function getSessionToken(request: Request) {
     .map((entry) => entry.trim())
     .find((entry) => entry.startsWith(`${SESSION_COOKIE_NAME}=`));
 
-  return match ? decodeURIComponent(match.slice(SESSION_COOKIE_NAME.length + 1)) : null;
+  if (!match) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(match.slice(SESSION_COOKIE_NAME.length + 1));
+  } catch {
+    return null;
+  }
 }
 
 function getSessionCookieSameSite(): SessionCookieSameSite {
