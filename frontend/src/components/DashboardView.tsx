@@ -24,6 +24,7 @@ import {
   validateNotebookUploadBatch,
 } from '../lib/notebookUpload';
 import type { SupportedNotebookExtension } from '../lib/notebookUpload';
+import { getGenericUploadErrorMessage } from '../lib/apiErrors';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import AddLinkModal from './AddLinkModal';
 import AddYoutubeLinkModal from './AddYoutubeLinkModal';
@@ -160,7 +161,7 @@ export default function DashboardView({
       setUploadQueue((current) => current.map((item) =>
         item.status === 'done' ? item : { ...item, status: 'failed' },
       ));
-      setUploadError(error instanceof Error ? error.message : 'Upload failed.');
+      setUploadError(getGenericUploadErrorMessage(error));
     } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -210,7 +211,8 @@ export default function DashboardView({
     } catch (error) {
       setUploadPhase('idle');
       setUploadQueue((current) => current.map((item) => ({ ...item, status: 'failed' })));
-      setUploadError(error instanceof Error ? error.message : 'Failed to add web link.');
+      setUploadError(getGenericUploadErrorMessage(error));
+      throw error;
     }
   };
 
@@ -220,7 +222,12 @@ export default function DashboardView({
     }
 
     setUploadError('');
-    await Promise.resolve(onAddYoutubeLink(selectedNotebookId, url));
+    try {
+      await Promise.resolve(onAddYoutubeLink(selectedNotebookId, url));
+    } catch (error) {
+      setUploadError(getGenericUploadErrorMessage(error));
+      throw error;
+    }
   };
 
   const activeLinkUpload = uploadQueue.find((item) => item.extension === 'link');

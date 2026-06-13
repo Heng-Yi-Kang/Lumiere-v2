@@ -4,6 +4,8 @@ const LOST_UPLOAD_RESPONSE_STATUS_PATTERN = /request failed with status (?:502|5
 const NETWORK_FETCH_FAILURE_PATTERN = /(?:networkerror when attempting to fetch resource|network error|failed to fetch|load failed)/i;
 const RETRY_LATER_MESSAGE_PATTERN = /(?:temporarily unavailable|try again later)/i;
 
+export const GENERIC_UPLOAD_ERROR_MESSAGE = 'We could not process this upload. Please try again or contact support if it keeps happening.';
+
 export function isNetworkFetchError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '');
 
@@ -31,6 +33,12 @@ export function getRetryLaterUploadMessage() {
 
 export function getLostUploadResponseMessage() {
   return 'The upload is still processing on the deployed server. Wait a moment, then refresh this page if the new file is not visible.';
+}
+
+export function getGenericUploadErrorMessage(error: unknown) {
+  console.warn('Upload processing failed.', error);
+
+  return GENERIC_UPLOAD_ERROR_MESSAGE;
 }
 
 export function getGroundedChatErrorMessage(error: unknown) {

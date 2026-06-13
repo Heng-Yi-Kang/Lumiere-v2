@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LoaderCircle, X, Youtube } from 'lucide-react';
 import { LabeledProgressBar } from './ProgressBar';
+import { getGenericUploadErrorMessage } from '../lib/apiErrors';
 
 interface AddYoutubeLinkModalProps {
   disabled?: boolean;
@@ -79,7 +80,7 @@ export default function AddYoutubeLinkModal({
       await new Promise((resolve) => window.setTimeout(resolve, 300));
       onClose();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Failed to add YouTube video.');
+      setError(getGenericUploadErrorMessage(submitError));
       setIsSubmitting(false);
       setValidationProgress(0);
     }

@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
 import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
-import { getGroundedChatErrorMessage } from '../lib/apiErrors';
+import { getGenericUploadErrorMessage, getGroundedChatErrorMessage } from '../lib/apiErrors';
 import {
   NOTEBOOK_UPLOAD_ACCEPT,
   isVideoNotebookExtension,
@@ -713,7 +713,7 @@ export default function NotebookView({
       setCompletedUploadCount(files.length);
       setUploadPhase('success');
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Upload failed.');
+      setUploadError(getGenericUploadErrorMessage(error));
       setUploadPhase('idle');
       setUploadQueue((current) => current.map((item) =>
         item.status === 'done' ? item : { ...item, status: 'failed' },
@@ -747,10 +747,11 @@ export default function NotebookView({
         setPendingWebLink((current) => current?.status === 'done' ? null : current);
       }, 1200);
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Failed to add web link.');
+      setUploadError(getGenericUploadErrorMessage(error));
       setPendingWebLink((current) => current
         ? { ...current, status: 'failed' }
         : current);
+      throw error;
     }
   };
 
@@ -760,7 +761,12 @@ export default function NotebookView({
     }
 
     setUploadError('');
-    await Promise.resolve(onAddYoutubeLink(notebook.id, url));
+    try {
+      await Promise.resolve(onAddYoutubeLink(notebook.id, url));
+    } catch (error) {
+      setUploadError(getGenericUploadErrorMessage(error));
+      throw error;
+    }
   };
 
   const handleDelete = async (file: FileItem) => {

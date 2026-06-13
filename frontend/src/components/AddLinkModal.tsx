@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ExternalLink, Link as LinkIcon, LoaderCircle, X } from 'lucide-react';
+import { getGenericUploadErrorMessage } from '../lib/apiErrors';
 
 interface AddLinkModalProps {
   disabled?: boolean;
@@ -51,10 +52,10 @@ export default function AddLinkModal({
     setIsSubmitting(true);
 
     try {
-      void Promise.resolve(onSubmit(url.trim())).catch(() => undefined);
+      await Promise.resolve(onSubmit(url.trim()));
       onClose();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Failed to add web link.');
+      setError(getGenericUploadErrorMessage(submitError));
       setIsSubmitting(false);
     }
   };
