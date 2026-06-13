@@ -89,6 +89,8 @@ Required environment variables:
 - `STT_API_KEY`
 - `STT_MODEL`
 - `STT_REQUEST_FORMAT`, optional. Defaults to `multipart`; use `json` for providers that reject multipart uploads.
+- `STT_MAX_CHUNK_MB`, optional. Defaults to `20`; extracted audio larger than this is split with ffmpeg before transcription.
+- `STT_CHUNK_COMMAND_TIMEOUT_MS`, optional. Defaults to `120000`.
 
 The helper returns plain text only. It does not provide native timestamps, so video timestamping is synthesized later.
 

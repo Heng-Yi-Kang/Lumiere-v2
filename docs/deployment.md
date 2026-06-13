@@ -79,6 +79,8 @@ These unlock major features and are strongly recommended:
   - `STT_API_BASE`
   - `STT_API_KEY`
   - `STT_MODEL`
+  - `STT_MAX_CHUNK_MB` optional, defaults to `20`
+  - `STT_CHUNK_COMMAND_TIMEOUT_MS` optional, defaults to `120000`
 - image and video frame descriptions:
   - `VLM_API_KEY`
   - `VLM_API_BASE_URL` or `VLM_API_BASE`

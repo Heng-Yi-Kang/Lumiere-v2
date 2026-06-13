@@ -84,10 +84,18 @@ Behavior:
 
 - Requires `STT_API_BASE`, `STT_API_KEY`, and `STT_MODEL`
 - Sends the upload to `${STT_API_BASE}/audio/transcriptions`
+- Splits files larger than `STT_MAX_CHUNK_MB` into valid ffmpeg audio segments before transcription
 - Uses multipart `FormData` by default
 - Uses JSON base64 audio when `STT_REQUEST_FORMAT=json` or when `STT_API_BASE` contains `openrouter.ai`
 - Expects a JSON response with a `text` field
 - Throws if the provider returns an error or empty text
+
+Chunking defaults:
+
+- `STT_MAX_CHUNK_MB`, default `20`
+- `STT_CHUNK_COMMAND_TIMEOUT_MS`, default `120000`
+
+Chunked transcription requires `ffmpeg` and `ffprobe`. Chunks are transcribed sequentially and joined into one plain transcript.
 
 The STT helper returns plain transcript text only. Audio timestamping is synthesized after transcription by splitting transcript text evenly across detected media duration. If `ffprobe` cannot determine duration, the preview falls back to a single 30-second synthetic segment. It does not request or store provider-native timestamp segments, diarization, or word timing.
 
