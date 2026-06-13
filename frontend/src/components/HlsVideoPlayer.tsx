@@ -30,6 +30,7 @@ export default function HlsVideoPlayer({
   const isHlsReady = hls?.hlsStatus === 'READY' && Boolean(hls.hlsMasterPlaylistUrl);
   const isProcessing = hls?.hlsStatus === 'PENDING' || hls?.hlsStatus === 'PROCESSING';
   const isFailed = hls?.hlsStatus === 'FAILED';
+  const isWaitingForStream = isProcessing || (!hls && !isFailed);
 
   useEffect(() => {
     setHls(initialHls);
@@ -67,7 +68,7 @@ export default function HlsVideoPlayer({
   useEffect(() => {
     const video = videoRef.current;
 
-    if (!video) {
+    if (!video || isWaitingForStream) {
       return undefined;
     }
 
@@ -97,26 +98,35 @@ export default function HlsVideoPlayer({
     return () => {
       hlsPlayer.destroy();
     };
-  }, [isHlsReady, originalVideoUrl, playbackUrl]);
+  }, [isHlsReady, isWaitingForStream, originalVideoUrl, playbackUrl]);
 
   return (
     <div className="space-y-3">
-      <video
-        ref={videoRef}
-        controls
-        crossOrigin="use-credentials"
-        preload="metadata"
-        className="max-h-[360px] w-full rounded-lg bg-black"
-      >
-        <a href={playbackUrl}>Download video</a>
-      </video>
-
-      {isProcessing ? (
-        <div className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-          HLS streaming is processing. Playing the original video for now.
+      {isWaitingForStream ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex min-h-[220px] w-full flex-col items-center justify-center gap-3 rounded-lg border border-border-subtle bg-bg-base/80 text-center"
+        >
+          <LoaderCircle className="h-8 w-8 animate-spin text-accent-hover" />
+          <div className="space-y-1 px-4">
+            <div className="text-sm font-bold text-text-primary">Preparing video stream</div>
+            <div className="text-xs font-semibold text-text-muted">
+              HLS streaming is still processing. Playback will appear automatically when it is ready.
+            </div>
+          </div>
         </div>
-      ) : null}
+      ) : (
+        <video
+          ref={videoRef}
+          controls
+          crossOrigin="use-credentials"
+          preload="metadata"
+          className="max-h-[360px] w-full rounded-lg bg-black"
+        >
+          <a href={playbackUrl}>Download video</a>
+        </video>
+      )}
 
       {isFailed ? (
         <div className="flex items-center gap-2 text-xs font-semibold text-error">
@@ -131,4 +141,3 @@ export default function HlsVideoPlayer({
     </div>
   );
 }
-
