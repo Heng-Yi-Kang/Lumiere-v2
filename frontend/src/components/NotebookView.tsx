@@ -1202,7 +1202,7 @@ export default function NotebookView({
               </div>
             </div>
 
-            <div className="flex min-h-0 w-full flex-col p-5 xl:w-[55%]">
+            <div className="flex min-h-0 w-full flex-col overflow-hidden p-5 xl:w-[55%]">
               {!isImagePreview ? (
                 <>
                   <button
@@ -1276,7 +1276,7 @@ export default function NotebookView({
                 </button>
               </div>
 
-              <div className="mt-3 flex h-[28rem] flex-none flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-base/35 xl:h-[32rem]">
+              <div className="mt-3 flex min-h-[18rem] flex-1 flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-base/35">
                 {fileDetailTab === 'chat' ? (
                   <>
                     <div className="flex items-center justify-between gap-3 border-b border-border-subtle bg-bg-elevated/40 px-4 py-3">
