@@ -104,6 +104,7 @@ async function generateHlsVariants(sourcePath: string, outputDirectory: string) 
     audioBitrate: '128k',
     maxrate: '2996k',
     outputDirectory: path.join(outputDirectory, '720p'),
+    resolutionWidth: 1280,
     resolutionHeight: 720,
     sourcePath,
     videoBitrate: '2800k',
@@ -113,6 +114,7 @@ async function generateHlsVariants(sourcePath: string, outputDirectory: string) 
     audioBitrate: '96k',
     maxrate: '1498k',
     outputDirectory: path.join(outputDirectory, '480p'),
+    resolutionWidth: 854,
     resolutionHeight: 480,
     sourcePath,
     videoBitrate: '1400k',
@@ -136,6 +138,7 @@ async function generateHlsVariant(params: {
   maxrate: string;
   outputDirectory: string;
   resolutionHeight: number;
+  resolutionWidth: number;
   sourcePath: string;
   videoBitrate: string;
   videoBufferSize: string;
@@ -149,7 +152,7 @@ async function generateHlsVariant(params: {
     '-map',
     '0:a?',
     '-vf',
-    `scale=w=-2:h=${params.resolutionHeight}:force_original_aspect_ratio=decrease`,
+    `scale=w=${params.resolutionWidth}:h=${params.resolutionHeight}:force_original_aspect_ratio=decrease:force_divisible_by=2`,
     '-c:v',
     'libx264',
     '-b:v',
