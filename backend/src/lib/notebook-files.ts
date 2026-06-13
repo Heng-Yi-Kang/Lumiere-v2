@@ -14,6 +14,7 @@ const BYTES_PER_MB = 1024 * 1024;
 const DEFAULT_MAX_UPLOAD_MB = 100;
 
 export const MAX_UPLOAD_BYTES = DEFAULT_MAX_UPLOAD_MB * BYTES_PER_MB;
+export const UPLOAD_LIMIT_UPGRADE_MESSAGE = 'Upgrade to the Pro version to upload larger files.';
 
 export type SupportedNotebookFileType = 'pdf' | 'docx' | 'pptx' | 'txt' | 'audio' | 'video' | 'image';
 type PreviewFormat = 'pdf' | 'html' | 'text';
@@ -170,6 +171,14 @@ export function getUploadLimitLabel(maxUploadBytes = getMaxUploadBytes()) {
   return Number.isInteger(megabytes)
     ? `${megabytes} MB`
     : formatBytes(maxUploadBytes);
+}
+
+export function getUploadLimitExceededMessage(
+  subject: string,
+  maxUploadBytes = getMaxUploadBytes(),
+  verb = 'exceeds',
+) {
+  return `${subject} ${verb} the ${getUploadLimitLabel(maxUploadBytes)} upload limit. ${UPLOAD_LIMIT_UPGRADE_MESSAGE}`;
 }
 
 function sanitizePreviewHtml(html: string) {
@@ -367,7 +376,7 @@ async function validateAndStoreNotebookUpload(notebookId: string, file: File): P
       maxUploadBytes,
       reason: 'file_too_large',
     });
-    throw new NotebookFileValidationError(`File exceeds the ${getUploadLimitLabel(maxUploadBytes)} upload limit.`);
+    throw new NotebookFileValidationError(getUploadLimitExceededMessage('File', maxUploadBytes));
   }
 
   const allowedMimeTypes = MIME_TYPE_MAP[fileType];

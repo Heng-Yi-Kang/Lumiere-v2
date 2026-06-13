@@ -3,7 +3,11 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
-import { getMaxUploadBytes, getUploadLimitLabel, NotebookFileValidationError } from '@/lib/notebook-files';
+import {
+  getMaxUploadBytes,
+  getUploadLimitExceededMessage,
+  NotebookFileValidationError,
+} from '@/lib/notebook-files';
 import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 
 const execFileAsync = promisify(execFile);
@@ -197,7 +201,7 @@ export async function probeYoutubeVideoMetadata(url: string, deps: YoutubeComman
   const estimatedSizeBytes = Number(payload.filesize ?? payload.filesize_approx);
   const maxUploadBytes = getMaxUploadBytes();
   if (Number.isFinite(estimatedSizeBytes) && estimatedSizeBytes > maxUploadBytes) {
-    throw new YoutubeVideoValidationError(`YouTube video exceeds the ${getUploadLimitLabel(maxUploadBytes)} upload limit.`);
+    throw new YoutubeVideoValidationError(getUploadLimitExceededMessage('YouTube video', maxUploadBytes));
   }
 
   return {
@@ -261,7 +265,7 @@ export async function downloadYoutubeVideoForNotebook(params: {
 
     const maxUploadBytes = getMaxUploadBytes();
     if (stats.size > maxUploadBytes) {
-      throw new YoutubeVideoValidationError(`YouTube video exceeds the ${getUploadLimitLabel(maxUploadBytes)} upload limit.`);
+      throw new YoutubeVideoValidationError(getUploadLimitExceededMessage('YouTube video', maxUploadBytes));
     }
 
     logBackendProcess('info', 'youtube.download.completed', {

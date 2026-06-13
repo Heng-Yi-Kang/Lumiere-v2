@@ -3,6 +3,7 @@ import {
   probeYoutubeVideoMetadata,
   youtubeDownloadFormatForTests,
 } from './youtube-video-ingestion';
+import { UPLOAD_LIMIT_UPGRADE_MESSAGE } from './notebook-files';
 
 describe('YouTube video ingestion helpers', () => {
   const originalUploadLimitMb = process.env.NOTEBOOK_FILE_UPLOAD_LIMIT_MB;
@@ -76,7 +77,7 @@ describe('YouTube video ingestion helpers', () => {
 
     await expect(probeYoutubeVideoMetadata('https://youtu.be/dQw4w9WgXcQ', { runCommand }))
       .rejects
-      .toThrow('100 MB upload limit');
+      .toThrow(`YouTube video exceeds the 100 MB upload limit. ${UPLOAD_LIMIT_UPGRADE_MESSAGE}`);
   });
 
   it('uses NOTEBOOK_FILE_UPLOAD_LIMIT_MB when validating metadata size', async () => {
@@ -92,6 +93,6 @@ describe('YouTube video ingestion helpers', () => {
 
     await expect(probeYoutubeVideoMetadata('https://youtu.be/dQw4w9WgXcQ', { runCommand }))
       .rejects
-      .toThrow('1 MB upload limit');
+      .toThrow(`YouTube video exceeds the 1 MB upload limit. ${UPLOAD_LIMIT_UPGRADE_MESSAGE}`);
   });
 });

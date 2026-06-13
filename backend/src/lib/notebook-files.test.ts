@@ -5,6 +5,7 @@ import {
   MAX_UPLOAD_BYTES,
   NotebookFileValidationError,
   persistNotebookUpload,
+  UPLOAD_LIMIT_UPGRADE_MESSAGE,
 } from './notebook-files';
 
 function restoreEnv(name: string, value: string | undefined) {
@@ -136,7 +137,7 @@ describe('persistNotebookUpload', () => {
 
     await expect(persistNotebookUpload('nb-1', oversizedFile))
       .rejects
-      .toThrow('1 MB upload limit');
+      .toThrow(`File exceeds the 1 MB upload limit. ${UPLOAD_LIMIT_UPGRADE_MESSAGE}`);
 
     await expect(readdir(path.join(tempDir, 'nb-1')))
       .rejects

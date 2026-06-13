@@ -1,4 +1,5 @@
 export const NOTEBOOK_MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+export const NOTEBOOK_UPLOAD_LIMIT_UPGRADE_MESSAGE = 'Upgrade to the Pro version to upload larger files.';
 export const NOTEBOOK_ACCEPTED_EXTENSIONS = [
   'pdf',
   'docx',
@@ -65,7 +66,7 @@ export function validateNotebookUpload(file: File) {
   }
 
   if (file.size > NOTEBOOK_MAX_UPLOAD_BYTES) {
-    return 'File exceeds the 100 MB upload limit.';
+    return `File exceeds the 100 MB upload limit. ${NOTEBOOK_UPLOAD_LIMIT_UPGRADE_MESSAGE}`;
   }
 
   return null;
@@ -88,7 +89,7 @@ export function validateNotebookUploadBatch(files: File[]) {
   }
 
   if (totalBytes > NOTEBOOK_MAX_UPLOAD_BYTES) {
-    return 'Selected files exceed the 100 MB upload limit.';
+    return `Selected files exceed the 100 MB upload limit. ${NOTEBOOK_UPLOAD_LIMIT_UPGRADE_MESSAGE}`;
   }
 
   return null;

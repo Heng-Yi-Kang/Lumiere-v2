@@ -733,7 +733,8 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     const payload = await response.json();
 
     expect(response.status).toBe(400);
-    expect(payload.error).toMatch(/100 MB/);
+    expect(payload.error).toContain('File exceeds the 100 MB upload limit.');
+    expect(payload.error).toContain('Upgrade to the Pro version to upload larger files.');
     expect(prismaMock.notebook.update).not.toHaveBeenCalled();
   });
 
@@ -764,7 +765,8 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     const payload = await response.json();
 
     expect(response.status).toBe(400);
-    expect(payload.error).toMatch(/100 MB/);
+    expect(payload.error).toContain('Selected files exceed the 100 MB upload limit.');
+    expect(payload.error).toContain('Upgrade to the Pro version to upload larger files.');
     expect(prismaMock.notebook.update).not.toHaveBeenCalled();
   });
 
@@ -796,7 +798,8 @@ describe('POST /api/notebooks/[notebookId]/files', () => {
     const payload = await response.json();
 
     expect(response.status).toBe(400);
-    expect(payload.error).toMatch(/1 MB/);
+    expect(payload.error).toContain('Selected files exceed the 1 MB upload limit.');
+    expect(payload.error).toContain('Upgrade to the Pro version to upload larger files.');
     expect(prismaMock.notebook.update).not.toHaveBeenCalled();
   });
 });

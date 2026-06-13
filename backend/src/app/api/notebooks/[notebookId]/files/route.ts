@@ -4,7 +4,7 @@ import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import {
   deleteNotebookStoredFile,
   getMaxUploadBytes,
-  getUploadLimitLabel,
+  getUploadLimitExceededMessage,
   NotebookFileValidationError,
   persistNotebookUpload,
   persistNotebookUploadShell,
@@ -275,6 +275,8 @@ export async function POST(
   const totalUploadBytes = uploads.reduce((sum, upload) => sum + upload.size, 0);
   const maxUploadBytes = getMaxUploadBytes();
   if (totalUploadBytes > maxUploadBytes) {
+    const uploadLimitSubject = uploads.length === 1 ? 'File' : 'Selected files';
+    const uploadLimitVerb = uploads.length === 1 ? 'exceeds' : 'exceed';
     logBackendProcess('warn', 'file.api.upload.rejected', {
       fileCount: uploads.length,
       maxUploadBytes,
@@ -282,7 +284,9 @@ export async function POST(
       reason: 'batch_too_large',
       totalUploadBytes,
     });
-    return jsonResponse({ error: `Selected files exceed the ${getUploadLimitLabel(maxUploadBytes)} upload limit.` }, { status: 400 });
+    return jsonResponse({
+      error: getUploadLimitExceededMessage(uploadLimitSubject, maxUploadBytes, uploadLimitVerb),
+    }, { status: 400 });
   }
 
   const createdFiles: Array<{ id: string; sourcePath: string; type: string; extractedText?: string | null }> = [];
