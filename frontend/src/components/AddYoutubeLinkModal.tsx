@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LoaderCircle, X, Youtube } from 'lucide-react';
+import { LabeledProgressBar } from './ProgressBar';
 
 interface AddYoutubeLinkModalProps {
   disabled?: boolean;
@@ -150,23 +151,15 @@ export default function AddYoutubeLinkModal({
 
         {isSubmitting ? (
           <div className="mt-3 rounded-2xl border border-border-subtle bg-bg-elevated/40 px-4 py-3 text-sm text-text-secondary">
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-semibold">{validationStatus}</span>
-              <span className="shrink-0 font-mono text-xs font-black text-cta">{validationProgress}%</span>
-            </div>
-            <div
-              className="mt-3 h-2 w-full overflow-hidden rounded-full bg-bg-overlay"
-              role="progressbar"
-              aria-label="YouTube video validation progress"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={validationProgress}
-            >
-              <div
-                className="h-full rounded-full bg-cta transition-[width] duration-150 ease-out"
-                style={{ width: `${validationProgress}%` }}
-              />
-            </div>
+            <LabeledProgressBar
+              value={validationProgress}
+              label={validationStatus}
+              ariaLabel="YouTube video validation progress"
+              className="mt-3 h-2"
+              tone="cta"
+              indicatorClassName="duration-150"
+              valueClassName="text-cta"
+            />
           </div>
         ) : null}
 

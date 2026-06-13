@@ -13,6 +13,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { Goal } from '../types';
+import { LabeledProgressBar } from './ProgressBar';
 
 interface FloatingDockProps {
   currentPage: string;
@@ -167,16 +168,17 @@ export default function FloatingDock({
 
             {/* Progress bar */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-text-secondary">
-                <span className="font-medium">Overall progress</span>
-                <span className="font-mono font-semibold">{progressPercent}%</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-bg-elevated overflow-hidden">
-                <div 
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
-                  style={{ width: `${progressPercent}%` }}
-                ></div>
-              </div>
+              <LabeledProgressBar
+                value={progressPercent}
+                label="Overall progress"
+                ariaLabel="Overall goals progress"
+                className="h-2"
+                trackClassName="bg-bg-elevated"
+                indicatorClassName="duration-500"
+                rowClassName="text-xs text-text-secondary"
+                labelClassName="font-medium"
+                valueClassName="font-semibold text-text-secondary"
+              />
             </div>
 
             {/* Priority Goal Highlight */}
