@@ -7,7 +7,7 @@ The deployable frontend is a Vite static build served by Nginx. The backend is a
 ## Runtime Shape
 
 - `frontend`: builds `frontend/` with pnpm and serves `dist/` through Nginx.
-- `backend`: builds `backend/`, runs Prisma migrations, starts Next.js on port `3001`, and includes Chromium for web-link scraping.
+- `backend`: builds `backend/`, runs Prisma migrations, starts Next.js on port `3001`, includes Chromium for web-link scraping, and includes `yt-dlp` for YouTube link ingestion.
 - `postgres`: stores metadata and enables the `pgvector` extension at first initialization.
 - `qdrant`: stores vector retrieval data.
 - Nginx exposes the public HTTP port, serves React Router routes with `index.html` fallback, and proxies `/api/` and `/uploads/` to `BACKEND_UPSTREAM`.
@@ -52,7 +52,7 @@ Important settings:
 - `PUPPETEER_EXECUTABLE_PATH`: Chromium executable used by Puppeteer for web-link scraping. The backend image sets this to `/usr/bin/chromium`.
 - `EMBEDDING_API_BASE`, `EMBEDDING_API_KEY`, and `EMBEDDING_MODEL`: required for backend startup health and retrieval.
 - `CHAT_*`, `STT_*`, `VLM_*`, and `RERANKER_*`: provider configuration for chat, media processing, and optional reranking.
-- `*_TIMEOUT_MS` and `*_COMMAND_TIMEOUT_MS`: request and media command timeout controls for provider calls, audio/video processing, HLS generation, and summary generation.
+- `*_TIMEOUT_MS` and `*_COMMAND_TIMEOUT_MS`: request and media command timeout controls for provider calls, audio/video processing, YouTube downloads, HLS generation, and summary generation.
 
 Leave `VITE_API_BASE_URL` empty for the recommended same-origin deployment. In that mode, browser requests go to `/api/...` on the frontend origin and Nginx forwards them to `BACKEND_UPSTREAM`.
 
