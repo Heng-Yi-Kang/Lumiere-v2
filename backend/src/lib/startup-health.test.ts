@@ -1,4 +1,4 @@
-import { createStartupHealthReport } from './startup-health';
+import { createStartupHealthReport, pingChatProvider, pingSttProvider } from './startup-health';
 
 function setEnv(name: string, value: string | undefined) {
   if (value === undefined) {
@@ -11,6 +11,7 @@ function setEnv(name: string, value: string | undefined) {
 
 describe('startup health checks', () => {
   const originalEnv = { ...process.env };
+  const originalFetch = global.fetch;
   const healthyDeps = {
     ensureUploadRootWritable: vi.fn().mockResolvedValue(undefined),
     hasCommand: vi.fn().mockResolvedValue(true),
@@ -25,6 +26,8 @@ describe('startup health checks', () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
   });
 
   it('fails when required startup dependencies are unavailable', async () => {
@@ -187,5 +190,45 @@ describe('startup health checks', () => {
         status: 'error',
       }),
     ]));
+  });
+
+  it('accepts reasoning-only chat provider probe responses', async () => {
+    setEnv('CHAT_API_BASE_URL', 'https://chat.example.test/v1');
+    setEnv('CHAT_API_KEY', 'chat-key');
+    setEnv('CHAT_MODEL', 'reasoning-model');
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [
+        {
+          message: {
+            reasoning: 'ok',
+          },
+        },
+      ],
+    })));
+
+    await expect(pingChatProvider()).resolves.toBeUndefined();
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://chat.example.test/v1/chat/completions',
+      expect.objectContaining({
+        body: expect.stringContaining('"max_tokens":64'),
+      }),
+    );
+  });
+
+  it('accepts successful STT probe responses with empty transcript text', async () => {
+    setEnv('STT_API_BASE', 'https://stt.example.test/v1');
+    setEnv('STT_API_KEY', 'stt-key');
+    setEnv('STT_MODEL', 'stt-model');
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ text: '' })));
+
+    await expect(pingSttProvider()).resolves.toBeUndefined();
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://stt.example.test/v1/audio/transcriptions',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
   });
 });

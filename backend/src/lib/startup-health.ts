@@ -2,7 +2,7 @@ import { logBackendProcess } from '@/lib/backend-logger';
 import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 import { prisma } from '@/lib/prisma';
 import { isRerankingEnabled } from '@/lib/reranker';
-import { buildSttRequest } from '@/lib/stt-request';
+import { buildSttRequest, buildTranscriptionsUrl } from '@/lib/stt-request';
 
 const STARTUP_HEALTH_PROMISE_KEY = '__lumiereStartupHealthPromise';
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
@@ -216,7 +216,7 @@ async function pingEmbeddingProvider() {
   }
 }
 
-async function pingChatProvider() {
+export async function pingChatProvider() {
   const response = await fetch(buildUrl(getTrimmedEnv('CHAT_API_BASE_URL') || 'https://api.openai.com/v1', '/chat/completions'), {
     method: 'POST',
     signal: AbortSignal.timeout(getProviderTimeoutMs()),
@@ -225,7 +225,7 @@ async function pingChatProvider() {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      max_tokens: 16,
+      max_tokens: 64,
       model: getTrimmedEnv('CHAT_MODEL')!,
       temperature: 0,
       messages: [
@@ -238,14 +238,15 @@ async function pingChatProvider() {
   });
 
   const payload = await parseJsonResponse(response, 'Chat provider probe');
-  const content = (((payload.choices as Array<{ message?: { content?: unknown } }> | undefined)?.[0]?.message?.content) ?? '').toString().trim();
+  const firstChoice = (payload.choices as Array<{ message?: { content?: unknown; reasoning?: unknown } }> | undefined)?.[0];
+  const content = (firstChoice?.message?.content ?? firstChoice?.message?.reasoning ?? '').toString().trim();
 
   if (!content) {
     throw new Error('Chat provider returned no message content.');
   }
 }
 
-async function pingSttProvider() {
+export async function pingSttProvider() {
   const baseUrl = getTrimmedEnv('STT_API_BASE')!;
   const request = buildSttRequest({
     apiKey: getTrimmedEnv('STT_API_KEY')!,
@@ -256,19 +257,14 @@ async function pingSttProvider() {
     model: getTrimmedEnv('STT_MODEL')!,
   });
 
-  const response = await fetch(buildUrl(baseUrl, '/audio/transcriptions'), {
+  const response = await fetch(buildTranscriptionsUrl(baseUrl), {
     method: 'POST',
     signal: AbortSignal.timeout(getProviderTimeoutMs()),
     headers: request.headers,
     body: request.body,
   });
 
-  const payload = await parseJsonResponse(response, 'STT provider probe');
-  const text = (payload.text ?? '').toString().trim();
-
-  if (!text) {
-    throw new Error('STT provider returned no transcript text.');
-  }
+  await parseJsonResponse(response, 'STT provider probe');
 }
 
 async function pingVlmProvider() {
