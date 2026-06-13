@@ -14,6 +14,7 @@ import {
   createNotebook,
   createNotebookFiles,
   createNotebookLink,
+  createNotebookYoutubeLink,
   deleteNotebook,
   deleteNotebookFile,
   fetchNotebooks,
@@ -418,6 +419,13 @@ export default function App() {
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
 
+  const handleAddNewYoutubeLink = async (notebookId: string, url: string) => {
+    notebookLoadRequestIdRef.current += 1;
+    const notebook = await createNotebookYoutubeLink(notebookId, url);
+
+    setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+  };
+
   const handleDeleteFile = async (notebookId: string, fileId: string) => {
     notebookLoadRequestIdRef.current += 1;
     const notebook = await deleteNotebookFile(notebookId, fileId);
@@ -677,6 +685,7 @@ export default function App() {
                   onOpenNotebook={openNotebook}
                   onUploadFile={handleAddNewFile}
                   onAddLink={handleAddNewLink}
+                  onAddYoutubeLink={handleAddNewYoutubeLink}
                   onEditNotebook={(entry) => setEditingNotebook(entry)}
                   onDeleteNotebook={handleDeleteNotebook}
                   onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
@@ -696,6 +705,7 @@ export default function App() {
                   onBackToDashboard={() => setCurrentPage('Dashboard')}
                   onUploadFile={handleAddNewFile}
                   onAddLink={handleAddNewLink}
+                  onAddYoutubeLink={handleAddNewYoutubeLink}
                   onDeleteFile={handleDeleteFile}
                   onRetryFileSummary={handleRetryFileSummary}
                   onEditNotebook={(entry) => setEditingNotebook(entry)}

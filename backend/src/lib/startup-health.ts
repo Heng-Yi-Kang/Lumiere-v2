@@ -485,6 +485,23 @@ export async function createStartupHealthReport(
         }),
   );
 
+  const hasYtDlp = await deps.hasCommand('yt-dlp');
+  checks.push(
+    hasYtDlp
+      ? buildCheck({
+          message: 'YouTube ingestion command yt-dlp is available.',
+          name: 'youtube-command',
+          required: false,
+          status: 'ok',
+        })
+      : buildCheck({
+          message: 'YouTube ingestion is unavailable. Install yt-dlp to add public YouTube videos to notebooks.',
+          name: 'youtube-command',
+          required: false,
+          status: 'warn',
+        }),
+  );
+
   const videoFrameConfig = getVideoFrameProviderConfig();
   const vlmConfigCheck =
     videoFrameConfig.apiKey && videoFrameConfig.model

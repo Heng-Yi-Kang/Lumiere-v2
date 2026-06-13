@@ -14,7 +14,8 @@ import {
   Flame,
   Lightbulb,
   Link as LinkIcon,
-  LoaderCircle
+  LoaderCircle,
+  Youtube
 } from 'lucide-react';
 
 import { StudyStreak } from '../types';
@@ -26,12 +27,14 @@ import {
 import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import AddLinkModal from './AddLinkModal';
+import AddYoutubeLinkModal from './AddYoutubeLinkModal';
 
 interface DashboardViewProps {
   currentUserName: string;
   notebooks: Notebook[];
   onOpenNotebook: (notebookId: string) => void;
   onAddLink: (notebookId: string, url: string) => Promise<void> | void;
+  onAddYoutubeLink: (notebookId: string, url: string) => Promise<void> | void;
   onUploadFile: (notebookId: string, files: File[]) => Promise<void> | void;
   onEditNotebook?: (notebook: Notebook) => void;
   onDeleteNotebook?: (notebookId: string) => Promise<void> | void;
@@ -45,6 +48,7 @@ export default function DashboardView({
   notebooks, 
   onOpenNotebook, 
   onAddLink,
+  onAddYoutubeLink,
   onUploadFile,
   onEditNotebook,
   onDeleteNotebook,
@@ -69,6 +73,7 @@ export default function DashboardView({
   }>>([]);
   const [uploadError, setUploadError] = useState('');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
+  const [isAddYoutubeLinkModalOpen, setIsAddYoutubeLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const totalFileCount = notebooks.reduce((sum, notebook) => sum + (notebook.fileCount ?? notebook.files.length), 0);
   const studyTip = streak?.currentStreak
@@ -185,6 +190,15 @@ export default function DashboardView({
 
     setUploadError('');
     await Promise.resolve(onAddLink(selectedNotebookId, url));
+  };
+
+  const executeAddYoutubeLink = async (url: string) => {
+    if (!selectedNotebookId) {
+      throw new Error('Select a notebook before adding a YouTube video.');
+    }
+
+    setUploadError('');
+    await Promise.resolve(onAddYoutubeLink(selectedNotebookId, url));
   };
 
   const uploadProgress = uploadPhase === 'validating'
@@ -382,7 +396,7 @@ export default function DashboardView({
               <label htmlFor="simulate-file-btn" className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1.5 font-mono">
                 Virtual Device:
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   id="simulate-file-btn"
                   onClick={triggerUploadClick}
@@ -400,6 +414,15 @@ export default function DashboardView({
                 >
                   <LinkIcon className="h-3.5 w-3.5 text-accent-hover" />
                   Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddYoutubeLinkModalOpen(true)}
+                  disabled={uploadPhase !== 'idle' || notebooks.length === 0}
+                  className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                >
+                  <Youtube className="h-3.5 w-3.5 text-cta" />
+                  YouTube
                 </button>
               </div>
               <input
@@ -723,6 +746,14 @@ export default function DashboardView({
           notebookName={selectedNotebook?.name}
           onClose={() => setIsAddLinkModalOpen(false)}
           onSubmit={executeAddLink}
+        />
+      ) : null}
+      {isAddYoutubeLinkModalOpen ? (
+        <AddYoutubeLinkModal
+          disabled={!selectedNotebookId}
+          notebookName={selectedNotebook?.name}
+          onClose={() => setIsAddYoutubeLinkModalOpen(false)}
+          onSubmit={executeAddYoutubeLink}
         />
       ) : null}
     </div>

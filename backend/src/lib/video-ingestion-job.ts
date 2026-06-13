@@ -168,20 +168,22 @@ export async function processVideoIngestionJob(job: IngestionJob) {
     where: { id: job.notebookFileId },
     select: {
       id: true,
+      mimeType: true,
       name: true,
       notebookId: true,
       sourcePath: true,
+      sourceUrl: true,
       status: true,
       type: true,
     },
   });
 
-  if (!file || file.type !== 'video' || !file.sourcePath) {
+  if (!file || file.type !== 'video') {
     await markJobSucceeded(job.id);
     logBackendProcess('warn', 'file.video_ingestion.skipped', {
       fileId: job.notebookFileId,
       jobId: job.id,
-      reason: !file ? 'file_not_found' : 'not_video_or_missing_source',
+      reason: !file ? 'file_not_found' : 'not_video',
     });
     return;
   }
@@ -205,13 +207,48 @@ export async function processVideoIngestionJob(job: IngestionJob) {
       notebookId: file.notebookId,
     });
 
+    let sourcePath = file.sourcePath;
+
+    if (!sourcePath) {
+      const { downloadYoutubeVideoForNotebook, isCanonicalYoutubeVideoUrl } = await import('@/lib/youtube-video-ingestion');
+
+      if (!isCanonicalYoutubeVideoUrl(file.sourceUrl)) {
+        await markJobSucceeded(job.id);
+        logBackendProcess('warn', 'file.video_ingestion.skipped', {
+          fileId: job.notebookFileId,
+          jobId: job.id,
+          reason: 'missing_source',
+        });
+        return;
+      }
+
+      const download = await downloadYoutubeVideoForNotebook({
+        notebookId: file.notebookId,
+        title: file.name,
+        url: file.sourceUrl!,
+      });
+      sourcePath = download.sourcePath;
+
+      await prisma.notebookFile.update({
+        where: { id: file.id },
+        data: {
+          mimeType: download.mimeType,
+          size: download.size,
+          sourcePath,
+        },
+      });
+
+      const { startNotebookFileHlsJob } = await import('@/lib/hls-service');
+      startNotebookFileHlsJob(file.id);
+    }
+
     const [{ processVideoFile }, { indexNotebookFileForRag }] = await Promise.all([
       import('@/lib/video-processing'),
       import('@/lib/rag'),
     ]);
     const result = await processVideoFile({
       fileName: file.name,
-      filePath: file.sourcePath,
+      filePath: sourcePath,
     });
 
     await prisma.notebookFile.update({

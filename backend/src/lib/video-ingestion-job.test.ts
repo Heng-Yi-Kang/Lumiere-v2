@@ -30,6 +30,15 @@ vi.mock('@/lib/notebook-file-summary-job', () => ({
   startNotebookFileSummaryJob: vi.fn(),
 }));
 
+vi.mock('@/lib/youtube-video-ingestion', () => ({
+  downloadYoutubeVideoForNotebook: vi.fn(),
+  isCanonicalYoutubeVideoUrl: vi.fn(),
+}));
+
+vi.mock('@/lib/hls-service', () => ({
+  startNotebookFileHlsJob: vi.fn(),
+}));
+
 import {
   claimNextVideoIngestionJob,
   processVideoIngestionJob,
@@ -37,6 +46,8 @@ import {
 import { indexNotebookFileForRag } from '@/lib/rag';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 import { processVideoFile } from '@/lib/video-processing';
+import { startNotebookFileHlsJob } from '@/lib/hls-service';
+import { downloadYoutubeVideoForNotebook, isCanonicalYoutubeVideoUrl } from '@/lib/youtube-video-ingestion';
 
 describe('video ingestion jobs', () => {
   beforeEach(() => {
@@ -45,6 +56,7 @@ describe('video ingestion jobs', () => {
     prismaMock.notebookFileIngestionJob.update.mockResolvedValue({});
     prismaMock.notebookFileIngestionJob.updateMany.mockResolvedValue({ count: 0 });
     vi.mocked(indexNotebookFileForRag).mockResolvedValue(2);
+    vi.mocked(isCanonicalYoutubeVideoUrl).mockReturnValue(false);
   });
 
   it('processes a video, indexes RAG chunks, marks the file ready, and starts summary generation', async () => {
@@ -59,6 +71,7 @@ describe('video ingestion jobs', () => {
       name: 'lecture.mp4',
       notebookId: 'nb-1',
       sourcePath: '/uploads/lecture.mp4',
+      sourceUrl: null,
       status: 'processing',
       type: 'video',
     });
@@ -111,6 +124,58 @@ describe('video ingestion jobs', () => {
     expect(startNotebookFileSummaryJob).toHaveBeenCalledWith('file-1');
   });
 
+  it('downloads a YouTube-backed video before processing and starts HLS', async () => {
+    const job = {
+      attempts: 1,
+      id: 'job-1',
+      maxAttempts: 3,
+      notebookFileId: 'file-1',
+    };
+    prismaMock.notebookFile.findUnique.mockResolvedValue({
+      id: 'file-1',
+      name: 'Lecture video',
+      notebookId: 'nb-1',
+      sourcePath: null,
+      sourceUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      status: 'processing',
+      type: 'video',
+    });
+    vi.mocked(isCanonicalYoutubeVideoUrl).mockReturnValue(true);
+    vi.mocked(downloadYoutubeVideoForNotebook).mockResolvedValue({
+      mimeType: 'video/mp4',
+      size: '25.0 MB',
+      sizeBytes: 25 * 1024 * 1024,
+      sourcePath: '/uploads/youtube-video.mp4',
+    });
+    vi.mocked(processVideoFile).mockResolvedValue({
+      durationSeconds: 60,
+      previewContent: 'Timestamped transcript',
+      ragSegments: [],
+      transcript: 'Downloaded video transcript',
+    });
+
+    await processVideoIngestionJob(job);
+
+    expect(downloadYoutubeVideoForNotebook).toHaveBeenCalledWith({
+      notebookId: 'nb-1',
+      title: 'Lecture video',
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    });
+    expect(prismaMock.notebookFile.update).toHaveBeenCalledWith({
+      where: { id: 'file-1' },
+      data: expect.objectContaining({
+        mimeType: 'video/mp4',
+        size: '25.0 MB',
+        sourcePath: '/uploads/youtube-video.mp4',
+      }),
+    });
+    expect(startNotebookFileHlsJob).toHaveBeenCalledWith('file-1');
+    expect(processVideoFile).toHaveBeenCalledWith({
+      fileName: 'Lecture video',
+      filePath: '/uploads/youtube-video.mp4',
+    });
+  });
+
   it('marks the file as error after the final failed attempt', async () => {
     const job = {
       attempts: 3,
@@ -123,6 +188,7 @@ describe('video ingestion jobs', () => {
       name: 'lecture.mp4',
       notebookId: 'nb-1',
       sourcePath: '/uploads/lecture.mp4',
+      sourceUrl: null,
       status: 'processing',
       type: 'video',
     });

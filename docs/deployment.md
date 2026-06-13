@@ -45,6 +45,7 @@ Recommended server baseline:
 - PostgreSQL
 - Qdrant
 - `ffmpeg` and `ffprobe` if you want video uploads
+- `yt-dlp` if you want public single-video YouTube link ingestion
 - Chromium or Chrome if you want web-link scraping; set `PUPPETEER_EXECUTABLE_PATH` when Puppeteer cannot use a bundled browser
 
 The backend startup health checks can fail boot when required dependencies are missing or unreachable.
@@ -88,6 +89,9 @@ These unlock major features and are strongly recommended:
   - `RERANKER_API_BASE`
   - `RERANKER_API_KEY`
   - `RERANKER_MODEL`
+- YouTube notebook ingestion:
+  - install the `yt-dlp` system binary
+  - `YOUTUBE_DOWNLOAD_TIMEOUT_MS` optional, defaults to 20 minutes
 
 ### Operational env vars
 

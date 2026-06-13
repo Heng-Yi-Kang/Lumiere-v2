@@ -26,6 +26,7 @@ import {
   Upload,
   Volume2,
   X,
+  Youtube,
 } from 'lucide-react';
 import { ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
 import { askGroundedNotebookChat, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
@@ -43,6 +44,7 @@ import FileNotesPanel from './FileNotesPanel';
 import HlsVideoPlayer from './HlsVideoPlayer';
 import NotebookChatPanel from './NotebookChatPanel';
 import AddLinkModal from './AddLinkModal';
+import AddYoutubeLinkModal from './AddYoutubeLinkModal';
 
 interface NotebookViewProps {
   notebook: Notebook | null;
@@ -51,6 +53,7 @@ interface NotebookViewProps {
   onSelectNotebook: (id: string | null) => void;
   onBackToDashboard: () => void;
   onAddLink?: (notebookId: string, url: string) => Promise<void> | void;
+  onAddYoutubeLink?: (notebookId: string, url: string) => Promise<void> | void;
   onUploadFile?: (notebookId: string, files: File[]) => Promise<void> | void;
   onDeleteFile?: (notebookId: string, fileId: string) => Promise<void> | void;
   onRetryFileSummary?: (notebookId: string, fileId: string) => Promise<void> | void;
@@ -151,6 +154,7 @@ export default function NotebookView({
   onSelectNotebook,
   onBackToDashboard,
   onAddLink,
+  onAddYoutubeLink,
   onUploadFile,
   onDeleteFile,
   onRetryFileSummary,
@@ -187,6 +191,7 @@ export default function NotebookView({
   const [retryingSummaryFileId, setRetryingSummaryFileId] = useState<string | null>(null);
   const [fileDetailTab, setFileDetailTab] = useState<'chat' | 'notes'>('chat');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
+  const [isAddYoutubeLinkModalOpen, setIsAddYoutubeLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -556,6 +561,15 @@ export default function NotebookView({
 
     setUploadError('');
     await Promise.resolve(onAddLink(notebook.id, url));
+  };
+
+  const handleAddYoutubeLink = async (url: string) => {
+    if (!notebook || !onAddYoutubeLink) {
+      return;
+    }
+
+    setUploadError('');
+    await Promise.resolve(onAddYoutubeLink(notebook.id, url));
   };
 
   const handleDelete = async (file: FileItem) => {
@@ -986,6 +1000,14 @@ export default function NotebookView({
             >
               <LinkIcon className="h-4 w-4" />
               Add Link
+            </button>
+            <button
+              onClick={() => setIsAddYoutubeLinkModalOpen(true)}
+              disabled={uploadPhase !== 'idle' || !onAddYoutubeLink}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-cta/20 bg-cta-subtle px-3 py-2 text-xs font-bold text-cta transition hover:bg-cta/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Youtube className="h-4 w-4" />
+              YouTube
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -1553,6 +1575,13 @@ export default function NotebookView({
           notebookName={notebook.name}
           onClose={() => setIsAddLinkModalOpen(false)}
           onSubmit={handleAddLink}
+        />
+      ) : null}
+      {isAddYoutubeLinkModalOpen && notebook ? (
+        <AddYoutubeLinkModal
+          notebookName={notebook.name}
+          onClose={() => setIsAddYoutubeLinkModalOpen(false)}
+          onSubmit={handleAddYoutubeLink}
         />
       ) : null}
     </div>
