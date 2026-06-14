@@ -102,7 +102,7 @@ describe('processVideoFile', () => {
     describeImageFileMock.mockReset();
   });
 
-  it('extracts compressed m4a audio for transcription', async () => {
+  it('extracts compressed mp3 audio for transcription', async () => {
     execFileAsyncMock.mockImplementation(async (command: string) => {
       if (command === 'ffprobe') {
         return { stdout: '61\n', stderr: '' };
@@ -130,13 +130,13 @@ describe('processVideoFile', () => {
       '-ar',
       '16000',
       '-c:a',
-      'aac',
+      'libmp3lame',
       '-b:a',
-      '48k',
+      '64k',
     ]), expect.any(Object));
     expect(transcribeAudioFileMock).toHaveBeenCalledWith(expect.objectContaining({
-      fileName: 'lecture.m4a',
-      mimeType: 'audio/mp4',
+      fileName: 'lecture.mp3',
+      mimeType: 'audio/mpeg',
     }));
   });
 });

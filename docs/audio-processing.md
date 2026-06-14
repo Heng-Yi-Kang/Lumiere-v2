@@ -85,6 +85,7 @@ Behavior:
 - Requires `STT_API_BASE`, `STT_API_KEY`, and `STT_MODEL`
 - Sends the upload to `${STT_API_BASE}/audio/transcriptions`
 - Splits files larger than `STT_MAX_CHUNK_MB` into valid ffmpeg audio segments before transcription
+- Splits files longer than `STT_MAX_CHUNK_SECONDS` into valid ffmpeg audio segments before transcription
 - Uses multipart `FormData` by default
 - Uses JSON base64 audio when `STT_REQUEST_FORMAT=json` or when `STT_API_BASE` contains `openrouter.ai`
 - Retries transient provider/network failures such as 502, 503, 504, 429, and `fetch failed`
@@ -105,6 +106,7 @@ Do not set `STT_REQUEST_FORMAT=multipart` with OpenRouter STT. OpenRouter reject
 Chunking defaults:
 
 - `STT_MAX_CHUNK_MB`, default `20`
+- `STT_MAX_CHUNK_SECONDS`, default `55`
 - `STT_CHUNK_COMMAND_TIMEOUT_MS`, default `120000`
 - `STT_REQUEST_MAX_ATTEMPTS`, default `3`
 - `STT_RETRY_BASE_DELAY_MS`, default `1000`

@@ -10,6 +10,7 @@ export { buildSttRequest } from '@/lib/stt-request';
 const execFileAsync = promisify(execFile);
 const BYTES_PER_MB = 1024 * 1024;
 const DEFAULT_STT_MAX_CHUNK_MB = 20;
+const DEFAULT_STT_MAX_CHUNK_SECONDS = 55;
 const DEFAULT_STT_CHUNK_COMMAND_TIMEOUT_MS = 120_000;
 const DEFAULT_STT_REQUEST_MAX_ATTEMPTS = 3;
 const DEFAULT_STT_RETRY_BASE_DELAY_MS = 1_000;
@@ -68,6 +69,16 @@ function buildSttFailureMessage(status: number, statusText: string, body: string
 }
 
 async function getAudioDurationSeconds(filePath: string): Promise<number> {
+  const duration = await probeAudioDurationSeconds(filePath);
+
+  if (duration !== null) {
+    return duration;
+  }
+
+  throw new SttError('ffprobe returned an invalid audio duration.');
+}
+
+async function probeAudioDurationSeconds(filePath: string): Promise<number | null> {
   try {
     const { stdout } = await execFileAsync('ffprobe', [
       '-v',
@@ -86,9 +97,9 @@ async function getAudioDurationSeconds(filePath: string): Promise<number> {
       return duration;
     }
 
-    throw new SttError('ffprobe returned an invalid audio duration.');
+    return null;
   } catch (error) {
-    throw new SttError(`Audio chunking requires ffprobe duration metadata: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
   }
 }
 
@@ -111,17 +122,36 @@ async function listChunkFiles(directory: string, fs: typeof import('node:fs').pr
     .map((fileName) => path.join(directory, fileName));
 }
 
+async function filterTranscribableChunkFiles(chunkPaths: string[], fs: typeof import('node:fs').promises) {
+  const durations = await Promise.all(chunkPaths.map((chunkPath) => probeAudioDurationSeconds(chunkPath)));
+  const transcribableChunkPaths = chunkPaths.filter((_, index) => {
+    const durationSeconds = durations[index];
+    return durationSeconds !== null && durationSeconds >= 0.25;
+  });
+  const skippedChunkPaths = chunkPaths.filter((chunkPath) => !transcribableChunkPaths.includes(chunkPath));
+
+  await Promise.all(skippedChunkPaths.map((chunkPath) => fs.rm(chunkPath, { force: true }).catch(() => undefined)));
+
+  return transcribableChunkPaths;
+}
+
 async function splitAudioIntoChunks(params: {
+  durationSeconds?: number;
   fileName: string;
   filePath: string;
   fs: typeof import('node:fs').promises;
   maxChunkBytes: number;
+  maxChunkSeconds: number;
   mimeType: string;
 }) {
-  const durationSeconds = await getAudioDurationSeconds(params.filePath);
+  const durationSeconds = params.durationSeconds ?? await getAudioDurationSeconds(params.filePath);
   const stats = await params.fs.stat(params.filePath);
   const targetChunkBytes = Math.max(1, Math.floor(params.maxChunkBytes * STT_CHUNK_TARGET_RATIO));
-  let chunkCount = Math.max(2, Math.ceil(stats.size / targetChunkBytes));
+  let chunkCount = Math.max(
+    2,
+    Math.ceil(stats.size / targetChunkBytes),
+    Math.ceil(durationSeconds / params.maxChunkSeconds),
+  );
   const extension = getAudioExtension(params.fileName, params.mimeType);
 
   for (let attempt = 1; attempt <= STT_MAX_CHUNKING_ATTEMPTS; attempt += 1) {
@@ -150,7 +180,10 @@ async function splitAudioIntoChunks(params: {
       timeout: getPositiveNumberEnv('STT_CHUNK_COMMAND_TIMEOUT_MS', DEFAULT_STT_CHUNK_COMMAND_TIMEOUT_MS),
     });
 
-    const chunkPaths = await listChunkFiles(chunkDirectory, params.fs);
+    const chunkPaths = await filterTranscribableChunkFiles(
+      await listChunkFiles(chunkDirectory, params.fs),
+      params.fs,
+    );
 
     if (!chunkPaths.length) {
       await params.fs.rm(chunkDirectory, { recursive: true, force: true }).catch(() => undefined);
@@ -244,17 +277,27 @@ export async function transcribeAudioFile(params: {
   const apiKey = getRequiredEnv('STT_API_KEY');
   const model = getSttModel();
   const maxChunkBytes = Math.floor(getPositiveNumberEnv('STT_MAX_CHUNK_MB', DEFAULT_STT_MAX_CHUNK_MB) * BYTES_PER_MB);
+  const maxChunkSeconds = getPositiveNumberEnv('STT_MAX_CHUNK_SECONDS', DEFAULT_STT_MAX_CHUNK_SECONDS);
   const stats = await fs.stat(params.filePath);
+  let durationSeconds: number | undefined;
 
   if (stats.size <= maxChunkBytes) {
-    return transcribeBuffer({
-      apiKey,
-      baseUrl,
-      buffer: await fs.readFile(params.filePath),
-      fileName: params.fileName,
-      mimeType: params.mimeType,
-      model,
-    });
+    try {
+      durationSeconds = await getAudioDurationSeconds(params.filePath);
+    } catch {
+      durationSeconds = undefined;
+    }
+
+    if (!durationSeconds || durationSeconds <= maxChunkSeconds) {
+      return transcribeBuffer({
+        apiKey,
+        baseUrl,
+        buffer: await fs.readFile(params.filePath),
+        fileName: params.fileName,
+        mimeType: params.mimeType,
+        model,
+      });
+    }
   }
 
   const { chunkDirectory, chunkPaths } = await splitAudioIntoChunks({
@@ -262,7 +305,9 @@ export async function transcribeAudioFile(params: {
     filePath: params.filePath,
     fs,
     maxChunkBytes,
+    maxChunkSeconds,
     mimeType: params.mimeType,
+    durationSeconds,
   });
 
   try {

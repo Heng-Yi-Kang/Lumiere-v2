@@ -62,8 +62,8 @@ The backend worker then claims queued video ingestion jobs from PostgreSQL and r
 
 1. create a temporary working directory
 2. read duration with `ffprobe`
-3. extract a mono `16 kHz` M4A/AAC audio track
-4. transcribe the M4A through `transcribeAudioFile()`
+3. extract a mono `16 kHz` MP3 audio track
+4. transcribe the MP3 through `transcribeAudioFile()`
 5. sample JPG frames across the video
 6. describe each frame with `describeImageFile()`
 7. build `VideoRagSegment[]` with transcript slices plus frame descriptions
@@ -90,11 +90,12 @@ Required environment variables:
 - `STT_MODEL`
 - `STT_REQUEST_FORMAT`, optional. Defaults to `multipart`; use `json` for providers that reject multipart uploads.
 - `STT_MAX_CHUNK_MB`, optional. Defaults to `20`; extracted audio larger than this is split with ffmpeg before transcription.
+- `STT_MAX_CHUNK_SECONDS`, optional. Defaults to `55`; extracted audio longer than this is split with ffmpeg before transcription.
 - `STT_CHUNK_COMMAND_TIMEOUT_MS`, optional. Defaults to `120000`.
 - `STT_REQUEST_MAX_ATTEMPTS`, optional. Defaults to `3`.
 - `STT_RETRY_BASE_DELAY_MS`, optional. Defaults to `1000`.
 
-Video audio is extracted as M4A/AAC before it is passed to the STT helper. This keeps long-video transcription requests much smaller than uncompressed WAV extraction. The helper returns plain text only. It does not provide native timestamps, so video timestamping is synthesized later.
+Video audio is extracted as MP3 before it is passed to the STT helper. This keeps long-video transcription requests much smaller than uncompressed WAV extraction while matching the same audio format that direct MP3 uploads send to STT providers. The helper returns plain text only. It does not provide native timestamps, so video timestamping is synthesized later.
 
 ## Frame sampling
 

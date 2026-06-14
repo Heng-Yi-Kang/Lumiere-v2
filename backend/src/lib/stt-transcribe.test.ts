@@ -28,6 +28,7 @@ describe('transcribeAudioFile', () => {
   const originalSttApiKey = process.env.STT_API_KEY;
   const originalSttModel = process.env.STT_MODEL;
   const originalSttMaxChunkMb = process.env.STT_MAX_CHUNK_MB;
+  const originalSttMaxChunkSeconds = process.env.STT_MAX_CHUNK_SECONDS;
   const originalSttRequestMaxAttempts = process.env.STT_REQUEST_MAX_ATTEMPTS;
   const originalSttRetryBaseDelayMs = process.env.STT_RETRY_BASE_DELAY_MS;
   let tempDirectory: string;
@@ -38,6 +39,7 @@ describe('transcribeAudioFile', () => {
     process.env.STT_API_KEY = 'test-key';
     process.env.STT_MODEL = 'qwen3-asr-1.7b';
     delete process.env.STT_MAX_CHUNK_MB;
+    delete process.env.STT_MAX_CHUNK_SECONDS;
     process.env.STT_RETRY_BASE_DELAY_MS = '1';
     delete process.env.STT_REQUEST_MAX_ATTEMPTS;
     execFileAsyncMock.mockReset();
@@ -63,6 +65,11 @@ describe('transcribeAudioFile', () => {
       delete process.env.STT_MAX_CHUNK_MB;
     } else {
       process.env.STT_MAX_CHUNK_MB = originalSttMaxChunkMb;
+    }
+    if (originalSttMaxChunkSeconds === undefined) {
+      delete process.env.STT_MAX_CHUNK_SECONDS;
+    } else {
+      process.env.STT_MAX_CHUNK_SECONDS = originalSttMaxChunkSeconds;
     }
     if (originalSttRequestMaxAttempts === undefined) {
       delete process.env.STT_REQUEST_MAX_ATTEMPTS;
@@ -91,7 +98,7 @@ describe('transcribeAudioFile', () => {
     })).resolves.toBe('small transcript');
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(execFileAsyncMock).not.toHaveBeenCalled();
+    expect(execFileAsyncMock).toHaveBeenCalledWith('ffprobe', expect.any(Array), expect.any(Object));
   });
 
   it('retries transient transcription gateway failures', async () => {
@@ -170,6 +177,56 @@ describe('transcribeAudioFile', () => {
     expect(execFileAsyncMock).toHaveBeenCalledWith('ffmpeg', expect.arrayContaining([
       '-segment_time',
       '30',
+      '-c',
+      'copy',
+    ]), expect.any(Object));
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('splits long compressed audio even when it is below the byte limit', async () => {
+    process.env.STT_MAX_CHUNK_SECONDS = '55';
+    const filePath = path.join(tempDirectory, 'lecture.mp3');
+    await fs.writeFile(filePath, Buffer.alloc(25, 1));
+    execFileAsyncMock.mockImplementation(async (command: string, args: string[]) => {
+      if (command === 'ffprobe') {
+        if (args.at(-1)?.includes('chunk-00003.mp3')) {
+          return { stdout: 'N/A\n', stderr: '' };
+        }
+
+        return { stdout: '120\n', stderr: '' };
+      }
+
+      if (command === 'ffmpeg') {
+        const outputPattern = args.at(-1);
+
+        if (!outputPattern) {
+          throw new Error('missing output pattern');
+        }
+
+        await fs.mkdir(path.dirname(outputPattern), { recursive: true });
+        await Promise.all([0, 1, 2, 3].map((index) => fs.writeFile(
+          outputPattern.replace('%05d', String(index).padStart(5, '0')),
+          Buffer.alloc(8, index + 1),
+        )));
+        return { stdout: '', stderr: '' };
+      }
+
+      throw new Error(`unexpected command: ${command}`);
+    });
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: 'first minute' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: 'second minute' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: 'third minute' })));
+
+    await expect(transcribeAudioFile({
+      fileName: 'lecture.mp3',
+      filePath,
+      mimeType: 'audio/mpeg',
+    })).resolves.toBe('first minute\n\nsecond minute\n\nthird minute');
+
+    expect(execFileAsyncMock).toHaveBeenCalledWith('ffmpeg', expect.arrayContaining([
+      '-segment_time',
+      '40',
       '-c',
       'copy',
     ]), expect.any(Object));
