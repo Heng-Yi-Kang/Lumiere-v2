@@ -173,7 +173,7 @@ Web links enter through `POST /api/notebooks/[notebookId]/links`, create `Notebo
 
 ## Retrieval Flow
 
-`retrieveNotebookRagContext()` lives in `backend/src/lib/rag.ts`.
+`retrieveNotebookRagContext()` is exported from `backend/src/lib/rag.ts` and implemented in the private `backend/src/lib/rag/` modules.
 
 Inputs:
 
@@ -206,7 +206,7 @@ Qdrant cleanup failures are logged but do not block deletion. Retrieval validati
 
 ## Chunking Strategy
 
-Text-like content is chunked by `splitIntoChunks()` in `backend/src/lib/rag.ts`.
+Text-like content is chunked by `splitIntoChunks()`, exported from `backend/src/lib/rag.ts` and implemented in `backend/src/lib/rag/chunking.ts`.
 
 Current defaults:
 
