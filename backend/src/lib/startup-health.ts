@@ -277,6 +277,10 @@ export async function pingSttProvider(timeoutMs?: number) {
   const text = await response.text();
 
   if (!response.ok) {
+    if (/invalid content-type/i.test(text)) {
+      throw new Error(`STT provider probe failed with ${response.status}: ${text || response.statusText}`);
+    }
+
     if (response.status >= 400 && response.status < 500 && response.status !== 401 && response.status !== 403 && response.status !== 404) {
       return;
     }

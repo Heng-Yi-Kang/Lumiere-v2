@@ -90,6 +90,17 @@ Behavior:
 - Expects a JSON response with a `text` field
 - Throws if the provider returns an error or empty text
 
+### STT request format
+
+Set `STT_REQUEST_FORMAT` to match the transcription provider's API contract:
+
+- `json`: use this for OpenRouter-hosted STT models, for example `STT_API_BASE=https://openrouter.ai/api/v1`. The backend sends base64 audio in an `application/json` payload with `input_audio`.
+- `multipart`: use this for OpenAI-compatible transcription endpoints that accept `multipart/form-data` uploads with a `file` field and `model` field.
+
+If `STT_REQUEST_FORMAT` is unset, the backend chooses `json` automatically when `STT_API_BASE` contains `openrouter.ai`; otherwise it falls back to `multipart`.
+
+Do not set `STT_REQUEST_FORMAT=multipart` with OpenRouter STT. OpenRouter rejects that request shape with an `invalid content-type: multipart/form-data` error before transcription starts.
+
 Chunking defaults:
 
 - `STT_MAX_CHUNK_MB`, default `20`

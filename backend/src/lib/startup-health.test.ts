@@ -261,6 +261,21 @@ describe('startup health checks', () => {
     await expect(pingSttProvider()).resolves.toBeUndefined();
   });
 
+  it('rejects STT probe client errors caused by an invalid request content type', async () => {
+    setEnv('STT_API_BASE', 'https://openrouter.ai/api/v1');
+    setEnv('STT_API_KEY', 'stt-key');
+    setEnv('STT_MODEL', 'qwen/qwen3-asr-flash-2026-02-10');
+    setEnv('STT_REQUEST_FORMAT', 'multipart');
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        message: 'invalid content-type: multipart/form-data; boundary=----formdata-undici-test',
+        code: 400,
+      },
+    }), { status: 400 }));
+
+    await expect(pingSttProvider()).rejects.toThrow('STT provider probe failed with 400');
+  });
+
   it('rejects STT probe authentication failures', async () => {
     setEnv('STT_API_BASE', 'https://stt.example.test/v1');
     setEnv('STT_API_KEY', 'stt-key');
