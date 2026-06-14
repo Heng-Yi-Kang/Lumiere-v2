@@ -15,6 +15,7 @@ export function NotebookStudyPanel({
   notebookPanelTab,
   onAddLink,
   onClearSavedChatReply,
+  onOpenCitationSource,
   onSaveReply,
   onUploadFile,
   savedChatReplies,
@@ -31,6 +32,7 @@ export function NotebookStudyPanel({
   notebookPanelTab: NotebookPanelTab;
   onAddLink?: (notebookId: string, url: string) => Promise<void> | void;
   onClearSavedChatReply: () => void;
+  onOpenCitationSource?: (fileId: string) => void;
   onSaveReply: (input: SaveChatReplyInput) => Promise<void>;
   onUploadFile?: (notebookId: string, files: File[]) => Promise<void> | void;
   savedChatReplies: SavedChatReply[];
@@ -73,6 +75,7 @@ export function NotebookStudyPanel({
           savedReplyKeys={savedChatReplyKeys}
           savingReplyKey={savingReplyKey}
           onAddLink={onAddLink ? () => setIsAddLinkModalOpen(true) : undefined}
+          onOpenCitationSource={onOpenCitationSource}
           onSaveReply={onSaveReply}
           onUploadFile={onUploadFile ? () => fileInputRef.current?.click() : undefined}
         />
@@ -82,6 +85,7 @@ export function NotebookStudyPanel({
             isClearing={savedChatReplyClearing}
             isLoading={savedChatReplyLoading}
             onClear={onClearSavedChatReply}
+            onOpenCitationSource={onOpenCitationSource}
             savedChatReplies={savedChatReplies}
           />
           {savedChatReplyError ? (

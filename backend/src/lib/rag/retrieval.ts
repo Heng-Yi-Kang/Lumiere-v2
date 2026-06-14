@@ -84,8 +84,12 @@ export async function retrieveNotebookRagContext(options: RagSearchOptions) {
       fileId: hit.payload.notebookFileId,
       fileName: validFileNames.get(hit.payload.notebookFileId) || hit.payload.fileName,
       originalIndex,
+      ...(hit.payload.pageNumber !== null ? { pageNumber: hit.payload.pageNumber } : {}),
       rerankScore: null,
       score: hit.score,
+      ...(hit.payload.slideNumber !== null ? { slideNumber: hit.payload.slideNumber } : {}),
+      ...(hit.payload.timestampEnd !== null ? { timestampEnd: hit.payload.timestampEnd } : {}),
+      ...(hit.payload.timestampStart !== null ? { timestampStart: hit.payload.timestampStart } : {}),
       vectorScore: hit.score,
     }));
   let rankedResults = vectorRankedResults;

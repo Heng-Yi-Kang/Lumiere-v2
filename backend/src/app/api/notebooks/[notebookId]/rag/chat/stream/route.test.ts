@@ -46,8 +46,12 @@ describe('POST /api/notebooks/[notebookId]/rag/chat/stream', () => {
         content: 'Greedy algorithms choose local optima.',
         fileId: 'file-1',
         fileName: 'week-1.txt',
+        pageNumber: 4,
         rerankScore: null,
         score: 0.92,
+        slideNumber: null,
+        timestampEnd: null,
+        timestampStart: null,
         vectorScore: 0.92,
       },
     ]);
@@ -73,6 +77,8 @@ describe('POST /api/notebooks/[notebookId]/rag/chat/stream', () => {
     expect(body).toContain('event: done');
     expect(body).toContain('"answer":"Grounded answer."');
     expect(body).toContain('"fileName":"week-1.txt"');
+    expect(body).toContain('"locationLabel":"Page 4"');
+    expect(body).toContain('"excerpt":"Greedy algorithms choose local optima."');
   });
 
   it('streams from extracted text fallback when RAG retrieval fails', async () => {

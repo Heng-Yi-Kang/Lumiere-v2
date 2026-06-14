@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkCheck, FileText, Link as LinkIcon, LoaderCircle, Send, ShieldCheck, Sparkles, StickyNote, Trash2, Upload } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Link as LinkIcon, LoaderCircle, Send, Sparkles, StickyNote, Trash2, Upload } from 'lucide-react';
 import { ChatMessage, Citation } from '../types';
 import { ChatMarkdown } from './ChatMarkdown';
+import { CitationEvidenceList } from './CitationEvidenceList';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import { askGroundedNotebookChatStream } from '../lib/notebooksApi';
 import { getGroundedChatErrorMessage } from '../lib/apiErrors';
@@ -21,6 +22,7 @@ interface NotebookChatPanelProps {
     replyKey: string;
     scopeType: 'notebook';
   }) => Promise<void> | void;
+  onOpenCitationSource?: (fileId: string) => void;
   onUploadFile?: () => void;
 }
 
@@ -76,6 +78,7 @@ export default function NotebookChatPanel({
   savedReplyKeys = [],
   savingReplyKey,
   onAddLink,
+  onOpenCitationSource,
   onSaveReply,
   onUploadFile,
 }: NotebookChatPanelProps) {
@@ -337,26 +340,7 @@ export default function NotebookChatPanel({
                 ) : null}
 
                 {msg.citations && msg.citations.length > 0 ? (
-                  <div className="mt-2.5 border-t border-border-subtle pt-2">
-                    <div className="mb-1.5 flex items-center gap-1 text-[8.5px] font-black uppercase tracking-wider text-success font-mono">
-                      <ShieldCheck className="h-3 w-3" />
-                      Grounded references
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {msg.citations.map((citation, index) => (
-                        <span
-                          key={`${citation.fileId}-${citation.position}-${index}`}
-                          className="inline-flex max-w-full items-center gap-1 rounded border border-success/20 bg-success-subtle px-1.5 py-0.5 text-[9px] font-extrabold text-success"
-                        >
-                          <FileText className="h-2.5 w-2.5 shrink-0" />
-                          <span className="max-w-[120px] truncate">{citation.fileName}</span>
-                          <span className="rounded-sm bg-success/10 px-0.5 font-mono text-[8px]">
-                            {citation.position}
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  <CitationEvidenceList citations={msg.citations} onOpenSource={onOpenCitationSource} />
                 ) : null}
 
                 {msg.suggestedPrompts && msg.suggestedPrompts.length > 0 && (

@@ -12,6 +12,7 @@ export const NO_GROUNDED_CONTEXT_MESSAGE = 'No grounded context is available for
 
 const FINAL_CONTEXT_LIMIT = 6;
 const NOTEBOOK_CONTEXT_CANDIDATE_LIMIT = 20;
+const CITATION_EXCERPT_MAX_CHARS = 240;
 
 type NotebookFileForChat = {
   extractedText: string | null;
@@ -37,6 +38,66 @@ function buildExtractedTextFallbackResults(files: NotebookFileForChat[], limit =
       })),
     )
     .slice(0, limit);
+}
+
+function formatTimestamp(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const remainingSeconds = safeSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+function buildLocationLabel(result: RagSearchResult) {
+  if (typeof result.timestampStart === 'number') {
+    const start = formatTimestamp(result.timestampStart);
+
+    if (typeof result.timestampEnd === 'number' && result.timestampEnd > result.timestampStart) {
+      return `${start}-${formatTimestamp(result.timestampEnd)}`;
+    }
+
+    return start;
+  }
+
+  if (typeof result.pageNumber === 'number') {
+    return `Page ${result.pageNumber}`;
+  }
+
+  if (typeof result.slideNumber === 'number') {
+    return `Slide ${result.slideNumber}`;
+  }
+
+  return `Chunk ${result.chunkIndex + 1}`;
+}
+
+function buildCitationExcerpt(content: string) {
+  const normalizedContent = content.replace(/\s+/g, ' ').trim();
+
+  if (normalizedContent.length <= CITATION_EXCERPT_MAX_CHARS) {
+    return normalizedContent;
+  }
+
+  return `${normalizedContent.slice(0, CITATION_EXCERPT_MAX_CHARS - 3).trimEnd()}...`;
+}
+
+function buildCitation(result: RagSearchResult) {
+  const locationLabel = buildLocationLabel(result);
+
+  return {
+    chunkIndex: result.chunkIndex,
+    excerpt: buildCitationExcerpt(result.content),
+    fileId: result.fileId,
+    fileName: result.fileName,
+    locationLabel,
+    position: locationLabel,
+    score: result.score,
+    type: typeof result.timestampStart === 'number' ? 'timestamp' as const : 'page' as const,
+  };
 }
 
 function buildScopeLabel(params: {
@@ -195,13 +256,7 @@ export async function prepareGroundedChat(params: {
   return {
     result: {
       answer: '',
-      citations: groundedResults.map((result) => ({
-        fileId: result.fileId,
-        fileName: result.fileName,
-        position: `Chunk ${result.chunkIndex + 1}`,
-        score: result.score,
-        type: 'page' as const,
-      })),
+      citations: groundedResults.map(buildCitation),
       context: formatRagContextForPrompt(groundedResults),
       grounded: true,
       scope,

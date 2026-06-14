@@ -1053,11 +1053,14 @@ export const openApiDocument = {
         type: 'object',
         required: ['fileId', 'fileName', 'position', 'score', 'type'],
         properties: {
+          chunkIndex: { type: 'integer' },
+          excerpt: { type: 'string' },
           fileId: { type: 'string' },
           fileName: { type: 'string' },
+          locationLabel: { type: 'string' },
           position: { type: 'string' },
           score: { type: 'number' },
-          type: { type: 'string', enum: ['page'] },
+          type: { type: 'string', enum: ['page', 'timestamp'] },
         },
       },
       RagScope: {

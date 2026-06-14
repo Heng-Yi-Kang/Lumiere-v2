@@ -170,6 +170,17 @@ export default function NotebookView({
       : videoIngestionProgress >= 34
         ? 'Extracting timestamped transcript...'
         : 'Preparing video for transcript extraction...';
+  const handleOpenCitationSource = (fileId: string) => {
+    const sourceFile = notebook?.files.find((file) => file.id === fileId);
+
+    if (!sourceFile) {
+      return;
+    }
+
+    setSelectedMaterial(sourceFile);
+    setFileDetailTab('chat');
+  };
+
   useEffect(() => {
     setSelectedMaterial(null);
     previewActions.setPreviewError('');
@@ -311,6 +322,7 @@ export default function NotebookView({
           notebookPanelTab={notebookPanelTab}
           onAddLink={onAddLink}
           onClearSavedChatReply={() => void savedReplyActions.handleClearSavedChatReply()}
+          onOpenCitationSource={handleOpenCitationSource}
           onSaveReply={savedReplyActions.handleSaveChatReply}
           onUploadFile={onUploadFile}
           savedChatReplies={savedReplyState.savedChatReplies}

@@ -75,6 +75,9 @@ export interface Citation {
   type: 'page' | 'timestamp';
   position: string; // e.g. "Page 4" or "12:34"
   score?: number;
+  excerpt?: string;
+  chunkIndex?: number;
+  locationLabel?: string;
 }
 
 export interface ChatMessage {

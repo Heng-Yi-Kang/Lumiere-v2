@@ -32,7 +32,11 @@ function ragSearchResult(params: {
   content: string;
   fileId?: string;
   fileName?: string;
+  pageNumber?: number | null;
   score?: number;
+  slideNumber?: number | null;
+  timestampEnd?: number | null;
+  timestampStart?: number | null;
 }) {
   const score = params.score ?? 0.9;
 
@@ -41,8 +45,12 @@ function ragSearchResult(params: {
     content: params.content,
     fileId: params.fileId ?? 'file-1',
     fileName: params.fileName ?? 'week-1.txt',
+    pageNumber: params.pageNumber,
     rerankScore: null,
     score,
+    slideNumber: params.slideNumber,
+    timestampEnd: params.timestampEnd,
+    timestampStart: params.timestampStart,
     vectorScore: score,
   };
 }
@@ -130,7 +138,10 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
       expect.objectContaining({
         fileId: 'file-1',
         fileName: 'week-1.txt',
+        excerpt: 'Greedy algorithms choose local optima.',
+        locationLabel: 'Chunk 1',
         position: 'Chunk 1',
+        chunkIndex: 0,
       }),
     ]);
     expect(generateChatCompletion).toHaveBeenCalledWith(
@@ -151,8 +162,12 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
           content: 'Greedy algorithms choose local optima.',
           fileId: 'file-1',
           fileName: 'week-1.txt',
+          pageNumber: undefined,
           rerankScore: null,
           score: 0.92,
+          slideNumber: undefined,
+          timestampEnd: undefined,
+          timestampStart: undefined,
           vectorScore: 0.92,
         },
       ],
@@ -163,6 +178,114 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
         scoreTolerance: 0.03,
       },
     );
+  });
+
+  it('adds timestamp citation labels before other available locations', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      files: [{ extractedText: null, id: 'file-1', name: 'lecture.mp4' }],
+      id: 'nb-1',
+      name: 'Algorithms',
+    });
+    vi.mocked(retrieveNotebookRagContext).mockResolvedValue([
+      ragSearchResult({
+        content: 'At this point, the lecturer explains Dijkstra relaxation.',
+        fileName: 'lecture.mp4',
+        pageNumber: 3,
+        score: 0.94,
+        slideNumber: 8,
+        timestampEnd: 84.6,
+        timestampStart: 65.2,
+      }),
+    ]);
+
+    const response = await POST(
+      new Request('http://localhost/api/notebooks/nb-1/rag/chat', {
+        body: JSON.stringify({ question: 'Where is relaxation explained?' }),
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ notebookId: 'nb-1' }) },
+    );
+    const payload = await response.json();
+
+    expect(payload.citations[0]).toEqual(expect.objectContaining({
+      excerpt: 'At this point, the lecturer explains Dijkstra relaxation.',
+      locationLabel: '1:05-1:24',
+      position: '1:05-1:24',
+      type: 'timestamp',
+    }));
+  });
+
+  it('uses page, slide, then chunk fallback citation labels', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      files: [
+        { extractedText: null, id: 'file-1', name: 'week-1.pdf' },
+        { extractedText: null, id: 'file-2', name: 'week-2.pptx' },
+        { extractedText: null, id: 'file-3', name: 'notes.txt' },
+      ],
+      id: 'nb-1',
+      name: 'Algorithms',
+    });
+    vi.mocked(retrieveNotebookRagContext).mockResolvedValue([
+      ragSearchResult({
+        content: 'Page evidence.',
+        fileId: 'file-1',
+        fileName: 'week-1.pdf',
+        pageNumber: 12,
+      }),
+      ragSearchResult({
+        chunkIndex: 4,
+        content: 'Slide evidence.',
+        fileId: 'file-2',
+        fileName: 'week-2.pptx',
+        slideNumber: 7,
+      }),
+      ragSearchResult({
+        chunkIndex: 9,
+        content: 'Chunk fallback evidence.',
+        fileId: 'file-3',
+        fileName: 'notes.txt',
+      }),
+    ]);
+
+    const response = await POST(
+      new Request('http://localhost/api/notebooks/nb-1/rag/chat', {
+        body: JSON.stringify({ question: 'Show citation labels' }),
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ notebookId: 'nb-1' }) },
+    );
+    const payload = await response.json();
+
+    expect(payload.citations).toEqual([
+      expect.objectContaining({ chunkIndex: 0, locationLabel: 'Page 12', position: 'Page 12' }),
+      expect.objectContaining({ chunkIndex: 4, locationLabel: 'Slide 7', position: 'Slide 7' }),
+      expect.objectContaining({ chunkIndex: 9, locationLabel: 'Chunk 10', position: 'Chunk 10' }),
+    ]);
+  });
+
+  it('trims citation excerpts to a concise preview', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      files: [{ extractedText: null, id: 'file-1', name: 'week-1.txt' }],
+      id: 'nb-1',
+      name: 'Algorithms',
+    });
+    vi.mocked(retrieveNotebookRagContext).mockResolvedValue([
+      ragSearchResult({
+        content: `${'Dynamic programming recurrence '.repeat(12)}base case.`,
+      }),
+    ]);
+
+    const response = await POST(
+      new Request('http://localhost/api/notebooks/nb-1/rag/chat', {
+        body: JSON.stringify({ question: 'Explain DP' }),
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ notebookId: 'nb-1' }) },
+    );
+    const payload = await response.json();
+
+    expect(payload.citations[0].excerpt.length).toBeLessThanOrEqual(240);
+    expect(payload.citations[0].excerpt).toMatch(/\.\.\.$/);
   });
 
   it('streams keepalive bytes before chat generation completes', async () => {

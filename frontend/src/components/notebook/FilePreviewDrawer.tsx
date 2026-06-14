@@ -6,14 +6,12 @@ import {
   Download,
   Edit3,
   ExternalLink,
-  FileText,
   Image,
   LoaderCircle,
   MessageSquare,
   MonitorPlay,
   RotateCcw,
   Send,
-  ShieldCheck,
   Sparkles,
   StickyNote,
   Trash2,
@@ -24,6 +22,7 @@ import type { RefObject } from 'react';
 import type { NotebookFilePreview } from '../../types';
 import type { NotebookColorTone } from '../../lib/notebookColors';
 import { ChatMarkdown } from '../ChatMarkdown';
+import { CitationEvidenceList } from '../CitationEvidenceList';
 import FileNotesPanel from '../FileNotesPanel';
 import HlsVideoPlayer from '../HlsVideoPlayer';
 import { LabeledProgressBar } from '../ProgressBar';
@@ -179,6 +178,14 @@ export function FilePreviewDrawer({
   const isAudioPreview = selectedMaterial.type === 'audio';
   const isVideoPreview = selectedMaterial.type === 'video';
   const isLinkPreview = selectedMaterial.type === 'link';
+  const handleOpenCitationSource = (fileId: string) => {
+    const nextFile = notebook.files.find((file) => file.id === fileId);
+
+    if (nextFile) {
+      setSelectedMaterial(nextFile);
+      setFileDetailTab('chat');
+    }
+  };
 
   return (
     <div
@@ -525,26 +532,7 @@ export function FilePreviewDrawer({
                           ) : null}
 
                           {message.citations && message.citations.length > 0 ? (
-                            <div className="mt-2.5 border-t border-border-subtle pt-2">
-                              <div className="mb-1.5 flex items-center gap-1 text-[8.5px] font-black uppercase tracking-wider text-success font-mono">
-                                <ShieldCheck className="h-3 w-3" />
-                                Grounded references
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {message.citations.map((citation, index) => (
-                                  <span
-                                    key={`${citation.fileId}-${citation.position}-${index}`}
-                                    className="inline-flex max-w-full items-center gap-1 rounded border border-success/20 bg-success-subtle px-1.5 py-0.5 text-[9px] font-extrabold text-success"
-                                  >
-                                    <FileText className="h-2.5 w-2.5 shrink-0" />
-                                    <span className="max-w-[120px] truncate">{citation.fileName}</span>
-                                    <span className="rounded-sm bg-success/10 px-0.5 font-mono text-[8px]">
-                                      {citation.position}
-                                    </span>
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
+                            <CitationEvidenceList citations={message.citations} onOpenSource={handleOpenCitationSource} />
                           ) : null}
 
                           {message.suggestedPrompts && message.suggestedPrompts.length > 0 ? (

@@ -1,5 +1,6 @@
-import { BookmarkCheck, ChevronRight, FileText, LoaderCircle, ShieldCheck, Trash2 } from 'lucide-react';
+import { BookmarkCheck, ChevronRight, FileText, LoaderCircle, Trash2 } from 'lucide-react';
 import { ChatMarkdown } from '../ChatMarkdown';
+import { CitationEvidenceList } from '../CitationEvidenceList';
 import type { SavedChatReply } from './types';
 import { formatSavedReplyDate } from './notebookHelpers';
 
@@ -7,11 +8,13 @@ export function SavedAnswerPanel({
   isClearing,
   isLoading,
   onClear,
+  onOpenCitationSource,
   savedChatReplies,
 }: {
   isClearing: boolean;
   isLoading: boolean;
   onClear: () => void;
+  onOpenCitationSource?: (fileId: string) => void;
   savedChatReplies: SavedChatReply[];
 }) {
   return (
@@ -82,22 +85,7 @@ export function SavedAnswerPanel({
                 </div>
                 {savedChatReply.citations.length > 0 ? (
                   <div className="rounded-2xl border border-success/20 bg-success-subtle/40 p-3">
-                    <div className="mb-2 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-success font-mono">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Grounded references
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {savedChatReply.citations.map((citation, index) => (
-                        <span
-                          key={`${citation.fileId}-${citation.position}-${index}`}
-                          className="inline-flex max-w-full items-center gap-1 rounded border border-success/20 bg-bg-base/40 px-1.5 py-0.5 text-[9px] font-extrabold text-success"
-                        >
-                          <FileText className="h-2.5 w-2.5 shrink-0" />
-                          <span className="max-w-[140px] truncate">{citation.fileName}</span>
-                          <span className="rounded-sm bg-success/10 px-0.5 font-mono text-[8px]">{citation.position}</span>
-                        </span>
-                      ))}
-                    </div>
+                    <CitationEvidenceList citations={savedChatReply.citations} onOpenSource={onOpenCitationSource} />
                   </div>
                 ) : null}
               </div>

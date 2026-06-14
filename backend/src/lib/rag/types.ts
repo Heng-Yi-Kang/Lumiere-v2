@@ -10,8 +10,12 @@ export type RagSearchResult = {
   content: string;
   fileId: string;
   fileName: string;
+  pageNumber?: number | null;
   rerankScore: number | null;
   score: number;
+  slideNumber?: number | null;
+  timestampEnd?: number | null;
+  timestampStart?: number | null;
   vectorScore: number;
 };
 
