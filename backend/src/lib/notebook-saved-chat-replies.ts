@@ -1,6 +1,21 @@
 import type { NotebookSavedChatReply } from '@prisma/client';
 
-export function serializeNotebookSavedChatReply(reply: NotebookSavedChatReply | null) {
+type SerializedNotebookSavedChatReply = {
+  id: string;
+  notebookId: string;
+  question: string;
+  answer: string;
+  fileId?: string;
+  fileName?: string;
+  scopeType: 'notebook' | 'file';
+  citations: unknown[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function serializeNotebookSavedChatReply(reply: NotebookSavedChatReply): SerializedNotebookSavedChatReply;
+export function serializeNotebookSavedChatReply(reply: null): null;
+export function serializeNotebookSavedChatReply(reply: NotebookSavedChatReply | null): SerializedNotebookSavedChatReply | null {
   if (!reply) {
     return null;
   }
@@ -17,4 +32,8 @@ export function serializeNotebookSavedChatReply(reply: NotebookSavedChatReply | 
     createdAt: reply.createdAt.toISOString(),
     updatedAt: reply.updatedAt.toISOString(),
   };
+}
+
+export function serializeNotebookSavedChatReplies(replies: NotebookSavedChatReply[]) {
+  return replies.map((reply) => serializeNotebookSavedChatReply(reply));
 }

@@ -5,9 +5,9 @@ const { authMock, prismaMock } = vi.hoisted(() => ({
       findUnique: vi.fn(),
     },
     notebookSavedChatReply: {
+      create: vi.fn(),
       deleteMany: vi.fn(),
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }));
@@ -53,9 +53,9 @@ describe('/api/notebooks/[notebookId]/saved-chat-reply', () => {
   beforeEach(() => {
     authMock.mockReset();
     prismaMock.notebook.findUnique.mockReset();
+    prismaMock.notebookSavedChatReply.create.mockReset();
     prismaMock.notebookSavedChatReply.deleteMany.mockReset();
-    prismaMock.notebookSavedChatReply.findUnique.mockReset();
-    prismaMock.notebookSavedChatReply.upsert.mockReset();
+    prismaMock.notebookSavedChatReply.findMany.mockReset();
 
     authMock.mockResolvedValue({
       disabled: false,
@@ -68,20 +68,22 @@ describe('/api/notebooks/[notebookId]/saved-chat-reply', () => {
   });
 
   it('returns null when no saved reply exists', async () => {
-    prismaMock.notebookSavedChatReply.findUnique.mockResolvedValue(null);
+    prismaMock.notebookSavedChatReply.findMany.mockResolvedValue([]);
 
     const response = await GET(request(), params());
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.savedChatReply).toBeNull();
-    expect(prismaMock.notebookSavedChatReply.findUnique).toHaveBeenCalledWith({
+    expect(payload.savedChatReplies).toEqual([]);
+    expect(prismaMock.notebookSavedChatReply.findMany).toHaveBeenCalledWith({
       where: { notebookId: 'nb-1' },
+      orderBy: { createdAt: 'desc' },
     });
   });
 
-  it('upserts a saved reply for an owned notebook', async () => {
-    prismaMock.notebookSavedChatReply.upsert.mockResolvedValue({
+  it('creates a saved reply for an owned notebook', async () => {
+    prismaMock.notebookSavedChatReply.create.mockResolvedValue({
       ...savedReply,
       citations: [{ fileId: 'file-1', fileName: 'Week 1.pdf', type: 'page', position: 'Page 2' }],
       fileId: 'file-1',
@@ -102,9 +104,9 @@ describe('/api/notebooks/[notebookId]/saved-chat-reply', () => {
     expect(response.status).toBe(200);
     expect(payload.savedChatReply.scopeType).toBe('file');
     expect(payload.savedChatReply.fileName).toBe('Week 1.pdf');
-    expect(prismaMock.notebookSavedChatReply.upsert).toHaveBeenCalledWith({
-      where: { notebookId: 'nb-1' },
-      create: expect.objectContaining({
+    expect(payload.savedChatReplies).toHaveLength(1);
+    expect(prismaMock.notebookSavedChatReply.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
         answer: 'The saved answer.',
         fileId: 'file-1',
         fileName: 'Week 1.pdf',
@@ -112,18 +114,11 @@ describe('/api/notebooks/[notebookId]/saved-chat-reply', () => {
         question: 'Explain it',
         scopeType: 'FILE',
       }),
-      update: expect.objectContaining({
-        answer: 'The saved answer.',
-        fileId: 'file-1',
-        fileName: 'Week 1.pdf',
-        question: 'Explain it',
-        scopeType: 'FILE',
-      }),
     });
   });
 
-  it('overwrites the previous saved reply instead of creating a second slot', async () => {
-    prismaMock.notebookSavedChatReply.upsert.mockResolvedValue({
+  it('creates another saved reply instead of overwriting the previous one', async () => {
+    prismaMock.notebookSavedChatReply.create.mockResolvedValue({
       ...savedReply,
       answer: 'Second answer',
       question: 'Second question',
@@ -135,14 +130,14 @@ describe('/api/notebooks/[notebookId]/saved-chat-reply', () => {
       scopeType: 'notebook',
     }), params());
 
-    expect(prismaMock.notebookSavedChatReply.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      where: { notebookId: 'nb-1' },
-      create: expect.any(Object),
-      update: expect.objectContaining({
+    expect(prismaMock.notebookSavedChatReply.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
         answer: 'Second answer',
+        notebookId: 'nb-1',
         question: 'Second question',
+        scopeType: 'NOTEBOOK',
       }),
-    }));
+    });
   });
 
   it('deletes the saved reply', async () => {
@@ -175,7 +170,7 @@ describe('/api/notebooks/[notebookId]/saved-chat-reply', () => {
 
     expect(response.status).toBe(404);
     expect(payload.error).toBe('notebook not found');
-    expect(prismaMock.notebookSavedChatReply.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.notebookSavedChatReply.findMany).not.toHaveBeenCalled();
   });
 
   it('validates required question and answer', async () => {
@@ -192,6 +187,6 @@ describe('/api/notebooks/[notebookId]/saved-chat-reply', () => {
     expect((await missingQuestion.json()).error).toBe('question is required');
     expect(missingAnswer.status).toBe(400);
     expect((await missingAnswer.json()).error).toBe('answer is required');
-    expect(prismaMock.notebookSavedChatReply.upsert).not.toHaveBeenCalled();
+    expect(prismaMock.notebookSavedChatReply.create).not.toHaveBeenCalled();
   });
 });

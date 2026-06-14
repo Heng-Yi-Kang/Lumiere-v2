@@ -164,11 +164,11 @@ export const openApiDocument = {
     '/api/notebooks/{notebookId}/saved-chat-reply': {
       get: {
         tags: ['Notebooks'],
-        summary: 'Get the notebook saved chat reply',
+        summary: 'List notebook saved chat replies',
         parameters: [{ $ref: '#/components/parameters/NotebookId' }],
         responses: {
           '200': {
-            description: 'Saved chat reply, or null when none exists',
+            description: 'Saved chat replies ordered newest first',
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/SavedChatReplyResponse' },
@@ -181,7 +181,7 @@ export const openApiDocument = {
       },
       put: {
         tags: ['Notebooks'],
-        summary: 'Save or overwrite the notebook saved chat reply',
+        summary: 'Save a notebook chat reply',
         parameters: [{ $ref: '#/components/parameters/NotebookId' }],
         requestBody: {
           required: true,
@@ -207,10 +207,10 @@ export const openApiDocument = {
       },
       delete: {
         tags: ['Notebooks'],
-        summary: 'Clear the notebook saved chat reply',
+        summary: 'Clear notebook saved chat replies',
         parameters: [{ $ref: '#/components/parameters/NotebookId' }],
         responses: {
-          '204': { description: 'Saved chat reply cleared' },
+          '204': { description: 'Saved chat replies cleared' },
           '401': { $ref: '#/components/responses/Unauthorized' },
           '404': { $ref: '#/components/responses/NotFound' },
         },
@@ -819,13 +819,17 @@ export const openApiDocument = {
       },
       SavedChatReplyResponse: {
         type: 'object',
-        required: ['savedChatReply'],
+        required: ['savedChatReply', 'savedChatReplies'],
         properties: {
           savedChatReply: {
             oneOf: [
               { $ref: '#/components/schemas/SavedChatReply' },
               { type: 'null' },
             ],
+          },
+          savedChatReplies: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/SavedChatReply' },
           },
         },
       },

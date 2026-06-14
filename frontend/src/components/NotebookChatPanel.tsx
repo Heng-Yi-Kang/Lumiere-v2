@@ -11,7 +11,7 @@ interface NotebookChatPanelProps {
   notebookName: string;
   color?: string;
   hasFiles?: boolean;
-  savedReplyKey?: string | null;
+  savedReplyKeys?: string[];
   savingReplyKey?: string | null;
   onAddLink?: () => void;
   onSaveReply?: (input: {
@@ -73,7 +73,7 @@ export default function NotebookChatPanel({
   notebookName,
   color,
   hasFiles = false,
-  savedReplyKey,
+  savedReplyKeys = [],
   savingReplyKey,
   onAddLink,
   onSaveReply,
@@ -283,7 +283,7 @@ export default function NotebookChatPanel({
             const canSaveReply = latestSaveableReply?.replyId === msg.id && Boolean(onSaveReply);
             const replyKey = `notebook:${msg.id}`;
             const isSavingReply = savingReplyKey === replyKey;
-            const isSavedReply = savedReplyKey === replyKey;
+            const isSavedReply = savedReplyKeys.includes(replyKey);
 
             return (
             <div
@@ -308,7 +308,7 @@ export default function NotebookChatPanel({
                         replyKey,
                         scopeType: 'notebook',
                       })}
-                      disabled={isSavingReply}
+                      disabled={isSavingReply || isSavedReply}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-subtle bg-bg-base/60 text-text-muted transition hover:border-accent/35 hover:text-accent-hover disabled:cursor-wait disabled:opacity-60"
                       title={isSavedReply ? 'Saved answer' : 'Save latest answer'}
                       aria-label={isSavedReply ? 'Saved answer' : 'Save latest answer'}

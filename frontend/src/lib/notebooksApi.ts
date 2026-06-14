@@ -30,6 +30,7 @@ type FileNotesResponse = {
 
 type SavedChatReplyResponse = {
   savedChatReply: SavedChatReply | null;
+  savedChatReplies?: SavedChatReply[];
   error?: string;
 };
 
@@ -267,7 +268,7 @@ export async function fetchSavedChatReply(notebookId: string) {
     `/api/notebooks/${encodeURIComponent(notebookId)}/saved-chat-reply`,
   );
 
-  return payload.savedChatReply;
+  return payload.savedChatReplies ?? (payload.savedChatReply ? [payload.savedChatReply] : []);
 }
 
 export async function saveChatReply(

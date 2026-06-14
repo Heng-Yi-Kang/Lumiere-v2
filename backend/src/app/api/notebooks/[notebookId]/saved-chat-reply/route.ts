@@ -1,6 +1,6 @@
 import { getAuthenticatedUser } from '@/lib/auth';
 import { jsonResponse, noContentResponse, optionsResponse, unauthorizedResponse } from '@/lib/http';
-import { serializeNotebookSavedChatReply } from '@/lib/notebook-saved-chat-replies';
+import { serializeNotebookSavedChatReplies, serializeNotebookSavedChatReply } from '@/lib/notebook-saved-chat-replies';
 import { prisma } from '@/lib/prisma';
 
 type SavedChatReplyScopeType = 'notebook' | 'file';
@@ -48,12 +48,14 @@ export async function GET(
     return ownership.errorResponse;
   }
 
-  const savedChatReply = await prisma.notebookSavedChatReply.findUnique({
+  const savedChatReplies = await prisma.notebookSavedChatReply.findMany({
     where: { notebookId },
+    orderBy: { createdAt: 'desc' },
   });
 
   return jsonResponse({
-    savedChatReply: serializeNotebookSavedChatReply(savedChatReply),
+    savedChatReply: serializeNotebookSavedChatReply(savedChatReplies[0] ?? null),
+    savedChatReplies: serializeNotebookSavedChatReplies(savedChatReplies),
   });
 }
 
@@ -84,9 +86,8 @@ export async function PUT(
     return jsonResponse({ error: 'answer is required' }, { status: 400 });
   }
 
-  const savedChatReply = await prisma.notebookSavedChatReply.upsert({
-    where: { notebookId },
-    create: {
+  const savedChatReply = await prisma.notebookSavedChatReply.create({
+    data: {
       answer,
       citations,
       fileId,
@@ -95,18 +96,11 @@ export async function PUT(
       question,
       scopeType,
     },
-    update: {
-      answer,
-      citations,
-      fileId,
-      fileName,
-      question,
-      scopeType,
-    },
   });
 
   return jsonResponse({
     savedChatReply: serializeNotebookSavedChatReply(savedChatReply),
+    savedChatReplies: [serializeNotebookSavedChatReply(savedChatReply)],
   });
 }
 

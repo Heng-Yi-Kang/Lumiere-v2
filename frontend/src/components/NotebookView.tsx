@@ -6,6 +6,7 @@ import {
   BookmarkCheck,
   Bot,
   ChevronDown,
+  ChevronRight,
   Download,
   Edit3,
   ExternalLink,
@@ -214,12 +215,12 @@ function SavedAnswerPanel({
   isClearing,
   isLoading,
   onClear,
-  savedChatReply,
+  savedChatReplies,
 }: {
   isClearing: boolean;
   isLoading: boolean;
   onClear: () => void;
-  savedChatReply: SavedChatReply | null;
+  savedChatReplies: SavedChatReply[];
 }) {
   return (
     <div className="surface-card rounded-3xl p-5 md:p-6">
@@ -230,17 +231,17 @@ function SavedAnswerPanel({
             Saved answer
           </div>
           <p className="mt-1 text-xs text-text-muted">
-            {savedChatReply ? formatSavedReplyDate(savedChatReply.updatedAt) : 'Save the latest completed AI answer from notebook or file chat.'}
+            {savedChatReplies.length > 0 ? `${savedChatReplies.length} saved answer${savedChatReplies.length === 1 ? '' : 's'}` : 'Save completed AI answers from notebook or file chat.'}
           </p>
         </div>
-        {savedChatReply ? (
+        {savedChatReplies.length > 0 ? (
           <button
             type="button"
             onClick={onClear}
             disabled={isClearing}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-muted transition hover:bg-bg-elevated hover:text-error disabled:cursor-wait disabled:opacity-50"
-            title="Clear saved answer"
-            aria-label="Clear saved answer"
+            title="Clear saved answers"
+            aria-label="Clear saved answers"
           >
             {isClearing ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
           </button>
@@ -250,47 +251,70 @@ function SavedAnswerPanel({
       {isLoading ? (
         <div className="mt-4 flex items-center gap-2 rounded-2xl border border-border-subtle bg-bg-elevated/40 px-3 py-3 text-xs font-semibold text-text-muted">
           <LoaderCircle className="h-4 w-4 animate-spin" />
-          Loading saved answer
+          Loading saved answers
         </div>
-      ) : savedChatReply ? (
-        <div className="mt-4 space-y-3">
-          <div className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border-default bg-bg-elevated/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-text-secondary font-mono">
-            <FileText className="h-3.5 w-3.5 shrink-0 text-accent-hover" />
-            <span className="truncate">
-              {savedChatReply.scopeType === 'file' ? `File: ${savedChatReply.fileName || 'Unknown file'}` : 'Notebook-wide'}
-            </span>
-          </div>
-          <div className="rounded-2xl border border-border-subtle bg-bg-base/35 p-3">
-            <div className="text-[10px] font-black uppercase tracking-wider text-text-muted font-mono">Question</div>
-            <p className="mt-1 text-sm font-semibold leading-relaxed text-text-primary">{savedChatReply.question}</p>
-          </div>
-          <div className="rounded-2xl border border-border-subtle bg-bg-elevated/45 p-3">
-            <ChatMarkdown content={savedChatReply.answer} />
-          </div>
-          {savedChatReply.citations.length > 0 ? (
-            <div className="rounded-2xl border border-success/20 bg-success-subtle/40 p-3">
-              <div className="mb-2 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-success font-mono">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Grounded references
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {savedChatReply.citations.map((citation, index) => (
-                  <span
-                    key={`${citation.fileId}-${citation.position}-${index}`}
-                    className="inline-flex max-w-full items-center gap-1 rounded border border-success/20 bg-bg-base/40 px-1.5 py-0.5 text-[9px] font-extrabold text-success"
-                  >
-                    <FileText className="h-2.5 w-2.5 shrink-0" />
-                    <span className="max-w-[140px] truncate">{citation.fileName}</span>
-                    <span className="rounded-sm bg-success/10 px-0.5 font-mono text-[8px]">{citation.position}</span>
+      ) : savedChatReplies.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          {savedChatReplies.map((savedChatReply) => (
+            <details
+              key={savedChatReply.id}
+              className="group rounded-2xl border border-border-subtle bg-bg-elevated/35"
+            >
+              <summary className="flex cursor-pointer list-none items-start gap-3 p-3 marker:hidden">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-bg-base/60 text-text-muted">
+                  <ChevronRight className="h-3.5 w-3.5 transition group-open:rotate-90" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words text-sm font-semibold leading-relaxed text-text-primary">
+                    {savedChatReply.question}
                   </span>
-                ))}
+                  <span className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-text-muted font-mono">
+                    <span>{formatSavedReplyDate(savedChatReply.updatedAt)}</span>
+                    <span className="h-1 w-1 rounded-full bg-border-default" />
+                    <span className="inline-flex min-w-0 items-center gap-1">
+                      <FileText className="h-3 w-3 shrink-0 text-accent-hover" />
+                      <span className="truncate">
+                        {savedChatReply.scopeType === 'file' ? savedChatReply.fileName || 'Unknown file' : 'Notebook-wide'}
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              </summary>
+              <div className="space-y-3 border-t border-border-subtle px-3 pb-3 pt-3">
+                <div className="rounded-2xl border border-border-subtle bg-bg-base/35 p-3">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-text-muted font-mono">Question</div>
+                  <p className="mt-1 text-sm font-semibold leading-relaxed text-text-primary">{savedChatReply.question}</p>
+                </div>
+                <div className="rounded-2xl border border-border-subtle bg-bg-base/45 p-3">
+                  <ChatMarkdown content={savedChatReply.answer} />
+                </div>
+                {savedChatReply.citations.length > 0 ? (
+                  <div className="rounded-2xl border border-success/20 bg-success-subtle/40 p-3">
+                    <div className="mb-2 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-success font-mono">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Grounded references
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {savedChatReply.citations.map((citation, index) => (
+                        <span
+                          key={`${citation.fileId}-${citation.position}-${index}`}
+                          className="inline-flex max-w-full items-center gap-1 rounded border border-success/20 bg-bg-base/40 px-1.5 py-0.5 text-[9px] font-extrabold text-success"
+                        >
+                          <FileText className="h-2.5 w-2.5 shrink-0" />
+                          <span className="max-w-[140px] truncate">{citation.fileName}</span>
+                          <span className="rounded-sm bg-success/10 px-0.5 font-mono text-[8px]">{citation.position}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            </div>
-          ) : null}
+            </details>
+          ))}
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-border-default bg-bg-elevated/25 p-4 text-sm leading-relaxed text-text-secondary">
-          No answer is saved for this notebook yet.
+          No answers are saved for this notebook yet.
         </div>
       )}
     </div>
@@ -348,12 +372,14 @@ export default function NotebookView({
   const [fileChatMessagesById, setFileChatMessagesById] = useState<Record<string, ChatMessage[]>>({});
   const [fileChatInput, setFileChatInput] = useState('');
   const [isFileChatTyping, setIsFileChatTyping] = useState(false);
-  const [savedChatReply, setSavedChatReply] = useState<SavedChatReply | null>(null);
-  const [savedChatReplyKey, setSavedChatReplyKey] = useState<string | null>(null);
+  const [savedChatReplies, setSavedChatReplies] = useState<SavedChatReply[]>([]);
+  const [savedChatReplyKeys, setSavedChatReplyKeys] = useState<string[]>([]);
   const [savingReplyKey, setSavingReplyKey] = useState<string | null>(null);
   const [savedChatReplyLoading, setSavedChatReplyLoading] = useState(false);
   const [savedChatReplyClearing, setSavedChatReplyClearing] = useState(false);
   const [savedChatReplyError, setSavedChatReplyError] = useState('');
+  const [notebookPanelTab, setNotebookPanelTab] = useState<'chat' | 'saved'>('chat');
+  const [isSaveToastVisible, setIsSaveToastVisible] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const [summaryRetryError, setSummaryRetryError] = useState('');
   const [retryingSummaryFileId, setRetryingSummaryFileId] = useState<string | null>(null);
@@ -364,6 +390,7 @@ export default function NotebookView({
   const [videoIngestionProgress, setVideoIngestionProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileChatScrollRef = useRef<HTMLDivElement | null>(null);
+  const saveToastTimeoutRef = useRef<number | null>(null);
 
   const fileNoteApi = useFileNotes(notebook?.id, selectedMaterial?.id);
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
@@ -375,14 +402,23 @@ export default function NotebookView({
     setUploadError('');
     setFileChatInput('');
     setPendingLink(null);
-    setSavedChatReply(null);
-    setSavedChatReplyKey(null);
+    setSavedChatReplies([]);
+    setSavedChatReplyKeys([]);
     setSavedChatReplyError('');
+    setNotebookPanelTab('chat');
   }, [notebook?.id]);
 
   useEffect(() => {
+    return () => {
+      if (saveToastTimeoutRef.current !== null) {
+        window.clearTimeout(saveToastTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!notebook) {
-      setSavedChatReply(null);
+      setSavedChatReplies([]);
       setSavedChatReplyLoading(false);
       return;
     }
@@ -397,8 +433,8 @@ export default function NotebookView({
           return;
         }
 
-        setSavedChatReply(reply);
-        setSavedChatReplyKey(null);
+        setSavedChatReplies(reply);
+        setSavedChatReplyKeys([]);
       })
       .catch((error) => {
         if (!isActive) {
@@ -936,8 +972,16 @@ export default function NotebookView({
         scopeType: input.scopeType,
       });
 
-      setSavedChatReply(nextSavedChatReply);
-      setSavedChatReplyKey(input.replyKey);
+      setSavedChatReplies((replies) => [nextSavedChatReply, ...replies]);
+      setSavedChatReplyKeys((replyKeys) => Array.from(new Set([...replyKeys, input.replyKey])));
+      setIsSaveToastVisible(true);
+      if (saveToastTimeoutRef.current !== null) {
+        window.clearTimeout(saveToastTimeoutRef.current);
+      }
+      saveToastTimeoutRef.current = window.setTimeout(() => {
+        setIsSaveToastVisible(false);
+        saveToastTimeoutRef.current = null;
+      }, 2500);
     } catch (error) {
       setSavedChatReplyError(error instanceof Error ? error.message : 'Failed to save answer.');
     } finally {
@@ -955,8 +999,8 @@ export default function NotebookView({
 
     try {
       await clearSavedChatReply(notebook.id);
-      setSavedChatReply(null);
-      setSavedChatReplyKey(null);
+      setSavedChatReplies([]);
+      setSavedChatReplyKeys([]);
     } catch (error) {
       setSavedChatReplyError(error instanceof Error ? error.message : 'Failed to clear saved answer.');
     } finally {
@@ -1648,60 +1692,102 @@ export default function NotebookView({
             )}
           </div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
-            <button
-              onClick={() => setIsAddLinkModalOpen(true)}
-              disabled={uploadPhase !== 'idle' || isPendingLinkActive || !onAddLink}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-            >
-              {isWebLinkActive ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />}
-              {isWebLinkActive ? 'Adding Link...' : 'Add Link'}
-            </button>
-            <button
-              onClick={() => setIsAddYoutubeLinkModalOpen(true)}
-              disabled={uploadPhase !== 'idle' || isPendingLinkActive || !onAddYoutubeLink}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-cta/20 bg-cta-subtle px-3 py-2 text-xs font-bold text-cta transition hover:bg-cta/20 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isYoutubeLinkActive ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Youtube className="h-4 w-4" />}
-              {isYoutubeLinkActive ? 'Adding Video...' : 'YouTube'}
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadPhase !== 'idle'}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
-            >
-              {uploadPhase !== 'idle' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {uploadPhase !== 'idle' ? 'Uploading...' : 'Upload Files'}
-            </button>
+            <div className="group relative">
+              <button
+                type="button"
+                onClick={() => setIsAddLinkModalOpen(true)}
+                disabled={uploadPhase !== 'idle' || isPendingLinkActive || !onAddLink}
+                aria-label={isWebLinkActive ? 'Adding web link' : 'Add web link'}
+                title={isWebLinkActive ? 'Adding web link' : 'Add web link'}
+                className={`flex h-10 w-10 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+              >
+                {isWebLinkActive ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />}
+              </button>
+              <div className="pointer-events-none absolute left-1/2 bottom-full z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                {isWebLinkActive ? 'Adding web link' : 'Add web link'}
+              </div>
+            </div>
+            <div className="group relative">
+              <button
+                type="button"
+                onClick={() => setIsAddYoutubeLinkModalOpen(true)}
+                disabled={uploadPhase !== 'idle' || isPendingLinkActive || !onAddYoutubeLink}
+                aria-label={isYoutubeLinkActive ? 'Adding YouTube link' : 'Add YouTube link'}
+                title={isYoutubeLinkActive ? 'Adding YouTube link' : 'Add YouTube link'}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-cta/20 bg-cta-subtle text-cta transition hover:bg-cta/20 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isYoutubeLinkActive ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Youtube className="h-4 w-4" />}
+              </button>
+              <div className="pointer-events-none absolute left-1/2 bottom-full z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                {isYoutubeLinkActive ? 'Adding YouTube link' : 'Add YouTube link'}
+              </div>
+            </div>
+            <div className="group relative">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadPhase !== 'idle'}
+                aria-label={uploadPhase !== 'idle' ? 'Uploading files' : 'Upload files'}
+                title={uploadPhase !== 'idle' ? 'Uploading files' : 'Upload files'}
+                className={`flex h-10 w-10 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+              >
+                {uploadPhase !== 'idle' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              </button>
+              <div className="pointer-events-none absolute left-1/2 bottom-full z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                {uploadPhase !== 'idle' ? 'Uploading files' : 'Upload files'}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-          <div className="space-y-3">
-            <SavedAnswerPanel
-              isClearing={savedChatReplyClearing}
-              isLoading={savedChatReplyLoading}
-              onClear={() => void handleClearSavedChatReply()}
-              savedChatReply={savedChatReply}
-            />
-            {savedChatReplyError ? (
-              <div className="rounded-2xl border border-error/20 bg-error-subtle px-4 py-3 text-xs font-semibold text-error">
-                {savedChatReplyError}
-              </div>
-            ) : null}
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center gap-1 rounded-xl border border-border-subtle bg-bg-elevated/40 p-1">
+            <button
+              type="button"
+              onClick={() => setNotebookPanelTab('chat')}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wider transition ${notebookPanelTab === 'chat' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary hover:bg-bg-elevated/60 hover:text-text-primary'}`}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setNotebookPanelTab('saved')}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wider transition ${notebookPanelTab === 'saved' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary hover:bg-bg-elevated/60 hover:text-text-primary'}`}
+            >
+              <BookmarkCheck className="h-3.5 w-3.5" />
+              Saved
+            </button>
           </div>
 
-          <NotebookChatPanel
-            key={notebook.id}
-            notebookId={notebook.id}
-            notebookName={notebook.name}
-            color={notebook.color}
-            hasFiles={notebook.files.length > 0}
-            savedReplyKey={savedChatReplyKey}
-            savingReplyKey={savingReplyKey}
-            onAddLink={onAddLink ? () => setIsAddLinkModalOpen(true) : undefined}
-            onSaveReply={handleSaveChatReply}
-            onUploadFile={onUploadFile ? () => fileInputRef.current?.click() : undefined}
-          />
+          {notebookPanelTab === 'chat' ? (
+            <NotebookChatPanel
+              key={notebook.id}
+              notebookId={notebook.id}
+              notebookName={notebook.name}
+              color={notebook.color}
+              hasFiles={notebook.files.length > 0}
+              savedReplyKeys={savedChatReplyKeys}
+              savingReplyKey={savingReplyKey}
+              onAddLink={onAddLink ? () => setIsAddLinkModalOpen(true) : undefined}
+              onSaveReply={handleSaveChatReply}
+              onUploadFile={onUploadFile ? () => fileInputRef.current?.click() : undefined}
+            />
+          ) : (
+            <div className="space-y-3">
+              <SavedAnswerPanel
+                isClearing={savedChatReplyClearing}
+                isLoading={savedChatReplyLoading}
+                onClear={() => void handleClearSavedChatReply()}
+                savedChatReplies={savedChatReplies}
+              />
+              {savedChatReplyError ? (
+                <div className="rounded-2xl border border-error/20 bg-error-subtle px-4 py-3 text-xs font-semibold text-error">
+                  {savedChatReplyError}
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
 
@@ -2032,7 +2118,7 @@ export default function NotebookView({
                         const canSaveReply = latestSaveableFileReply?.replyId === message.id;
                         const replyKey = selectedMaterial ? `file:${selectedMaterial.id}:${message.id}` : `file:${message.id}`;
                         const isSavingReply = savingReplyKey === replyKey;
-                        const isSavedReply = savedChatReplyKey === replyKey;
+                        const isSavedReply = savedChatReplyKeys.includes(replyKey);
 
                         return (
                         <div
@@ -2057,7 +2143,7 @@ export default function NotebookView({
                                     replyKey,
                                     scopeType: 'file',
                                   })}
-                                  disabled={isSavingReply}
+                                  disabled={isSavingReply || isSavedReply}
                                   className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-subtle bg-bg-base/60 text-text-muted transition hover:border-accent/35 hover:text-accent-hover disabled:cursor-wait disabled:opacity-60"
                                   title={isSavedReply ? 'Saved answer' : 'Save latest answer'}
                                   aria-label={isSavedReply ? 'Saved answer' : 'Save latest answer'}
@@ -2375,6 +2461,34 @@ export default function NotebookView({
           </div>
         </div>
       )}
+
+      {isSaveToastVisible ? (
+        <div
+          className="fixed bottom-6 right-6 z-[80] flex max-w-[calc(100vw-3rem)] items-center gap-3 rounded-2xl border border-success/25 bg-bg-overlay/95 px-4 py-3 text-sm font-bold text-text-primary shadow-2xl backdrop-blur-xl"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-success/20 bg-success-subtle text-success">
+            <BookmarkCheck className="h-4 w-4" />
+          </span>
+          <span>Chat saved</span>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSaveToastVisible(false);
+              if (saveToastTimeoutRef.current !== null) {
+                window.clearTimeout(saveToastTimeoutRef.current);
+                saveToastTimeoutRef.current = null;
+              }
+            }}
+            className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-muted transition hover:bg-bg-elevated hover:text-text-primary"
+            title="Dismiss"
+            aria-label="Dismiss saved chat notification"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
 
       {isAddLinkModalOpen && notebook ? (
         <AddLinkModal
