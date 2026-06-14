@@ -19,6 +19,7 @@ Lumiere is an AI-assisted study workspace for organizing course notebooks, uploa
 - **AI-generated file summaries:** uploaded files with extracted text can receive asynchronous summaries with visible generation states (`idle`, `in-progress`, `done`, `error`).
 - **File notes and revision support:** learners can attach notes to uploaded files, review markdown-rich chat output, and use study prompts for summaries, exam angles, checklists, and revision questions.
 - **Dashboard goals and streaks:** the dashboard tracks per-user study goals, priority goals, and study streak activity.
+- **Provider status dashboard:** authenticated users can review configured Chat, Embedding, STT, and VLM models on the dashboard and manually refresh live provider reachability without triggering provider calls on page load.
 - **Knowledge graph view:** the frontend includes a semantic concept graph for exploring prerequisites, mastery status, and course-level relationships.
 - **Admin console:** admin users can review user/account stats, enable or disable users, change roles, and manage sessions through the `/admin` page.
 - **Operational observability:** backend startup health checks validate required providers and infrastructure, while Swagger UI and OpenAPI JSON expose the API surface for local inspection.
@@ -125,6 +126,13 @@ Minimum useful setup:
 - Leave `ENABLE_RERANKING=false` unless you have a compatible reranker endpoint and model.
 
 After changing provider variables, restart the backend. Use `pnpm test:llm:backend` later to verify chat and embeddings connectivity.
+
+The dashboard also exposes provider status cards for Chat, Embedding, STT, and VLM:
+
+- On page load, the dashboard calls authenticated `GET /api/provider-status` to show configuration only: provider label, configured model, and missing environment variables.
+- Use **Refresh provider status** to call authenticated `POST /api/provider-status/probe`, which probes all four providers in parallel with a 10-second timeout per provider.
+- Probe failures are shown per provider with sanitized reasons such as missing config, timeout, HTTP status, invalid response, or request failed. API keys, request payloads, raw provider bodies, and stack traces are not exposed.
+- VLM status follows the same fallback behavior as media processing: `VLM_API_KEY`/`VLM_MODEL` are preferred, with `CHAT_API_KEY`/`CHAT_MODEL` as supported fallbacks.
 
 ### 5. Start local data services
 
@@ -243,6 +251,7 @@ After starting the frontend and backend, open `http://localhost:3000`. Lumiere s
 Once signed in:
 
 - Use the **Dashboard** to review study goals, priority work, and streak activity.
+- Use the dashboard **AI Providers** cards to confirm configured provider models and manually refresh live Chat, Embedding, STT, and VLM reachability.
 - Use **Notebooks** to create course or topic workspaces, edit notebook metadata, and open notebook detail pages.
 - Upload PDFs, DOCX, PPTX, TXT, images, audio, videos, or web links inside a notebook so Lumiere can extract, summarize, and index the material.
 - Open uploaded files to preview supported content, add notes, retry summaries, and ask file-scoped questions.

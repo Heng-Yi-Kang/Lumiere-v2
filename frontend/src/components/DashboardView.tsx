@@ -653,33 +653,52 @@ export default function DashboardView({
                 Virtual Device:
               </label>
               <div className="grid grid-cols-3 gap-2">
-                <button
-                  id="simulate-file-btn"
-                  onClick={triggerUploadClick}
-                  disabled={uploadPhase !== 'idle' || notebooks.length === 0}
-                  className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
-                >
-                  <Plus className="h-3.5 w-3.5 text-accent-hover" />
-                  Files
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddLinkModalOpen(true)}
-                  disabled={uploadPhase !== 'idle' || notebooks.length === 0}
-                  className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
-                >
-                  <LinkIcon className="h-3.5 w-3.5 text-accent-hover" />
-                  Link
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddYoutubeLinkModalOpen(true)}
-                  disabled={uploadPhase !== 'idle' || notebooks.length === 0}
-                  className="w-full rounded-xl bg-bg-elevated/60 hover:bg-bg-elevated border border-border-default p-2.5 text-xs font-bold text-text-primary transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
-                >
-                  <Youtube className="h-3.5 w-3.5 text-cta" />
-                  YouTube
-                </button>
+                <div className="group relative">
+                  <button
+                    id="simulate-file-btn"
+                    type="button"
+                    onClick={triggerUploadClick}
+                    disabled={uploadPhase !== 'idle' || notebooks.length === 0}
+                    aria-label="Upload files"
+                    title="Upload files"
+                    className="flex h-10 w-full items-center justify-center rounded-xl border border-border-default bg-bg-elevated/60 text-text-primary transition-all hover:bg-bg-elevated disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Plus className="h-4 w-4 text-accent-hover" />
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                    Upload files
+                  </div>
+                </div>
+                <div className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddLinkModalOpen(true)}
+                    disabled={uploadPhase !== 'idle' || notebooks.length === 0}
+                    aria-label="Add web link"
+                    title="Add web link"
+                    className="flex h-10 w-full items-center justify-center rounded-xl border border-border-default bg-bg-elevated/60 text-text-primary transition-all hover:bg-bg-elevated disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <LinkIcon className="h-4 w-4 text-accent-hover" />
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                    Add web link
+                  </div>
+                </div>
+                <div className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddYoutubeLinkModalOpen(true)}
+                    disabled={uploadPhase !== 'idle' || notebooks.length === 0}
+                    aria-label="Add YouTube link"
+                    title="Add YouTube link"
+                    className="flex h-10 w-full items-center justify-center rounded-xl border border-border-default bg-bg-elevated/60 text-text-primary transition-all hover:bg-bg-elevated disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Youtube className="h-4 w-4 text-cta" />
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border-default bg-bg-overlay px-2.5 py-1 text-[10px] font-bold text-text-primary opacity-0 shadow-lg transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                    Add YouTube link
+                  </div>
+                </div>
               </div>
               <input
                 ref={fileInputRef}
