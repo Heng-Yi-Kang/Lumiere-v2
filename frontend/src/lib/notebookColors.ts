@@ -10,15 +10,17 @@ export const NOTEBOOK_COLORS = [
 
 export const DEFAULT_NOTEBOOK_COLOR = 'blue';
 
+export interface NotebookColorTone {
+  badge: string;
+  text: string;
+  button: string;
+  subtleBlock: string;
+  borderGlow: string;
+  strip: string;
+}
+
 export function getNotebookColorTone(color: string) {
-  const tones: Record<string, {
-    badge: string;
-    text: string;
-    button: string;
-    subtleBlock: string;
-    borderGlow: string;
-    strip: string;
-  }> = {
+  const tones: Record<string, NotebookColorTone> = {
     blue: {
       badge: 'border-blue-500/20 bg-blue-500/10 text-blue-300',
       text: 'text-blue-300',
