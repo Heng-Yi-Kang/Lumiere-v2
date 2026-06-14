@@ -47,9 +47,11 @@ Optional environment variable:
 
 - `QDRANT_API_KEY`
 
-The collection is lazily initialized on first ingestion or retrieval. It must use:
+The collection is lazily initialized on first ingestion or retrieval. The configured
+`QDRANT_COLLECTION` is treated as a base name:
 
-- vector size: `4096`
+- vector size: `EMBEDDING_DIMENSIONS` when set, otherwise the known model dimension when recognized, otherwise `4096`
+- collection name: the base collection for `4096`; `${QDRANT_COLLECTION}_${dimensions}` for other dimensions
 - distance: `Cosine`
 
 The client also creates payload indexes for:
@@ -84,6 +86,10 @@ Required environment variables:
 - `EMBEDDING_API_KEY`
 - `EMBEDDING_MODEL`
 
+Optional environment variable:
+
+- `EMBEDDING_DIMENSIONS`; when omitted, known models such as `google/gemini-embedding-2` infer their provider dimension, otherwise the historical default is `4096`
+
 Generation behavior:
 
 - sends requests to `${EMBEDDING_API_BASE}/embeddings`
@@ -92,7 +98,7 @@ Generation behavior:
 - requires a non-empty numeric vector in `data[0].embedding`
 - normalizes the returned vector to unit length before returning it
 
-The RAG layer rejects vectors unless they have exactly 4096 dimensions.
+The RAG layer rejects vectors unless they match the effective embedding dimensions. If dimensions change, the backend writes to a dimension-specific Qdrant collection and existing files should be reindexed so vector retrieval is available in the new collection.
 
 ## Reranking
 
@@ -179,7 +185,7 @@ Inputs:
 Behavior:
 
 1. clamp `limit` to 1 through 20, defaulting to 5
-2. generate a normalized 4096-dimensional embedding for the query
+2. generate a normalized embedding for the query using the configured dimensions
 3. query Qdrant with a required `notebookId` payload filter and optional `notebookFileId` payload filter
 4. request extra candidates so stale Qdrant hits can be discarded
 5. load matching `NotebookFile` rows from PostgreSQL

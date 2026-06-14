@@ -102,6 +102,7 @@ CHAT_API_TIMEOUT_MS=120000
 EMBEDDING_API_BASE=https://openrouter.ai/api/v1
 EMBEDDING_API_KEY=your-provider-key
 EMBEDDING_MODEL=google/gemini-embedding-2
+EMBEDDING_DIMENSIONS=3072
 
 STT_API_BASE=https://openrouter.ai/api/v1
 STT_API_KEY=your-provider-key
@@ -117,7 +118,7 @@ ENABLE_RERANKING=false
 
 Minimum useful setup:
 
-- Set `EMBEDDING_*` to boot the current RAG-backed backend successfully.
+- Set `EMBEDDING_*` to boot the current RAG-backed backend successfully. If you change embedding models or dimensions, the backend uses a dimension-specific Qdrant collection and uploaded files should be reindexed for vector retrieval.
 - Set `CHAT_*` for Study Buddy and generated summaries.
 - Set `STT_*` for audio and video transcription.
 - Set `VLM_*` for image descriptions and video frame understanding.
@@ -321,6 +322,7 @@ CHAT_API_TIMEOUT_MS=120000
 EMBEDDING_API_BASE=https://openrouter.ai/api/v1
 EMBEDDING_API_KEY=your-provider-key
 EMBEDDING_MODEL=google/gemini-embedding-2
+EMBEDDING_DIMENSIONS=3072
 
 STT_API_BASE=https://openrouter.ai/api/v1
 STT_API_KEY=your-provider-key

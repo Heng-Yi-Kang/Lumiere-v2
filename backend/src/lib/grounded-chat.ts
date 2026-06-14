@@ -1,6 +1,12 @@
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
 import { prisma } from '@/lib/prisma';
-import { diversifyRagResults, formatRagContextForPrompt, retrieveNotebookRagContext, splitIntoChunks } from '@/lib/rag';
+import {
+  diversifyRagResults,
+  formatRagContextForPrompt,
+  retrieveNotebookRagContext,
+  splitIntoChunks,
+  type RagSearchResult,
+} from '@/lib/rag';
 
 export const NO_GROUNDED_CONTEXT_MESSAGE = 'No grounded context is available for this request. Upload and index at least one file in this notebook before asking grounded questions.';
 
@@ -123,7 +129,8 @@ export async function prepareGroundedChat(params: {
     };
   }
 
-  let results;
+  let results: RagSearchResult[] = [];
+  let searchFailed = false;
   try {
     results = await retrieveNotebookRagContext({
       fileId: scopedFile?.id,
@@ -132,18 +139,13 @@ export async function prepareGroundedChat(params: {
       query: params.question,
     });
   } catch (error) {
-    logBackendProcess('error', 'rag.api.chat.search_failed', {
+    searchFailed = true;
+    logBackendProcess('warn', 'rag.api.chat.search_failed', {
       elapsedMs: getElapsedMs(params.requestStartedAt),
       error: error instanceof Error ? error.message : 'Unknown RAG search error',
       fileId: scopedFile?.id,
       notebookId: params.notebookId,
     });
-    return {
-      error: {
-        body: { error: error instanceof Error ? error.message : 'RAG search failed.' },
-        status: 502,
-      },
-    };
   }
 
   const fallbackResults = results.length
@@ -168,6 +170,7 @@ export async function prepareGroundedChat(params: {
     notebookId: params.notebookId,
     ragResultCount: results.length,
     resultCount: groundedResults.length,
+    searchFailed,
   });
 
   if (!groundedResults.length) {

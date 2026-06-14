@@ -370,9 +370,13 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
     );
   });
 
-  it('returns a JSON error when RAG retrieval fails', async () => {
+  it('falls back to extracted text when RAG retrieval fails', async () => {
     prismaMock.notebook.findUnique.mockResolvedValue({
-      files: [{ extractedText: null, id: 'file-1', name: 'week-1.txt' }],
+      files: [{
+        extractedText: 'Fallback text still grounds the answer while vector search is unavailable.',
+        id: 'file-1',
+        name: 'week-1.txt',
+      }],
       id: 'nb-1',
       name: 'Algorithms',
     });
@@ -387,8 +391,14 @@ describe('POST /api/notebooks/[notebookId]/rag/chat', () => {
     );
     const payload = await response.json();
 
-    expect(response.status).toBe(502);
-    expect(payload.error).toBe('vector store unavailable');
+    expect(response.status).toBe(200);
+    expect(payload.grounded).toBe(true);
+    expect(generateChatCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.stringContaining('Fallback text still grounds the answer'),
+        scopeLabel: 'stored extracted text from file "week-1.txt" in notebook "Algorithms"',
+      }),
+    );
     expect(response.headers.get('Access-Control-Allow-Origin')).toBeTruthy();
   });
 

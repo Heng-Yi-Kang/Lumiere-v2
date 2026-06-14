@@ -1,6 +1,7 @@
 const {
   deleteNotebookChunkPointsByFileMock,
   deleteNotebookChunkPointsByIdsMock,
+  deleteNotebookChunkPointsByNotebookMock,
   ensureNotebookChunksCollectionMock,
   executeRawMock,
   findManyMock,
@@ -13,6 +14,7 @@ const {
 } = vi.hoisted(() => ({
   deleteNotebookChunkPointsByFileMock: vi.fn(),
   deleteNotebookChunkPointsByIdsMock: vi.fn(),
+  deleteNotebookChunkPointsByNotebookMock: vi.fn(),
   ensureNotebookChunksCollectionMock: vi.fn(),
   executeRawMock: vi.fn(),
   findManyMock: vi.fn(),
@@ -42,9 +44,11 @@ vi.mock('@/lib/embeddings', () => ({
 vi.mock('@/lib/qdrant', () => ({
   deleteNotebookChunkPointsByFile: deleteNotebookChunkPointsByFileMock,
   deleteNotebookChunkPointsByIds: deleteNotebookChunkPointsByIdsMock,
-  deleteNotebookChunkPointsByNotebook: vi.fn(),
+  deleteNotebookChunkPointsByNotebook: deleteNotebookChunkPointsByNotebookMock,
   ensureNotebookChunksCollection: ensureNotebookChunksCollectionMock,
-  getQdrantCollectionName: vi.fn().mockReturnValue('notebook_chunks'),
+  getQdrantCollectionNameForDimensions: vi.fn((vectorSize: number) =>
+    vectorSize === 4096 ? 'notebook_chunks' : `notebook_chunks_${vectorSize}`,
+  ),
   searchNotebookChunks: searchNotebookChunksMock,
   upsertNotebookChunkPoints: upsertNotebookChunkPointsMock,
 }));
@@ -56,14 +60,23 @@ vi.mock('@/lib/reranker', () => ({
 
 import {
   diversifyRagResults,
+  deleteNotebookFileRagIndex,
+  deleteNotebookRagIndex,
   formatRagContextForPrompt,
   indexNotebookFileForRag,
   RAG_PROMPT_SOURCE_CHAR_LIMIT,
   RAG_VECTOR_DIMENSIONS,
+  getRagVectorDimensions,
   retrieveNotebookRagContext,
   splitIntoChunks,
   splitIntoRagChunks,
 } from './rag';
+
+const originalEnv = { ...process.env };
+
+afterEach(() => {
+  process.env = { ...originalEnv };
+});
 
 function ragResult(fileId: string, chunkIndex: number, score: number) {
   return {
@@ -168,6 +181,7 @@ describe('indexNotebookFileForRag', () => {
   beforeEach(() => {
     deleteNotebookChunkPointsByFileMock.mockReset();
     deleteNotebookChunkPointsByIdsMock.mockReset();
+    deleteNotebookChunkPointsByNotebookMock.mockReset();
     ensureNotebookChunksCollectionMock.mockReset();
     executeRawMock.mockReset();
     generateEmbeddingMock.mockReset();
@@ -175,11 +189,14 @@ describe('indexNotebookFileForRag', () => {
     upsertNotebookChunkPointsMock.mockReset();
     deleteNotebookChunkPointsByFileMock.mockResolvedValue(undefined);
     deleteNotebookChunkPointsByIdsMock.mockResolvedValue(undefined);
+    deleteNotebookChunkPointsByNotebookMock.mockResolvedValue(undefined);
     ensureNotebookChunksCollectionMock.mockResolvedValue('notebook_chunks');
     executeRawMock.mockReturnValue(Promise.resolve());
     generateEmbeddingMock.mockResolvedValue(new Array<number>(RAG_VECTOR_DIMENSIONS).fill(0.5));
     transactionMock.mockResolvedValue([]);
     upsertNotebookChunkPointsMock.mockResolvedValue(undefined);
+    process.env.EMBEDDING_MODEL = 'test-embedding-model';
+    delete process.env.EMBEDDING_DIMENSIONS;
   });
 
   it('stores chunk embeddings in Qdrant with the required payload fields', async () => {
@@ -242,6 +259,31 @@ describe('indexNotebookFileForRag', () => {
       pointIds: [expect.any(String)],
     });
   });
+
+  it('uses configured embedding dimensions for indexing', async () => {
+    process.env.EMBEDDING_DIMENSIONS = '3072';
+    ensureNotebookChunksCollectionMock.mockResolvedValue('notebook_chunks_3072');
+    generateEmbeddingMock.mockResolvedValue(new Array<number>(3072).fill(0.5));
+
+    await indexNotebookFileForRag({
+      extractedText: 'Searchable text',
+      fileId: 'file-1',
+      fileName: 'week-1.txt',
+      fileType: 'txt',
+      notebookId: 'nb-1',
+    });
+
+    expect(getRagVectorDimensions()).toBe(3072);
+    expect(ensureNotebookChunksCollectionMock).toHaveBeenCalledWith(3072);
+    expect(upsertNotebookChunkPointsMock).toHaveBeenCalledWith(expect.objectContaining({
+      collectionName: 'notebook_chunks_3072',
+      points: [
+        expect.objectContaining({
+          vector: new Array<number>(3072).fill(0.5),
+        }),
+      ],
+    }));
+  });
 });
 
 describe('retrieveNotebookRagContext', () => {
@@ -255,6 +297,8 @@ describe('retrieveNotebookRagContext', () => {
     ensureNotebookChunksCollectionMock.mockResolvedValue('notebook_chunks');
     generateEmbeddingMock.mockResolvedValue(new Array<number>(RAG_VECTOR_DIMENSIONS).fill(0.5));
     isRerankingEnabledMock.mockReturnValue(false);
+    process.env.EMBEDDING_MODEL = 'test-embedding-model';
+    delete process.env.EMBEDDING_DIMENSIONS;
   });
 
   it('searches Qdrant with notebook and file filters, then validates hits against Postgres', async () => {
@@ -458,6 +502,57 @@ describe('retrieveNotebookRagContext', () => {
         vectorScore: 0.91,
       },
     ]);
+  });
+
+  it('uses configured embedding dimensions for retrieval', async () => {
+    process.env.EMBEDDING_DIMENSIONS = '3072';
+    ensureNotebookChunksCollectionMock.mockResolvedValue('notebook_chunks_3072');
+    generateEmbeddingMock.mockResolvedValue(new Array<number>(3072).fill(0.5));
+    searchNotebookChunksMock.mockResolvedValue([]);
+    findManyMock.mockResolvedValue([]);
+
+    await retrieveNotebookRagContext({
+      limit: 6,
+      notebookId: 'nb-1',
+      query: 'greedy algorithms',
+    });
+
+    expect(ensureNotebookChunksCollectionMock).toHaveBeenCalledWith(3072);
+    expect(searchNotebookChunksMock).toHaveBeenCalledWith(expect.objectContaining({
+      collectionName: 'notebook_chunks_3072',
+      vector: new Array<number>(3072).fill(0.5),
+    }));
+  });
+});
+
+describe('RAG index cleanup', () => {
+  beforeEach(() => {
+    deleteNotebookChunkPointsByFileMock.mockReset();
+    deleteNotebookChunkPointsByNotebookMock.mockReset();
+    deleteNotebookChunkPointsByFileMock.mockResolvedValue(undefined);
+    deleteNotebookChunkPointsByNotebookMock.mockResolvedValue(undefined);
+    process.env.EMBEDDING_MODEL = 'test-embedding-model';
+    process.env.EMBEDDING_DIMENSIONS = '3072';
+  });
+
+  it('deletes file and notebook points from the active dimension-specific collection', async () => {
+    await deleteNotebookFileRagIndex({
+      fileId: 'file-1',
+      notebookId: 'nb-1',
+    });
+    await deleteNotebookRagIndex({
+      notebookId: 'nb-1',
+    });
+
+    expect(deleteNotebookChunkPointsByFileMock).toHaveBeenCalledWith({
+      collectionName: 'notebook_chunks_3072',
+      fileId: 'file-1',
+      notebookId: 'nb-1',
+    });
+    expect(deleteNotebookChunkPointsByNotebookMock).toHaveBeenCalledWith({
+      collectionName: 'notebook_chunks_3072',
+      notebookId: 'nb-1',
+    });
   });
 });
 

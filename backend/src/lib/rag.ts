@@ -1,4 +1,5 @@
 import { getElapsedMs, logBackendProcess } from '@/lib/backend-logger';
+import { getEmbeddingModelDimensions, RAG_VECTOR_DIMENSIONS } from '@/lib/embedding-dimensions';
 import { getEmbeddingModel, generateEmbedding } from '@/lib/embeddings';
 import { prisma } from '@/lib/prisma';
 import {
@@ -6,7 +7,7 @@ import {
   deleteNotebookChunkPointsByIds,
   deleteNotebookChunkPointsByNotebook,
   ensureNotebookChunksCollection,
-  getQdrantCollectionName,
+  getQdrantCollectionNameForDimensions,
   type NotebookChunkPayload,
   searchNotebookChunks,
   upsertNotebookChunkPoints,
@@ -16,7 +17,7 @@ import { isRerankingEnabled, rerankDocuments } from '@/lib/reranker';
 export const RAG_CHUNK_SIZE = 650;
 export const RAG_CHUNK_OVERLAP = 120;
 export const RAG_PROMPT_SOURCE_CHAR_LIMIT = 1200;
-export const RAG_VECTOR_DIMENSIONS = 4096;
+export { RAG_VECTOR_DIMENSIONS };
 
 type RagSearchOptions = {
   fileId?: string;
@@ -461,9 +462,13 @@ export function splitIntoChunks(text: string, chunkSize = RAG_CHUNK_SIZE, overla
   return splitIntoRagChunks(text, chunkSize, overlap).map((chunk) => chunk.content);
 }
 
-function assertVectorDimensions(vector: number[]) {
-  if (vector.length !== RAG_VECTOR_DIMENSIONS) {
-    throw new Error(`Embedding dimension mismatch. Expected ${RAG_VECTOR_DIMENSIONS}, received ${vector.length}.`);
+export function getRagVectorDimensions() {
+  return getEmbeddingModelDimensions();
+}
+
+function assertVectorDimensions(vector: number[], expectedDimensions = getRagVectorDimensions()) {
+  if (vector.length !== expectedDimensions) {
+    throw new Error(`Embedding dimension mismatch. Expected ${expectedDimensions}, received ${vector.length}.`);
   }
 }
 
@@ -623,7 +628,8 @@ export async function indexNotebookFileForRag(params: {
   }
 
   const embeddingModel = getEmbeddingModel();
-  const collectionName = await ensureNotebookChunksCollection(RAG_VECTOR_DIMENSIONS);
+  const vectorDimensions = getRagVectorDimensions();
+  const collectionName = await ensureNotebookChunksCollection(vectorDimensions);
   const points = [];
 
   for (const [chunkIndex, chunk] of chunks.entries()) {
@@ -638,7 +644,7 @@ export async function indexNotebookFileForRag(params: {
     });
 
     const embedding = await generateEmbedding(content);
-    assertVectorDimensions(embedding);
+    assertVectorDimensions(embedding, vectorDimensions);
     const payload = buildChunkPayload({
       chunk,
       chunkIndex,
@@ -739,6 +745,7 @@ export async function indexNotebookFileForRag(params: {
     chunkCount: chunks.length,
     elapsedMs: getElapsedMs(indexingStartedAt),
     embeddingModel,
+    vectorDimensions,
     fileId: params.fileId,
     fileName: params.fileName,
     notebookId: params.notebookId,
@@ -766,17 +773,19 @@ export async function retrieveNotebookRagContext(options: RagSearchOptions) {
   });
 
   const embedding = await generateEmbedding(options.query);
-  assertVectorDimensions(embedding);
+  const vectorDimensions = getRagVectorDimensions();
+  assertVectorDimensions(embedding, vectorDimensions);
   logBackendProcess('info', 'rag.search.embedding.completed', {
     embeddingDims: embedding.length,
     elapsedMs: getElapsedMs(embeddingStartedAt),
     notebookId: options.notebookId,
+    vectorDimensions,
   });
 
   const candidateLimit = rerankingEnabled
     ? Math.min(Math.max(limit * 10, 50), 100)
     : Math.min(Math.max(limit * 4, 20), 100);
-  const collectionName = await ensureNotebookChunksCollection(RAG_VECTOR_DIMENSIONS);
+  const collectionName = await ensureNotebookChunksCollection(vectorDimensions);
 
   logBackendProcess('info', 'rag.qdrant.search.started', {
     candidateLimit,
@@ -890,9 +899,11 @@ export async function deleteNotebookFileRagIndex(params: {
   fileId: string;
   notebookId: string;
 }) {
+  const collectionName = getQdrantCollectionNameForDimensions(getRagVectorDimensions());
+
   try {
     await deleteNotebookChunkPointsByFile({
-      collectionName: getQdrantCollectionName(),
+      collectionName,
       fileId: params.fileId,
       notebookId: params.notebookId,
     });
@@ -908,9 +919,11 @@ export async function deleteNotebookFileRagIndex(params: {
 export async function deleteNotebookRagIndex(params: {
   notebookId: string;
 }) {
+  const collectionName = getQdrantCollectionNameForDimensions(getRagVectorDimensions());
+
   try {
     await deleteNotebookChunkPointsByNotebook({
-      collectionName: getQdrantCollectionName(),
+      collectionName,
       notebookId: params.notebookId,
     });
   } catch (error) {

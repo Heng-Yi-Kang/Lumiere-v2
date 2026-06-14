@@ -1,4 +1,5 @@
 import { logBackendProcess } from '@/lib/backend-logger';
+import { getEmbeddingModelDimensions } from '@/lib/embedding-dimensions';
 import { getNotebookUploadRoot } from '@/lib/notebook-upload-root';
 import { prisma } from '@/lib/prisma';
 import { isRerankingEnabled } from '@/lib/reranker';
@@ -32,7 +33,7 @@ type StartupHealthDeps = {
   hasCommand: (command: string) => Promise<boolean>;
   pingChatProvider: () => Promise<void>;
   pingDatabase: () => Promise<void>;
-  pingEmbeddingProvider: () => Promise<void>;
+  pingEmbeddingProvider: (timeoutMs?: number) => Promise<void>;
   pingQdrant: () => Promise<void>;
   pingRerankerProvider: () => Promise<void>;
   pingSttProvider: () => Promise<void>;
@@ -217,6 +218,11 @@ export async function pingEmbeddingProvider(timeoutMs?: number) {
 
   if (!Array.isArray(embedding) || !embedding.length || !embedding.every(Number.isFinite)) {
     throw new Error('Embedding provider returned no numeric vector.');
+  }
+
+  const expectedDimensions = getEmbeddingModelDimensions();
+  if (embedding.length !== expectedDimensions) {
+    throw new Error(`Embedding provider returned ${embedding.length} dimensions, expected ${expectedDimensions}.`);
   }
 }
 

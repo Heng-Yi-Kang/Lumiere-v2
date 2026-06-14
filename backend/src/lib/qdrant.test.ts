@@ -68,6 +68,23 @@ describe('qdrant client wrapper', () => {
     });
   });
 
+  it('uses a dimension-specific collection name for non-historical vector sizes', async () => {
+    const qdrant = await loadQdrant();
+    clientMock.getCollection.mockRejectedValue(new UnexpectedResponseErrorMock('404 not found'));
+    clientMock.createCollection.mockResolvedValue(true);
+
+    await qdrant.ensureNotebookChunksCollection(3072);
+
+    expect(clientMock.createCollection).toHaveBeenCalledWith('notebook_chunks_3072', {
+      vectors: {
+        distance: 'Cosine',
+        size: 3072,
+      },
+    });
+    expect(qdrant.getQdrantCollectionNameForDimensions(3072)).toBe('notebook_chunks_3072');
+    expect(qdrant.getQdrantCollectionNameForDimensions(4096)).toBe('notebook_chunks');
+  });
+
   it('creates the notebook chunk collection when the client returns a plain 404 error', async () => {
     const qdrant = await loadQdrant();
     const notFoundError = Object.assign(new Error('Not Found'), { status: 404 });

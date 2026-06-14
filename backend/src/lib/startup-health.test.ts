@@ -1,4 +1,4 @@
-import { createStartupHealthReport, pingChatProvider, pingSttProvider } from './startup-health';
+import { createStartupHealthReport, pingChatProvider, pingEmbeddingProvider, pingSttProvider } from './startup-health';
 
 function setEnv(name: string, value: string | undefined) {
   if (value === undefined) {
@@ -214,6 +214,22 @@ describe('startup health checks', () => {
         body: expect.stringContaining('"max_tokens":64'),
       }),
     );
+  });
+
+  it('rejects embedding provider probes with mismatched dimensions', async () => {
+    setEnv('EMBEDDING_API_BASE', 'https://embeddings.example.test/v1');
+    setEnv('EMBEDDING_API_KEY', 'embedding-key');
+    setEnv('EMBEDDING_MODEL', 'google/gemini-embedding-2');
+    setEnv('EMBEDDING_DIMENSIONS', '3072');
+    global.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        {
+          embedding: [0.1, 0.2, 0.3],
+        },
+      ],
+    })));
+
+    await expect(pingEmbeddingProvider()).rejects.toThrow('Embedding provider returned 3 dimensions, expected 3072.');
   });
 
   it('accepts successful STT probe responses with empty transcript text', async () => {

@@ -66,6 +66,16 @@ export function getQdrantCollectionName() {
   return getRequiredEnv('QDRANT_COLLECTION');
 }
 
+export function getQdrantCollectionNameForDimensions(vectorSize: number) {
+  const baseCollectionName = getQdrantCollectionName();
+
+  if (vectorSize === 4096) {
+    return baseCollectionName;
+  }
+
+  return `${baseCollectionName}_${vectorSize}`;
+}
+
 export function getQdrantClient() {
   if (qdrantClient) {
     return qdrantClient;
@@ -133,7 +143,7 @@ async function ensurePayloadIndexes(client: QdrantClient, collectionName: string
 }
 
 export async function ensureNotebookChunksCollection(vectorSize: number) {
-  const collectionName = getQdrantCollectionName();
+  const collectionName = getQdrantCollectionNameForDimensions(vectorSize);
 
   if (ensuredCollection === collectionName) {
     return collectionName;

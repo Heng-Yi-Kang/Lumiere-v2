@@ -75,6 +75,44 @@ describe('POST /api/notebooks/[notebookId]/rag/chat/stream', () => {
     expect(body).toContain('"fileName":"week-1.txt"');
   });
 
+  it('streams from extracted text fallback when RAG retrieval fails', async () => {
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      files: [{
+        extractedText: 'Fallback text still grounds the streamed answer.',
+        id: 'file-1',
+        name: 'week-1.txt',
+      }],
+      id: 'nb-1',
+      name: 'Algorithms',
+    });
+    vi.mocked(retrieveNotebookRagContext).mockRejectedValue(new Error('vector store unavailable'));
+    vi.mocked(streamChatCompletion).mockImplementation(async (params) => {
+      await params.onDelta('Fallback ');
+      return 'Fallback answer.';
+    });
+
+    const response = await POST(
+      new Request('http://localhost/api/notebooks/nb-1/rag/chat/stream', {
+        body: JSON.stringify({ question: 'Explain greedy algorithms' }),
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ notebookId: 'nb-1' }) },
+    );
+
+    const body = await response.text();
+
+    expect(response.headers.get('content-type')).toContain('text/event-stream');
+    expect(body).toContain('event: delta\ndata: {"text":"Fallback "}');
+    expect(body).toContain('event: done');
+    expect(body).toContain('"answer":"Fallback answer."');
+    expect(streamChatCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.stringContaining('Fallback text still grounds the streamed answer'),
+        scopeLabel: 'stored extracted text from notebook "Algorithms"',
+      }),
+    );
+  });
+
   it('emits an error event when generation fails', async () => {
     prismaMock.notebook.findUnique.mockResolvedValue({
       files: [{ extractedText: null, id: 'file-1', name: 'week-1.txt' }],

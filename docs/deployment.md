@@ -60,6 +60,7 @@ These are required for the backend to start successfully in the current codebase
 - `EMBEDDING_API_BASE`
 - `EMBEDDING_API_KEY`
 - `EMBEDDING_MODEL`
+- `EMBEDDING_DIMENSIONS` is optional but recommended when changing embedding providers
 - `QDRANT_URL`
 - `QDRANT_COLLECTION`
 
