@@ -43,16 +43,20 @@ Important settings:
 - `FRONTEND_PORT`: host port exposed by Nginx.
 - `FRONTEND_BIND_ADDRESS`: host interface for the public Nginx port. Use `0.0.0.0` for direct remote access, or `127.0.0.1` when another reverse proxy on the same host terminates public traffic.
 - `BACKEND_BIND_ADDRESS` and `BACKEND_PORT`: optional host binding for direct API access. The default binds only to localhost.
+- `SESSION_COOKIE_SECURE`: optional demo-only override for plain HTTP. Leave empty/unset in production.
 - `POSTGRES_*`: PostgreSQL database, username, and password.
 - `DATABASE_URL`: backend Prisma database URL. Use the Compose service hostname `postgres`.
 - `QDRANT_URL`: backend Qdrant URL. Use the Compose service hostname `qdrant`.
 - `BACKEND_UPSTREAM`: Nginx upstream for `/api/` and `/uploads/`. Keep `http://backend:3001` for this Compose stack.
 - `VITE_API_BASE_URL`: optional build-time browser API base URL.
 - `NOTEBOOK_UPLOAD_HOST_DIR`: host folder for user-uploaded notebook files. The default is `./data/uploads/notebooks` inside this deployment folder.
+- `NOTEBOOK_FILE_UPLOAD_LIMIT_MB`: maximum accepted notebook upload size.
 - `PUPPETEER_EXECUTABLE_PATH`: Chromium executable used by Puppeteer for web-link scraping. The backend image sets this to `/usr/bin/chromium`.
-- `EMBEDDING_API_BASE`, `EMBEDDING_API_KEY`, and `EMBEDDING_MODEL`: required for backend startup health and retrieval.
+- `BACKEND_LOG_LEVEL`: backend process log level, one of `debug`, `info`, `warn`, or `error`.
+- `EMBEDDING_API_BASE`, `EMBEDDING_API_KEY`, and `EMBEDDING_MODEL`: required provider settings for startup health and retrieval. Keep `EMBEDDING_DIMENSIONS` aligned with the embedding model before creating the Qdrant collection.
 - `CHAT_*`, `STT_*`, `VLM_*`, and `RERANKER_*`: provider configuration for chat, media processing, and optional reranking.
 - `*_TIMEOUT_MS` and `*_COMMAND_TIMEOUT_MS`: request and media command timeout controls for provider calls, audio/video processing, YouTube downloads, HLS generation, and summary generation.
+- `STT_MAX_CHUNK_MB`, `STT_MAX_CHUNK_SECONDS`, `AUDIO_SEGMENT_SECONDS`, and `VIDEO_INGESTION_*`: chunking and background ingestion controls for large audio/video uploads.
 
 Leave `VITE_API_BASE_URL` empty for the recommended same-origin deployment. In that mode, browser requests go to `/api/...` on the frontend origin and Nginx forwards them to `BACKEND_UPSTREAM`.
 
