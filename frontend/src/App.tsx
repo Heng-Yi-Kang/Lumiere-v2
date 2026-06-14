@@ -18,6 +18,7 @@ import {
   deleteNotebook,
   deleteNotebookFile,
   fetchNotebooks,
+  renameNotebookFile,
   retryNotebookFileSummary,
   updateNotebook,
 } from './lib/notebooksApi';
@@ -440,6 +441,13 @@ export default function App() {
     setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
   };
 
+  const handleRenameFile = async (notebookId: string, fileId: string, name: string) => {
+    notebookLoadRequestIdRef.current += 1;
+    const notebook = await renameNotebookFile(notebookId, fileId, name);
+
+    setNotebooks((prev) => prev.map((nb) => (nb.id === notebook.id ? notebook : nb)));
+  };
+
   const handleUpdateNotebook = async (notebookId: string, name: string, color: string, description: string) => {
     notebookLoadRequestIdRef.current += 1;
     const previousNotebook = notebooks.find((nb) => nb.id === notebookId);
@@ -708,6 +716,7 @@ export default function App() {
                   onAddYoutubeLink={handleAddNewYoutubeLink}
                   onDeleteFile={handleDeleteFile}
                   onRetryFileSummary={handleRetryFileSummary}
+                  onRenameFile={handleRenameFile}
                   onEditNotebook={(entry) => setEditingNotebook(entry)}
                   onDeleteNotebook={handleDeleteNotebook}
                   onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}

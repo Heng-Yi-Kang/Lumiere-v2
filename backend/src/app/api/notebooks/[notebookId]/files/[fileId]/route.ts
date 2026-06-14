@@ -7,8 +7,38 @@ import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 import { prisma } from '@/lib/prisma';
 import { getNotebookFileHlsDirectory, serializeHlsStatus } from '@/lib/hls-service';
 
+const MAX_NOTEBOOK_FILE_NAME_LENGTH = 120;
+
 export async function OPTIONS() {
   return optionsResponse();
+}
+
+async function findNotebookFileForUser(fileId: string, notebookId: string, userId: string) {
+  return prisma.notebookFile.findFirst({
+    where: {
+      id: fileId,
+      notebookId,
+      notebook: {
+        userId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+}
+
+async function getSerializedNotebook(notebookId: string, userId: string) {
+  const notebook = await prisma.notebook.findUnique({
+    where: { id: notebookId },
+    include: {
+      files: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+
+  return notebook && (!notebook.userId || notebook.userId === userId) ? serializeNotebook(notebook) : null;
 }
 
 export async function GET(
@@ -84,6 +114,46 @@ export async function GET(
   });
 }
 
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ notebookId: string; fileId: string }> },
+) {
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
+  const { fileId, notebookId } = await context.params;
+  const file = await findNotebookFileForUser(fileId, notebookId, user.id);
+
+  if (!file) {
+    return jsonResponse({ error: 'file not found' }, { status: 404 });
+  }
+
+  const body = (await request.json().catch(() => null)) as
+    | { name?: string }
+    | null;
+  const name = typeof body?.name === 'string' ? body.name.trim() : '';
+
+  if (!name) {
+    return jsonResponse({ error: 'name is required' }, { status: 400 });
+  }
+
+  if (name.length > MAX_NOTEBOOK_FILE_NAME_LENGTH) {
+    return jsonResponse({ error: `name must be ${MAX_NOTEBOOK_FILE_NAME_LENGTH} characters or fewer` }, { status: 400 });
+  }
+
+  await prisma.notebookFile.update({
+    where: { id: file.id },
+    data: { name },
+  });
+
+  return jsonResponse({
+    notebook: await getSerializedNotebook(notebookId, user.id),
+  });
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ notebookId: string; fileId: string }> },
@@ -129,17 +199,8 @@ export async function POST(
 
   startNotebookFileSummaryJob(file.id);
 
-  const notebook = await prisma.notebook.findUnique({
-    where: { id: notebookId },
-    include: {
-      files: {
-        orderBy: { createdAt: 'desc' },
-      },
-    },
-  });
-
   return jsonResponse({
-    notebook: notebook && (!notebook.userId || notebook.userId === user.id) ? serializeNotebook(notebook) : null,
+    notebook: await getSerializedNotebook(notebookId, user.id),
   });
 }
 
@@ -186,16 +247,7 @@ export async function DELETE(
 
   await deleteNotebookStoredFile([file.sourcePath, getNotebookFileHlsDirectory(notebookId, file.id)]);
 
-  const notebook = await prisma.notebook.findUnique({
-    where: { id: notebookId },
-    include: {
-      files: {
-        orderBy: { createdAt: 'desc' },
-      },
-    },
-  });
-
   return jsonResponse({
-    notebook: notebook && (!notebook.userId || notebook.userId === user.id) ? serializeNotebook(notebook) : null,
+    notebook: await getSerializedNotebook(notebookId, user.id),
   });
 }

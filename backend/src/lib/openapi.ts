@@ -268,6 +268,35 @@ export const openApiDocument = {
           '404': { $ref: '#/components/responses/NotFound' },
         },
       },
+      patch: {
+        tags: ['Files'],
+        summary: 'Rename a notebook file',
+        description: 'Updates only the display name. Stored file paths, source URLs, scraped metadata, and indexed content are unchanged.',
+        parameters: [
+          { $ref: '#/components/parameters/NotebookId' },
+          { $ref: '#/components/parameters/FileId' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/RenameNotebookFileRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'File renamed and notebook returned',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/NotebookResponse' },
+              },
+            },
+          },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
       delete: {
         tags: ['Files'],
         summary: 'Delete a notebook file',
@@ -704,6 +733,17 @@ export const openApiDocument = {
           name: { type: 'string' },
           color: { type: 'string', default: 'blue' },
           description: { type: 'string' },
+        },
+      },
+      RenameNotebookFileRequest: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+          },
         },
       },
       FilePreviewResponse: {

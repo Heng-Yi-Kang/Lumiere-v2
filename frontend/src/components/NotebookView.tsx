@@ -59,12 +59,14 @@ interface NotebookViewProps {
   onUploadFile?: (notebookId: string, files: File[]) => Promise<void> | void;
   onDeleteFile?: (notebookId: string, fileId: string) => Promise<void> | void;
   onRetryFileSummary?: (notebookId: string, fileId: string) => Promise<void> | void;
+  onRenameFile?: (notebookId: string, fileId: string, name: string) => Promise<void> | void;
   onEditNotebook?: (notebook: Notebook) => void;
   onDeleteNotebook?: (notebookId: string) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
 }
 
 const SELECTED_FILE_REFRESH_INTERVAL_MS = 3000;
+const MAX_NOTEBOOK_FILE_NAME_LENGTH = 120;
 
 function getFileIcon(type: FileItem['type']) {
   switch (type) {
@@ -166,6 +168,7 @@ export default function NotebookView({
   onUploadFile,
   onDeleteFile,
   onRetryFileSummary,
+  onRenameFile,
   onEditNotebook,
   onDeleteNotebook,
   onCreateNotebookRequested,
@@ -197,6 +200,10 @@ export default function NotebookView({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingNotebook, setIsDeletingNotebook] = useState(false);
   const [pendingDeleteFile, setPendingDeleteFile] = useState<FileItem | null>(null);
+  const [pendingRenameFile, setPendingRenameFile] = useState<FileItem | null>(null);
+  const [renameFileName, setRenameFileName] = useState('');
+  const [renameError, setRenameError] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleteNotebookModalOpen, setIsDeleteNotebookModalOpen] = useState(false);
   const [fileChatMessagesById, setFileChatMessagesById] = useState<Record<string, ChatMessage[]>>({});
   const [fileChatInput, setFileChatInput] = useState('');
@@ -324,6 +331,7 @@ export default function NotebookView({
         hlsMasterPlaylistUrl: selectedMaterial.hlsMasterPlaylistUrl,
         hlsStatus: selectedMaterial.hlsStatus,
         ingestionError: selectedMaterial.ingestionError,
+        name: selectedMaterial.name,
         summary: selectedMaterial.summary,
         summaryError: selectedMaterial.summaryError,
         summaryGeneratedAt: selectedMaterial.summaryGeneratedAt,
@@ -338,6 +346,7 @@ export default function NotebookView({
         preview.hlsMasterPlaylistUrl !== nextPreview.hlsMasterPlaylistUrl ||
         preview.hlsStatus !== nextPreview.hlsStatus ||
         preview.ingestionError !== nextPreview.ingestionError ||
+        preview.name !== nextPreview.name ||
         preview.summary !== nextPreview.summary ||
         preview.summaryError !== nextPreview.summaryError ||
         preview.summaryGeneratedAt !== nextPreview.summaryGeneratedAt ||
@@ -852,6 +861,86 @@ export default function NotebookView({
     }
   };
 
+  const handleOpenRename = (file: FileItem) => {
+    setPendingRenameFile(file);
+    setRenameFileName(file.name);
+    setRenameError('');
+  };
+
+  const handleRename = async () => {
+    if (!notebook || !pendingRenameFile || !onRenameFile || isRenaming) {
+      return;
+    }
+
+    const trimmedName = renameFileName.trim();
+
+    if (!trimmedName) {
+      setRenameError('Name is required.');
+      return;
+    }
+
+    if (trimmedName.length > MAX_NOTEBOOK_FILE_NAME_LENGTH) {
+      setRenameError(`Name must be ${MAX_NOTEBOOK_FILE_NAME_LENGTH} characters or fewer.`);
+      return;
+    }
+
+    const file = pendingRenameFile;
+    const previousName = file.name;
+
+    setIsRenaming(true);
+    setRenameError('');
+
+    try {
+      await Promise.resolve(onRenameFile(notebook.id, file.id, trimmedName));
+
+      setSelectedMaterial((current) => current?.id === file.id
+        ? { ...current, name: trimmedName }
+        : current);
+      setPreviewCache((current) => {
+        const preview = current[file.id];
+
+        if (!preview) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [file.id]: {
+            ...preview,
+            name: trimmedName,
+          },
+        };
+      });
+      setFileChatMessagesById((current) => {
+        const messages = current[file.id];
+
+        if (!messages) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [file.id]: messages.map((message) => ({
+            ...message,
+            id: message.id === `file-chat-init-${previousName}` ? `file-chat-init-${trimmedName}` : message.id,
+            text: message.id === `file-chat-init-${previousName}`
+              ? createFileChatInitialMessage(trimmedName).text
+              : message.text,
+            citations: message.citations?.map((citation) => citation.fileId === file.id
+              ? { ...citation, fileName: trimmedName }
+              : citation),
+          })),
+        };
+      });
+      setPendingRenameFile(null);
+      setRenameFileName('');
+    } catch (error) {
+      setRenameError(error instanceof Error ? error.message : 'Rename failed.');
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
   const handleDeleteCurrentNotebook = async () => {
     if (!notebook || !onDeleteNotebook || isDeletingNotebook) {
       return;
@@ -1285,6 +1374,20 @@ export default function NotebookView({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    {onRenameFile ? (
+                      <button
+                        type="button"
+                        aria-label={`Rename ${file.name}`}
+                        title="Rename material"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleOpenRename(file);
+                        }}
+                        className={`rounded-xl border p-2.5 transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       aria-label={`Delete ${file.name}`}
@@ -1380,6 +1483,17 @@ export default function NotebookView({
                       </a>
                     ) : null}
                   </div>
+                  {onRenameFile ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenRename(selectedMaterial)}
+                      aria-label={`Rename ${selectedMaterial.name}`}
+                      title="Rename material"
+                      className={`ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -1854,6 +1968,79 @@ export default function NotebookView({
                 className="rounded-xl border border-error/20 bg-error-subtle px-4 py-2 text-xs font-bold text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isDeleting ? 'Deleting...' : 'Delete file'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingRenameFile && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rename-material-title"
+          onClick={() => {
+            if (!isRenaming) {
+              setPendingRenameFile(null);
+            }
+          }}
+        >
+          <div
+            className="surface-glass w-full max-w-md rounded-3xl p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="rename-material-title" className="text-lg font-black text-text-primary font-display">Rename material</h3>
+            <p className="mt-2 text-sm leading-relaxed text-text-secondary font-serif">
+              This changes the display name only. File links and stored uploads stay unchanged.
+            </p>
+            <label className="mt-5 block text-[10px] font-black uppercase tracking-widest text-text-muted font-mono" htmlFor="rename-material-input">
+              Name
+            </label>
+            <input
+              id="rename-material-input"
+              type="text"
+              value={renameFileName}
+              maxLength={MAX_NOTEBOOK_FILE_NAME_LENGTH}
+              onChange={(event) => {
+                setRenameFileName(event.target.value);
+                if (renameError) {
+                  setRenameError('');
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void handleRename();
+                }
+              }}
+              disabled={isRenaming}
+              autoFocus
+              className="mt-2 w-full rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2 text-sm font-semibold text-text-primary outline-none transition placeholder:text-text-muted focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="min-h-4 text-xs font-semibold text-error">{renameError}</p>
+              <span className="shrink-0 text-[10px] font-bold text-text-muted">
+                {renameFileName.trim().length}/{MAX_NOTEBOOK_FILE_NAME_LENGTH}
+              </span>
+            </div>
+            <div className="mt-6 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPendingRenameFile(null)}
+                disabled={isRenaming}
+                className="rounded-xl border border-border-default bg-bg-elevated/60 px-4 py-2 text-xs font-bold text-text-secondary transition hover:bg-bg-overlay hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleRename()}
+                disabled={isRenaming || !renameFileName.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isRenaming ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
+                {isRenaming ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>

@@ -27,7 +27,7 @@ vi.mock('@/lib/notebook-file-summary-job', () => ({
   startNotebookFileSummaryJob: vi.fn(),
 }));
 
-import { DELETE, GET, POST } from './route';
+import { DELETE, GET, PATCH, POST } from './route';
 import { deleteNotebookFileRagIndex } from '@/lib/rag';
 import { startNotebookFileSummaryJob } from '@/lib/notebook-file-summary-job';
 
@@ -140,6 +140,174 @@ describe('POST /api/notebooks/[notebookId]/files/[fileId]', () => {
     expect(response.status).toBe(400);
     expect(payload.error).toBe('No extracted text is available to summarize.');
     expect(startNotebookFileSummaryJob).not.toHaveBeenCalled();
+  });
+});
+
+describe('PATCH /api/notebooks/[notebookId]/files/[fileId]', () => {
+  beforeEach(() => {
+    prismaMock.notebookFile.findFirst.mockReset();
+    prismaMock.notebookFile.update.mockReset();
+    prismaMock.notebook.findUnique.mockReset();
+  });
+
+  it('renames a notebook file and returns the refreshed notebook', async () => {
+    prismaMock.notebookFile.findFirst.mockResolvedValue({ id: 'file-1' });
+    prismaMock.notebookFile.update.mockResolvedValue({ id: 'file-1', name: 'Week 1 renamed' });
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      id: 'nb-1',
+      name: 'Algorithms',
+      courseCode: 'CS101',
+      color: 'indigo',
+      description: 'Notes',
+      conceptCount: 4,
+      userId: 'user-1',
+      files: [
+        {
+          id: 'file-1',
+          name: 'Week 1 renamed',
+          type: 'txt',
+          mimeType: 'text/plain',
+          size: '1 KB',
+          siteName: null,
+          sourceUrl: null,
+          uploadDate: '2026-06-01',
+          status: 'ready',
+          ingestionError: null,
+          summary: null,
+          summaryError: null,
+          summaryGeneratedAt: null,
+          summaryStatus: 'done',
+          totalPages: null,
+        },
+      ],
+    });
+
+    const response = await PATCH(new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: '  Week 1 renamed  ' }),
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'file-1' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.notebook.files[0].name).toBe('Week 1 renamed');
+    expect(prismaMock.notebookFile.update).toHaveBeenCalledWith({
+      where: { id: 'file-1' },
+      data: { name: 'Week 1 renamed' },
+    });
+  });
+
+  it('rejects empty file names', async () => {
+    prismaMock.notebookFile.findFirst.mockResolvedValue({ id: 'file-1' });
+
+    const response = await PATCH(new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: '   ' }),
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'file-1' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toBe('name is required');
+    expect(prismaMock.notebookFile.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects names over 120 characters', async () => {
+    prismaMock.notebookFile.findFirst.mockResolvedValue({ id: 'file-1' });
+
+    const response = await PATCH(new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'x'.repeat(121) }),
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'file-1' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toBe('name must be 120 characters or fewer');
+    expect(prismaMock.notebookFile.update).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 for a missing file or file outside the authenticated notebook scope', async () => {
+    prismaMock.notebookFile.findFirst.mockResolvedValue(null);
+
+    const response = await PATCH(new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Renamed file' }),
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'missing-file' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(payload.error).toBe('file not found');
+    expect(prismaMock.notebookFile.update).not.toHaveBeenCalled();
+  });
+
+  it('allows duplicate file names in the same notebook', async () => {
+    prismaMock.notebookFile.findFirst.mockResolvedValue({ id: 'file-2' });
+    prismaMock.notebookFile.update.mockResolvedValue({ id: 'file-2', name: 'Duplicate name' });
+    prismaMock.notebook.findUnique.mockResolvedValue({
+      id: 'nb-1',
+      name: 'Algorithms',
+      courseCode: 'CS101',
+      color: 'indigo',
+      description: 'Notes',
+      conceptCount: 4,
+      userId: 'user-1',
+      files: [
+        {
+          id: 'file-2',
+          name: 'Duplicate name',
+          type: 'link',
+          mimeType: null,
+          size: 'web link',
+          siteName: 'Example',
+          sourceUrl: 'https://example.com/one',
+          uploadDate: '2026-06-02',
+          status: 'ready',
+          ingestionError: null,
+          summary: null,
+          summaryError: null,
+          summaryGeneratedAt: null,
+          summaryStatus: 'done',
+          totalPages: null,
+        },
+        {
+          id: 'file-1',
+          name: 'Duplicate name',
+          type: 'txt',
+          mimeType: 'text/plain',
+          size: '1 KB',
+          siteName: null,
+          sourceUrl: null,
+          uploadDate: '2026-06-01',
+          status: 'ready',
+          ingestionError: null,
+          summary: null,
+          summaryError: null,
+          summaryGeneratedAt: null,
+          summaryStatus: 'done',
+          totalPages: null,
+        },
+      ],
+    });
+
+    const response = await PATCH(new Request('http://localhost', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Duplicate name' }),
+    }), {
+      params: Promise.resolve({ notebookId: 'nb-1', fileId: 'file-2' }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.notebook.files.map((file: { name: string }) => file.name)).toEqual([
+      'Duplicate name',
+      'Duplicate name',
+    ]);
   });
 });
 
