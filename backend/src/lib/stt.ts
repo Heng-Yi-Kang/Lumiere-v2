@@ -11,8 +11,11 @@ const execFileAsync = promisify(execFile);
 const BYTES_PER_MB = 1024 * 1024;
 const DEFAULT_STT_MAX_CHUNK_MB = 20;
 const DEFAULT_STT_CHUNK_COMMAND_TIMEOUT_MS = 120_000;
+const DEFAULT_STT_REQUEST_MAX_ATTEMPTS = 3;
+const DEFAULT_STT_RETRY_BASE_DELAY_MS = 1_000;
 const STT_CHUNK_TARGET_RATIO = 0.95;
 const STT_MAX_CHUNKING_ATTEMPTS = 5;
+const RETRYABLE_STT_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
 type SttResponse = {
   text?: string;
@@ -37,6 +40,31 @@ export function getSttModel() {
 function getPositiveNumberEnv(name: string, fallback: number) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function getPositiveIntegerEnv(name: string, fallback: number) {
+  return Math.max(1, Math.floor(getPositiveNumberEnv(name, fallback)));
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isRetryableFetchError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.name === 'AbortError' || error.message === 'fetch failed';
+}
+
+function buildSttFailureMessage(status: number, statusText: string, body: string) {
+  const normalizedBody = body.replace(/\s+/g, ' ').trim();
+  const snippet = normalizedBody.length > 500 ? `${normalizedBody.slice(0, 500)}...` : normalizedBody;
+
+  return `Transcription request failed with ${status}: ${snippet || statusText}`;
 }
 
 async function getAudioDurationSeconds(filePath: string): Promise<number> {
@@ -154,34 +182,57 @@ async function transcribeBuffer(params: {
   mimeType: string;
   model: string;
 }) {
-  const request = buildSttRequest({
-    apiKey: params.apiKey,
-    baseUrl: params.baseUrl,
-    buffer: params.buffer,
-    fileName: params.fileName,
-    mimeType: params.mimeType,
-    model: params.model,
-  });
+  const maxAttempts = getPositiveIntegerEnv('STT_REQUEST_MAX_ATTEMPTS', DEFAULT_STT_REQUEST_MAX_ATTEMPTS);
+  const retryBaseDelayMs = getPositiveNumberEnv('STT_RETRY_BASE_DELAY_MS', DEFAULT_STT_RETRY_BASE_DELAY_MS);
+  let lastError: unknown;
 
-  const response = await fetch(buildTranscriptionsUrl(params.baseUrl), {
-    method: 'POST',
-    headers: request.headers,
-    body: request.body,
-  });
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const request = buildSttRequest({
+        apiKey: params.apiKey,
+        baseUrl: params.baseUrl,
+        buffer: params.buffer,
+        fileName: params.fileName,
+        mimeType: params.mimeType,
+        model: params.model,
+      });
+      const response = await fetch(buildTranscriptionsUrl(params.baseUrl), {
+        method: 'POST',
+        headers: request.headers,
+        body: request.body,
+      });
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new SttError(`Transcription request failed with ${response.status}: ${body || response.statusText}`);
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        const error = new SttError(buildSttFailureMessage(response.status, response.statusText, body));
+
+        if (!RETRYABLE_STT_STATUSES.has(response.status) || attempt === maxAttempts) {
+          throw error;
+        }
+
+        lastError = error;
+      } else {
+        const payload = (await response.json()) as SttResponse;
+        const transcript = payload.text?.trim();
+
+        if (!transcript) {
+          throw new SttError('Transcription provider returned no text.');
+        }
+
+        return transcript;
+      }
+    } catch (error) {
+      if (!isRetryableFetchError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+
+      lastError = error;
+    }
+
+    await sleep(retryBaseDelayMs * attempt);
   }
 
-  const payload = (await response.json()) as SttResponse;
-  const transcript = payload.text?.trim();
-
-  if (!transcript) {
-    throw new SttError('Transcription provider returned no text.');
-  }
-
-  return transcript;
+  throw lastError instanceof Error ? lastError : new SttError('Transcription request failed.');
 }
 
 export async function transcribeAudioFile(params: {

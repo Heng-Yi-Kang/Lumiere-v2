@@ -87,6 +87,7 @@ Behavior:
 - Splits files larger than `STT_MAX_CHUNK_MB` into valid ffmpeg audio segments before transcription
 - Uses multipart `FormData` by default
 - Uses JSON base64 audio when `STT_REQUEST_FORMAT=json` or when `STT_API_BASE` contains `openrouter.ai`
+- Retries transient provider/network failures such as 502, 503, 504, 429, and `fetch failed`
 - Expects a JSON response with a `text` field
 - Throws if the provider returns an error or empty text
 
@@ -105,6 +106,8 @@ Chunking defaults:
 
 - `STT_MAX_CHUNK_MB`, default `20`
 - `STT_CHUNK_COMMAND_TIMEOUT_MS`, default `120000`
+- `STT_REQUEST_MAX_ATTEMPTS`, default `3`
+- `STT_RETRY_BASE_DELAY_MS`, default `1000`
 
 Chunked transcription requires `ffmpeg` and `ffprobe`. Chunks are transcribed sequentially and joined into one plain transcript.
 

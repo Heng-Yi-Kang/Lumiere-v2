@@ -174,6 +174,10 @@ async function extractAudioTrack(videoPath: string, outputPath: string) {
     '1',
     '-ar',
     '16000',
+    '-c:a',
+    'aac',
+    '-b:a',
+    '48k',
     outputPath,
   ]);
 }
@@ -248,15 +252,15 @@ export async function processVideoFile(params: {
   filePath: string;
 }) {
   const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), `lumiere-video-${crypto.randomUUID()}-`));
-  const audioPath = path.join(tempDirectory, 'audio.wav');
+  const audioPath = path.join(tempDirectory, 'audio.m4a');
 
   try {
     const durationSeconds = await getVideoDurationSeconds(params.filePath);
     await extractAudioTrack(params.filePath, audioPath);
     const transcript = await transcribeAudioFile({
-      fileName: `${path.parse(params.fileName).name}.wav`,
+      fileName: `${path.parse(params.fileName).name}.m4a`,
       filePath: audioPath,
-      mimeType: 'audio/wav',
+      mimeType: 'audio/mp4',
     });
     const frames = await extractFrames(params.filePath, tempDirectory, durationSeconds);
     const frameDescriptions = await describeFrames(frames);

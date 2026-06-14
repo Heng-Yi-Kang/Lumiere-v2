@@ -28,6 +28,8 @@ describe('transcribeAudioFile', () => {
   const originalSttApiKey = process.env.STT_API_KEY;
   const originalSttModel = process.env.STT_MODEL;
   const originalSttMaxChunkMb = process.env.STT_MAX_CHUNK_MB;
+  const originalSttRequestMaxAttempts = process.env.STT_REQUEST_MAX_ATTEMPTS;
+  const originalSttRetryBaseDelayMs = process.env.STT_RETRY_BASE_DELAY_MS;
   let tempDirectory: string;
 
   beforeEach(async () => {
@@ -36,6 +38,8 @@ describe('transcribeAudioFile', () => {
     process.env.STT_API_KEY = 'test-key';
     process.env.STT_MODEL = 'qwen3-asr-1.7b';
     delete process.env.STT_MAX_CHUNK_MB;
+    process.env.STT_RETRY_BASE_DELAY_MS = '1';
+    delete process.env.STT_REQUEST_MAX_ATTEMPTS;
     execFileAsyncMock.mockReset();
   });
 
@@ -60,6 +64,16 @@ describe('transcribeAudioFile', () => {
     } else {
       process.env.STT_MAX_CHUNK_MB = originalSttMaxChunkMb;
     }
+    if (originalSttRequestMaxAttempts === undefined) {
+      delete process.env.STT_REQUEST_MAX_ATTEMPTS;
+    } else {
+      process.env.STT_REQUEST_MAX_ATTEMPTS = originalSttRequestMaxAttempts;
+    }
+    if (originalSttRetryBaseDelayMs === undefined) {
+      delete process.env.STT_RETRY_BASE_DELAY_MS;
+    } else {
+      process.env.STT_RETRY_BASE_DELAY_MS = originalSttRetryBaseDelayMs;
+    }
     global.fetch = originalFetch;
     execFileAsyncMock.mockReset();
     await fs.rm(tempDirectory, { recursive: true, force: true }).catch(() => undefined);
@@ -78,6 +92,41 @@ describe('transcribeAudioFile', () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(execFileAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it('retries transient transcription gateway failures', async () => {
+    const filePath = path.join(tempDirectory, 'lecture.wav');
+    await fs.writeFile(filePath, Buffer.from('audio-bytes'));
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce(new Response('<html>bad gateway</html>', {
+        status: 502,
+        statusText: 'Bad Gateway',
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: 'retry transcript' })));
+
+    await expect(transcribeAudioFile({
+      fileName: 'lecture.wav',
+      filePath,
+      mimeType: 'audio/wav',
+    })).resolves.toBe('retry transcript');
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('truncates non-JSON provider error bodies after final retry', async () => {
+    process.env.STT_REQUEST_MAX_ATTEMPTS = '1';
+    const filePath = path.join(tempDirectory, 'lecture.wav');
+    await fs.writeFile(filePath, Buffer.from('audio-bytes'));
+    global.fetch = vi.fn().mockResolvedValue(new Response(`<html>${'x'.repeat(800)}</html>`, {
+      status: 502,
+      statusText: 'Bad Gateway',
+    }));
+
+    await expect(transcribeAudioFile({
+      fileName: 'lecture.wav',
+      filePath,
+      mimeType: 'audio/wav',
+    })).rejects.toThrow(/Transcription request failed with 502: <html>xxxxx/);
   });
 
   it('splits oversized audio into valid chunks before transcription', async () => {
