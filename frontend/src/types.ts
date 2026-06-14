@@ -204,6 +204,25 @@ export interface AdminUserStats {
   totalUsers: number;
 }
 
+export interface AiProviderStatus {
+  checkedAt?: string;
+  configured: boolean;
+  label: string;
+  liveStatus: 'unknown' | 'checking' | 'live' | 'failed';
+  message?: string;
+  missingEnv: string[];
+  model: string | null;
+}
+
+export interface AiProviderStatusResponse {
+  providers: {
+    chat: AiProviderStatus;
+    embedding: AiProviderStatus;
+    stt: AiProviderStatus;
+    vlm: AiProviderStatus;
+  };
+}
+
 export interface FileNote {
   id: string;
   fileId: string;

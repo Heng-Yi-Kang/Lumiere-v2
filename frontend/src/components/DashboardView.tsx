@@ -14,10 +14,15 @@ import {
   Lightbulb,
   Link as LinkIcon,
   LoaderCircle,
-  Youtube
+  Youtube,
+  MessageCircle,
+  BrainCircuit,
+  Mic,
+  Eye,
+  RefreshCw
 } from 'lucide-react';
 
-import { StudyStreak } from '../types';
+import type { AiProviderStatusResponse, StudyStreak } from '../types';
 import {
   NOTEBOOK_UPLOAD_ACCEPT,
   isVideoNotebookExtension,
@@ -26,6 +31,7 @@ import {
 import type { SupportedNotebookExtension } from '../lib/notebookUpload';
 import { getGenericUploadErrorMessage } from '../lib/apiErrors';
 import { getNotebookColorTone } from '../lib/notebookColors';
+import { fetchAiProviderStatus, probeAiProviderStatus } from '../lib/notebooksApi';
 import AddLinkModal from './AddLinkModal';
 import AddYoutubeLinkModal from './AddYoutubeLinkModal';
 import { NotebookUploadFileIcon } from './NotebookUploadFileIcon';
@@ -76,11 +82,39 @@ export default function DashboardView({
   const [uploadError, setUploadError] = useState('');
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
   const [isAddYoutubeLinkModalOpen, setIsAddYoutubeLinkModalOpen] = useState(false);
+  const [providerStatus, setProviderStatus] = useState<AiProviderStatusResponse['providers'] | null>(null);
+  const [providerStatusError, setProviderStatusError] = useState('');
+  const [isProviderProbeRunning, setIsProviderProbeRunning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const totalFileCount = notebooks.reduce((sum, notebook) => sum + (notebook.fileCount ?? notebook.files.length), 0);
   const studyTip = streak?.currentStreak
     ? 'Your study streak is active. Keep it useful by finishing one focused recall check before the day ends.'
     : 'Start with one short study block today, then mark a clear outcome so your streak has momentum.';
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    fetchAiProviderStatus()
+      .then((payload) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        setProviderStatus(payload.providers);
+        setProviderStatusError('');
+      })
+      .catch((error) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        setProviderStatusError(error instanceof Error ? error.message : 'Provider status unavailable.');
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (notebooks.length === 0) {
@@ -249,6 +283,107 @@ export default function DashboardView({
   const hasUploadFailure = uploadQueue.some((item) => item.status === 'failed');
   const hasVideoUpload = uploadQueue.some((item) => item.extension !== 'link' && isVideoNotebookExtension(item.extension));
   const hasLinkUpload = uploadQueue.some((item) => item.extension === 'link');
+  const handleProviderStatusRefresh = async () => {
+    if (isProviderProbeRunning) {
+      return;
+    }
+
+    setIsProviderProbeRunning(true);
+    setProviderStatusError('');
+    setProviderStatus((current) => current
+      ? {
+          chat: { ...current.chat, liveStatus: current.chat.configured ? 'checking' : 'failed', message: current.chat.configured ? undefined : 'missing config' },
+          embedding: { ...current.embedding, liveStatus: current.embedding.configured ? 'checking' : 'failed', message: current.embedding.configured ? undefined : 'missing config' },
+          stt: { ...current.stt, liveStatus: current.stt.configured ? 'checking' : 'failed', message: current.stt.configured ? undefined : 'missing config' },
+          vlm: { ...current.vlm, liveStatus: current.vlm.configured ? 'checking' : 'failed', message: current.vlm.configured ? undefined : 'missing config' },
+        }
+      : current);
+
+    try {
+      const payload = await probeAiProviderStatus();
+      setProviderStatus(payload.providers);
+    } catch (error) {
+      setProviderStatusError(error instanceof Error ? error.message : 'Provider status probe failed.');
+    } finally {
+      setIsProviderProbeRunning(false);
+    }
+  };
+  const providerCards = [
+    {
+      description: 'Notebook answers and summaries',
+      icon: MessageCircle,
+      key: 'chat' as const,
+      title: 'Chat',
+    },
+    {
+      description: 'Search and RAG indexing',
+      icon: BrainCircuit,
+      key: 'embedding' as const,
+      title: 'Embedding',
+    },
+    {
+      description: 'Audio and video transcripts',
+      icon: Mic,
+      key: 'stt' as const,
+      title: 'STT',
+    },
+    {
+      description: 'Image and frame descriptions',
+      icon: Eye,
+      key: 'vlm' as const,
+      title: 'VLM',
+    },
+  ];
+
+  const getProviderBadge = (status: AiProviderStatusResponse['providers'][keyof AiProviderStatusResponse['providers']] | undefined) => {
+    if (!status) {
+      return providerStatusError
+        ? { className: 'border-error/25 bg-error-subtle text-error', label: 'Error' }
+        : { className: 'border-border-default bg-bg-elevated text-text-muted', label: 'Loading' };
+    }
+
+    if (!status.configured) {
+      return { className: 'border-cta/25 bg-cta-subtle text-cta', label: 'Missing config' };
+    }
+
+    if (status.liveStatus === 'checking') {
+      return { className: 'border-accent/25 bg-accent-subtle text-accent-hover', label: 'Checking' };
+    }
+
+    if (status.liveStatus === 'live') {
+      return { className: 'border-success/25 bg-success-subtle text-success', label: 'Live' };
+    }
+
+    if (status.liveStatus === 'failed') {
+      return { className: 'border-error/25 bg-error-subtle text-error', label: 'Failed' };
+    }
+
+    return { className: 'border-success/25 bg-success-subtle text-success', label: 'Configured' };
+  };
+
+  const getProviderMessage = (status: AiProviderStatusResponse['providers'][keyof AiProviderStatusResponse['providers']] | undefined) => {
+    if (!status) {
+      return providerStatusError || 'Loading provider configuration...';
+    }
+
+    if (status.missingEnv.length > 0) {
+      return `Missing ${status.missingEnv.join(', ')}`;
+    }
+
+    if (status.liveStatus === 'checking') {
+      return 'Checking live provider reachability...';
+    }
+
+    if (status.liveStatus === 'live') {
+      return status.checkedAt ? `Live at ${new Date(status.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Provider is live.';
+    }
+
+    if (status.liveStatus === 'failed') {
+      return status.message || 'Provider probe failed.';
+    }
+
+    return 'Provider configuration is present.';
+  };
 
   const uploadStatus = uploadPhase === 'validating'
     ? selectedFileCount > 1
@@ -361,6 +496,65 @@ export default function DashboardView({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-black text-text-primary font-display">AI Providers</h2>
+          <p className="mt-1 text-xs text-text-secondary">Chat, embeddings, transcripts, and vision</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleProviderStatusRefresh()}
+          disabled={isProviderProbeRunning}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border-default bg-bg-elevated px-3.5 py-2 text-xs font-black uppercase tracking-wider text-text-primary transition hover:border-accent-border hover:text-accent-hover disabled:cursor-not-allowed disabled:opacity-60 font-mono"
+        >
+          {isProviderProbeRunning ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+          Refresh provider status
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {providerCards.map((card) => {
+          const status = providerStatus?.[card.key];
+          const Icon = card.icon;
+          const badge = getProviderBadge(status);
+          const message = getProviderMessage(status);
+
+          return (
+            <div key={card.key} className="surface-card rounded-2xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-default bg-bg-elevated/60 text-accent-hover">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-black text-text-primary font-display">{card.title}</h2>
+                    <p className="mt-1 text-[11px] leading-snug text-text-secondary">{card.description}</p>
+                  </div>
+                </div>
+                <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wider font-mono ${badge.className}`}>
+                  {status?.liveStatus === 'checking' ? <LoaderCircle className="h-3 w-3 animate-spin" /> : null}
+                  {badge.label}
+                </span>
+              </div>
+
+              <div className="mt-4 border-t border-border-subtle pt-3">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted font-mono">Model</div>
+                <div className="mt-1 truncate text-sm font-black text-text-primary" title={status?.model || undefined}>
+                  {status?.model || (status ? 'Not configured' : 'Loading...')}
+                </div>
+                <p className="mt-2 line-clamp-2 text-[11px] leading-snug text-text-muted" title={message}>
+                  {message}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {notebooks.length === 0 && (

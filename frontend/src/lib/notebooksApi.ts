@@ -1,4 +1,4 @@
-import { FileNote, GroundedChatResponse, HlsStatus, Notebook, NotebookFilePreview } from '../types';
+import type { AiProviderStatusResponse, FileNote, GroundedChatResponse, HlsStatus, Notebook, NotebookFilePreview } from '../types';
 
 export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
 
@@ -71,6 +71,16 @@ export function buildNotebookApiUrl(path: string) {
 export async function fetchNotebooks() {
   const payload = await requestJson<NotebookResponse>('/api/notebooks');
   return payload.notebooks || [];
+}
+
+export async function fetchAiProviderStatus() {
+  return requestJson<AiProviderStatusResponse>('/api/provider-status');
+}
+
+export async function probeAiProviderStatus() {
+  return requestJson<AiProviderStatusResponse>('/api/provider-status/probe', {
+    method: 'POST',
+  });
 }
 
 export async function createNotebook(input: {

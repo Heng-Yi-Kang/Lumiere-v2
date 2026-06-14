@@ -56,7 +56,11 @@ function importRuntimeModule<T>(specifier: string): Promise<T> {
   return (new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<T>)(specifier);
 }
 
-function getProviderTimeoutMs() {
+function getProviderTimeoutMs(timeoutMs?: number) {
+  if (Number.isFinite(timeoutMs) && Number(timeoutMs) > 0) {
+    return Number(timeoutMs);
+  }
+
   const configuredTimeout = Number(process.env.STARTUP_HEALTH_PROVIDER_TIMEOUT_MS);
   return Number.isFinite(configuredTimeout) && configuredTimeout > 0
     ? configuredTimeout
@@ -194,10 +198,10 @@ async function pingQdrant() {
   }
 }
 
-async function pingEmbeddingProvider() {
+export async function pingEmbeddingProvider(timeoutMs?: number) {
   const response = await fetch(buildUrl(getTrimmedEnv('EMBEDDING_API_BASE')!, '/embeddings'), {
     method: 'POST',
-    signal: AbortSignal.timeout(getProviderTimeoutMs()),
+    signal: AbortSignal.timeout(getProviderTimeoutMs(timeoutMs)),
     headers: {
       Authorization: `Bearer ${getTrimmedEnv('EMBEDDING_API_KEY')!}`,
       'Content-Type': 'application/json',
@@ -216,10 +220,10 @@ async function pingEmbeddingProvider() {
   }
 }
 
-export async function pingChatProvider() {
+export async function pingChatProvider(timeoutMs?: number) {
   const response = await fetch(buildUrl(getTrimmedEnv('CHAT_API_BASE_URL') || 'https://api.openai.com/v1', '/chat/completions'), {
     method: 'POST',
-    signal: AbortSignal.timeout(getProviderTimeoutMs()),
+    signal: AbortSignal.timeout(getProviderTimeoutMs(timeoutMs)),
     headers: {
       Authorization: `Bearer ${getTrimmedEnv('CHAT_API_KEY')!}`,
       'Content-Type': 'application/json',
@@ -246,7 +250,7 @@ export async function pingChatProvider() {
   }
 }
 
-export async function pingSttProvider() {
+export async function pingSttProvider(timeoutMs?: number) {
   const baseUrl = getTrimmedEnv('STT_API_BASE')!;
   const request = buildSttRequest({
     apiKey: getTrimmedEnv('STT_API_KEY')!,
@@ -259,7 +263,7 @@ export async function pingSttProvider() {
 
   const response = await fetch(buildTranscriptionsUrl(baseUrl), {
     method: 'POST',
-    signal: AbortSignal.timeout(getProviderTimeoutMs()),
+    signal: AbortSignal.timeout(getProviderTimeoutMs(timeoutMs)),
     headers: request.headers,
     body: request.body,
   });
@@ -281,11 +285,11 @@ export async function pingSttProvider() {
   }
 }
 
-async function pingVlmProvider() {
+export async function pingVlmProvider(timeoutMs?: number) {
   const config = getVideoFrameProviderConfig();
   const response = await fetch(buildUrl(config.baseUrl, '/chat/completions'), {
     method: 'POST',
-    signal: AbortSignal.timeout(getProviderTimeoutMs()),
+    signal: AbortSignal.timeout(getProviderTimeoutMs(timeoutMs)),
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
