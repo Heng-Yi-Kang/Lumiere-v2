@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
+  Bookmark,
+  BookmarkCheck,
   Bot,
   ChevronDown,
   Download,
@@ -28,8 +30,15 @@ import {
   X,
   Youtube,
 } from 'lucide-react';
-import { ChatMessage, FileItem, Notebook, NotebookFilePreview } from '../types';
-import { askGroundedNotebookChatStream, buildNotebookApiUrl, fetchNotebookFilePreview } from '../lib/notebooksApi';
+import { ChatMessage, Citation, FileItem, Notebook, NotebookFilePreview, SavedChatReply } from '../types';
+import {
+  askGroundedNotebookChatStream,
+  buildNotebookApiUrl,
+  clearSavedChatReply,
+  fetchNotebookFilePreview,
+  fetchSavedChatReply,
+  saveChatReply,
+} from '../lib/notebooksApi';
 import { getGenericUploadErrorMessage, getGroundedChatErrorMessage } from '../lib/apiErrors';
 import {
   NOTEBOOK_UPLOAD_ACCEPT,
@@ -157,6 +166,137 @@ function createFileChatInitialMessage(fileName: string): ChatMessage {
   };
 }
 
+function formatSavedReplyDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Saved';
+  }
+
+  return date.toLocaleString([], {
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+  });
+}
+
+function getLatestSaveableFileReply(messages: ChatMessage[], isTyping: boolean) {
+  if (isTyping) {
+    return null;
+  }
+
+  for (let index = messages.length - 1; index >= 1; index -= 1) {
+    const message = messages[index];
+    const previousMessage = messages[index - 1];
+
+    if (
+      message.role === 'assistant' &&
+      previousMessage?.role === 'user' &&
+      !message.id.startsWith('file-chat-init-') &&
+      !message.suggestedPrompts?.length &&
+      message.grounded !== false &&
+      message.text.trim()
+    ) {
+      return {
+        answer: message.text,
+        citations: message.citations || [],
+        question: previousMessage.text,
+        replyId: message.id,
+      };
+    }
+  }
+
+  return null;
+}
+
+function SavedAnswerPanel({
+  isClearing,
+  isLoading,
+  onClear,
+  savedChatReply,
+}: {
+  isClearing: boolean;
+  isLoading: boolean;
+  onClear: () => void;
+  savedChatReply: SavedChatReply | null;
+}) {
+  return (
+    <div className="surface-card rounded-3xl p-5 md:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-primary font-mono">
+            <BookmarkCheck className="h-4 w-4 text-success" />
+            Saved answer
+          </div>
+          <p className="mt-1 text-xs text-text-muted">
+            {savedChatReply ? formatSavedReplyDate(savedChatReply.updatedAt) : 'Save the latest completed AI answer from notebook or file chat.'}
+          </p>
+        </div>
+        {savedChatReply ? (
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={isClearing}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-muted transition hover:bg-bg-elevated hover:text-error disabled:cursor-wait disabled:opacity-50"
+            title="Clear saved answer"
+            aria-label="Clear saved answer"
+          >
+            {isClearing ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+          </button>
+        ) : null}
+      </div>
+
+      {isLoading ? (
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-border-subtle bg-bg-elevated/40 px-3 py-3 text-xs font-semibold text-text-muted">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          Loading saved answer
+        </div>
+      ) : savedChatReply ? (
+        <div className="mt-4 space-y-3">
+          <div className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border-default bg-bg-elevated/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-text-secondary font-mono">
+            <FileText className="h-3.5 w-3.5 shrink-0 text-accent-hover" />
+            <span className="truncate">
+              {savedChatReply.scopeType === 'file' ? `File: ${savedChatReply.fileName || 'Unknown file'}` : 'Notebook-wide'}
+            </span>
+          </div>
+          <div className="rounded-2xl border border-border-subtle bg-bg-base/35 p-3">
+            <div className="text-[10px] font-black uppercase tracking-wider text-text-muted font-mono">Question</div>
+            <p className="mt-1 text-sm font-semibold leading-relaxed text-text-primary">{savedChatReply.question}</p>
+          </div>
+          <div className="rounded-2xl border border-border-subtle bg-bg-elevated/45 p-3">
+            <ChatMarkdown content={savedChatReply.answer} />
+          </div>
+          {savedChatReply.citations.length > 0 ? (
+            <div className="rounded-2xl border border-success/20 bg-success-subtle/40 p-3">
+              <div className="mb-2 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-success font-mono">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Grounded references
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {savedChatReply.citations.map((citation, index) => (
+                  <span
+                    key={`${citation.fileId}-${citation.position}-${index}`}
+                    className="inline-flex max-w-full items-center gap-1 rounded border border-success/20 bg-bg-base/40 px-1.5 py-0.5 text-[9px] font-extrabold text-success"
+                  >
+                    <FileText className="h-2.5 w-2.5 shrink-0" />
+                    <span className="max-w-[140px] truncate">{citation.fileName}</span>
+                    <span className="rounded-sm bg-success/10 px-0.5 font-mono text-[8px]">{citation.position}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-dashed border-border-default bg-bg-elevated/25 p-4 text-sm leading-relaxed text-text-secondary">
+          No answer is saved for this notebook yet.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NotebookView({
   notebook,
   allNotebooks,
@@ -208,6 +348,12 @@ export default function NotebookView({
   const [fileChatMessagesById, setFileChatMessagesById] = useState<Record<string, ChatMessage[]>>({});
   const [fileChatInput, setFileChatInput] = useState('');
   const [isFileChatTyping, setIsFileChatTyping] = useState(false);
+  const [savedChatReply, setSavedChatReply] = useState<SavedChatReply | null>(null);
+  const [savedChatReplyKey, setSavedChatReplyKey] = useState<string | null>(null);
+  const [savingReplyKey, setSavingReplyKey] = useState<string | null>(null);
+  const [savedChatReplyLoading, setSavedChatReplyLoading] = useState(false);
+  const [savedChatReplyClearing, setSavedChatReplyClearing] = useState(false);
+  const [savedChatReplyError, setSavedChatReplyError] = useState('');
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const [summaryRetryError, setSummaryRetryError] = useState('');
   const [retryingSummaryFileId, setRetryingSummaryFileId] = useState<string | null>(null);
@@ -229,6 +375,47 @@ export default function NotebookView({
     setUploadError('');
     setFileChatInput('');
     setPendingLink(null);
+    setSavedChatReply(null);
+    setSavedChatReplyKey(null);
+    setSavedChatReplyError('');
+  }, [notebook?.id]);
+
+  useEffect(() => {
+    if (!notebook) {
+      setSavedChatReply(null);
+      setSavedChatReplyLoading(false);
+      return;
+    }
+
+    let isActive = true;
+    setSavedChatReplyLoading(true);
+    setSavedChatReplyError('');
+
+    void fetchSavedChatReply(notebook.id)
+      .then((reply) => {
+        if (!isActive) {
+          return;
+        }
+
+        setSavedChatReply(reply);
+        setSavedChatReplyKey(null);
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
+
+        setSavedChatReplyError(error instanceof Error ? error.message : 'Failed to load saved answer.');
+      })
+      .finally(() => {
+        if (isActive) {
+          setSavedChatReplyLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, [notebook?.id]);
 
   useEffect(() => {
@@ -447,6 +634,7 @@ export default function NotebookView({
 
   const activePreview = selectedMaterial ? previewCache[selectedMaterial.id] : undefined;
   const activeFileChatMessages = selectedMaterial ? fileChatMessagesById[selectedMaterial.id] || [] : [];
+  const latestSaveableFileReply = getLatestSaveableFileReply(activeFileChatMessages, isFileChatTyping);
   const colorTone = notebook ? getNotebookColorTone(notebook.color) : null;
   const viewerUrl = getViewerUrl(activePreview?.sourceUrl);
   const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
@@ -719,6 +907,60 @@ export default function NotebookView({
       )));
     } finally {
       setIsFileChatTyping(false);
+    }
+  };
+
+  const handleSaveChatReply = async (input: {
+    answer: string;
+    citations: Citation[];
+    fileId?: string;
+    fileName?: string;
+    question: string;
+    replyKey: string;
+    scopeType: 'notebook' | 'file';
+  }) => {
+    if (!notebook || savingReplyKey) {
+      return;
+    }
+
+    setSavingReplyKey(input.replyKey);
+    setSavedChatReplyError('');
+
+    try {
+      const nextSavedChatReply = await saveChatReply(notebook.id, {
+        answer: input.answer,
+        citations: input.citations,
+        fileId: input.fileId,
+        fileName: input.fileName,
+        question: input.question,
+        scopeType: input.scopeType,
+      });
+
+      setSavedChatReply(nextSavedChatReply);
+      setSavedChatReplyKey(input.replyKey);
+    } catch (error) {
+      setSavedChatReplyError(error instanceof Error ? error.message : 'Failed to save answer.');
+    } finally {
+      setSavingReplyKey(null);
+    }
+  };
+
+  const handleClearSavedChatReply = async () => {
+    if (!notebook || savedChatReplyClearing) {
+      return;
+    }
+
+    setSavedChatReplyClearing(true);
+    setSavedChatReplyError('');
+
+    try {
+      await clearSavedChatReply(notebook.id);
+      setSavedChatReply(null);
+      setSavedChatReplyKey(null);
+    } catch (error) {
+      setSavedChatReplyError(error instanceof Error ? error.message : 'Failed to clear saved answer.');
+    } finally {
+      setSavedChatReplyClearing(false);
     }
   };
 
@@ -1433,15 +1675,34 @@ export default function NotebookView({
           </div>
         </div>
 
-        <NotebookChatPanel
-          key={notebook.id}
-          notebookId={notebook.id}
-          notebookName={notebook.name}
-          color={notebook.color}
-          hasFiles={notebook.files.length > 0}
-          onAddLink={onAddLink ? () => setIsAddLinkModalOpen(true) : undefined}
-          onUploadFile={onUploadFile ? () => fileInputRef.current?.click() : undefined}
-        />
+        <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <div className="space-y-3">
+            <SavedAnswerPanel
+              isClearing={savedChatReplyClearing}
+              isLoading={savedChatReplyLoading}
+              onClear={() => void handleClearSavedChatReply()}
+              savedChatReply={savedChatReply}
+            />
+            {savedChatReplyError ? (
+              <div className="rounded-2xl border border-error/20 bg-error-subtle px-4 py-3 text-xs font-semibold text-error">
+                {savedChatReplyError}
+              </div>
+            ) : null}
+          </div>
+
+          <NotebookChatPanel
+            key={notebook.id}
+            notebookId={notebook.id}
+            notebookName={notebook.name}
+            color={notebook.color}
+            hasFiles={notebook.files.length > 0}
+            savedReplyKey={savedChatReplyKey}
+            savingReplyKey={savingReplyKey}
+            onAddLink={onAddLink ? () => setIsAddLinkModalOpen(true) : undefined}
+            onSaveReply={handleSaveChatReply}
+            onUploadFile={onUploadFile ? () => fileInputRef.current?.click() : undefined}
+          />
+        </div>
       </div>
 
       {selectedMaterial && (
@@ -1767,7 +2028,13 @@ export default function NotebookView({
                             </span>
                           )}
                         </div>
-                      ) : activeFileChatMessages.map((message) => (
+                      ) : activeFileChatMessages.map((message) => {
+                        const canSaveReply = latestSaveableFileReply?.replyId === message.id;
+                        const replyKey = selectedMaterial ? `file:${selectedMaterial.id}:${message.id}` : `file:${message.id}`;
+                        const isSavingReply = savingReplyKey === replyKey;
+                        const isSavedReply = savedChatReplyKey === replyKey;
+
+                        return (
                         <div
                           key={message.id}
                           className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -1777,6 +2044,35 @@ export default function NotebookView({
                               ? 'rounded-tr-sm border-accent bg-accent text-white'
                               : 'rounded-tl-sm border-border-subtle bg-bg-elevated/60 text-text-primary'
                           }`}>
+                            {canSaveReply && selectedMaterial && latestSaveableFileReply ? (
+                              <div className="mb-2 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleSaveChatReply({
+                                    answer: latestSaveableFileReply.answer,
+                                    citations: latestSaveableFileReply.citations,
+                                    fileId: selectedMaterial.id,
+                                    fileName: selectedMaterial.name,
+                                    question: latestSaveableFileReply.question,
+                                    replyKey,
+                                    scopeType: 'file',
+                                  })}
+                                  disabled={isSavingReply}
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-subtle bg-bg-base/60 text-text-muted transition hover:border-accent/35 hover:text-accent-hover disabled:cursor-wait disabled:opacity-60"
+                                  title={isSavedReply ? 'Saved answer' : 'Save latest answer'}
+                                  aria-label={isSavedReply ? 'Saved answer' : 'Save latest answer'}
+                                >
+                                  {isSavingReply ? (
+                                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                  ) : isSavedReply ? (
+                                    <BookmarkCheck className="h-3.5 w-3.5 text-success" />
+                                  ) : (
+                                    <Bookmark className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                            ) : null}
+
                             {message.role === 'assistant' ? (
                               <ChatMarkdown content={message.text} />
                             ) : (
@@ -1831,7 +2127,8 @@ export default function NotebookView({
                             ) : null}
                           </div>
                         </div>
-                      ))}
+                      );
+                      })}
 
                       {isFileChatTyping ? (
                         <div className="flex justify-start">

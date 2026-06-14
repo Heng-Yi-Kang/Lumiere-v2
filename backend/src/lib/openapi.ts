@@ -161,6 +161,61 @@ export const openApiDocument = {
         },
       },
     },
+    '/api/notebooks/{notebookId}/saved-chat-reply': {
+      get: {
+        tags: ['Notebooks'],
+        summary: 'Get the notebook saved chat reply',
+        parameters: [{ $ref: '#/components/parameters/NotebookId' }],
+        responses: {
+          '200': {
+            description: 'Saved chat reply, or null when none exists',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SavedChatReplyResponse' },
+              },
+            },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+      put: {
+        tags: ['Notebooks'],
+        summary: 'Save or overwrite the notebook saved chat reply',
+        parameters: [{ $ref: '#/components/parameters/NotebookId' }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UpsertSavedChatReplyRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Saved chat reply',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SavedChatReplyResponse' },
+              },
+            },
+          },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+      delete: {
+        tags: ['Notebooks'],
+        summary: 'Clear the notebook saved chat reply',
+        parameters: [{ $ref: '#/components/parameters/NotebookId' }],
+        responses: {
+          '204': { description: 'Saved chat reply cleared' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '404': { $ref: '#/components/responses/NotFound' },
+        },
+      },
+    },
     '/api/notebooks/{notebookId}/files': {
       post: {
         tags: ['Files'],
@@ -603,6 +658,14 @@ export const openApiDocument = {
           },
         },
       },
+      Unauthorized: {
+        description: 'Authentication is required',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorResponse' },
+          },
+        },
+      },
       NotFound: {
         description: 'Resource not found',
         content: {
@@ -733,6 +796,53 @@ export const openApiDocument = {
           name: { type: 'string' },
           color: { type: 'string', default: 'blue' },
           description: { type: 'string' },
+        },
+      },
+      SavedChatReply: {
+        type: 'object',
+        required: ['id', 'notebookId', 'question', 'answer', 'scopeType', 'citations', 'createdAt', 'updatedAt'],
+        properties: {
+          id: { type: 'string' },
+          notebookId: { type: 'string' },
+          question: { type: 'string' },
+          answer: { type: 'string' },
+          fileId: { type: 'string' },
+          fileName: { type: 'string' },
+          scopeType: { type: 'string', enum: ['notebook', 'file'] },
+          citations: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/RagCitation' },
+          },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      SavedChatReplyResponse: {
+        type: 'object',
+        required: ['savedChatReply'],
+        properties: {
+          savedChatReply: {
+            oneOf: [
+              { $ref: '#/components/schemas/SavedChatReply' },
+              { type: 'null' },
+            ],
+          },
+        },
+      },
+      UpsertSavedChatReplyRequest: {
+        type: 'object',
+        required: ['question', 'answer'],
+        properties: {
+          question: { type: 'string' },
+          answer: { type: 'string' },
+          fileId: { type: 'string' },
+          fileName: { type: 'string' },
+          scopeType: { type: 'string', enum: ['notebook', 'file'], default: 'notebook' },
+          citations: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/RagCitation' },
+            default: [],
+          },
         },
       },
       RenameNotebookFileRequest: {

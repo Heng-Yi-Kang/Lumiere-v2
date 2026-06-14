@@ -19,6 +19,7 @@ model Notebook {
   updatedAt    DateTime       @updatedAt
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   files        NotebookFile[]
+  savedChatReply NotebookSavedChatReply?
 
   @@index([userId])
   @@index([courseCode])
@@ -90,6 +91,29 @@ enum HlsStatus {
   PROCESSING
   READY
   FAILED
+}
+
+enum SavedChatReplyScopeType {
+  NOTEBOOK
+  FILE
+}
+
+model NotebookSavedChatReply {
+  id         String                  @id @default(cuid())
+  notebookId String                  @unique
+  question   String
+  answer     String
+  fileId     String?
+  fileName   String?
+  scopeType  SavedChatReplyScopeType
+  citations  Json                    @default("[]")
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  notebook Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+
+  @@index([scopeType])
+  @@index([fileId])
 }
 
 model NotebookFile {

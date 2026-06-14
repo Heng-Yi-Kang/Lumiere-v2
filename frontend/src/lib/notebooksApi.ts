@@ -1,4 +1,4 @@
-import type { AiProviderStatusResponse, FileNote, GroundedChatResponse, HlsStatus, Notebook, NotebookFilePreview } from '../types';
+import type { AiProviderStatusResponse, Citation, FileNote, GroundedChatResponse, HlsStatus, Notebook, NotebookFilePreview, SavedChatReply } from '../types';
 
 export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
 
@@ -25,6 +25,11 @@ type GroundedChatApiResponse = GroundedChatResponse & {
 type FileNotesResponse = {
   notes?: FileNote[];
   note?: FileNote;
+  error?: string;
+};
+
+type SavedChatReplyResponse = {
+  savedChatReply: SavedChatReply | null;
   error?: string;
 };
 
@@ -253,6 +258,46 @@ export async function updateNotebook(
 
 export async function deleteNotebook(notebookId: string) {
   await requestJson<void>(`/api/notebooks/${encodeURIComponent(notebookId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchSavedChatReply(notebookId: string) {
+  const payload = await requestJson<SavedChatReplyResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/saved-chat-reply`,
+  );
+
+  return payload.savedChatReply;
+}
+
+export async function saveChatReply(
+  notebookId: string,
+  input: {
+    answer: string;
+    citations: Citation[];
+    fileId?: string;
+    fileName?: string;
+    question: string;
+    scopeType: 'notebook' | 'file';
+  },
+) {
+  const payload = await requestJson<SavedChatReplyResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/saved-chat-reply`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!payload.savedChatReply) {
+    throw new Error('Saved answer was not returned by the API');
+  }
+
+  return payload.savedChatReply;
+}
+
+export async function clearSavedChatReply(notebookId: string) {
+  await requestJson<void>(`/api/notebooks/${encodeURIComponent(notebookId)}/saved-chat-reply`, {
     method: 'DELETE',
   });
 }

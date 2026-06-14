@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FileText, Link as LinkIcon, LoaderCircle, Send, ShieldCheck, Sparkles, StickyNote, Trash2, Upload } from 'lucide-react';
-import { ChatMessage } from '../types';
+import { Bookmark, BookmarkCheck, FileText, Link as LinkIcon, LoaderCircle, Send, ShieldCheck, Sparkles, StickyNote, Trash2, Upload } from 'lucide-react';
+import { ChatMessage, Citation } from '../types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import { askGroundedNotebookChatStream } from '../lib/notebooksApi';
@@ -11,8 +11,46 @@ interface NotebookChatPanelProps {
   notebookName: string;
   color?: string;
   hasFiles?: boolean;
+  savedReplyKey?: string | null;
+  savingReplyKey?: string | null;
   onAddLink?: () => void;
+  onSaveReply?: (input: {
+    answer: string;
+    citations: Citation[];
+    question: string;
+    replyKey: string;
+    scopeType: 'notebook';
+  }) => Promise<void> | void;
   onUploadFile?: () => void;
+}
+
+function getLatestSaveableReply(messages: ChatMessage[], isTyping: boolean) {
+  if (isTyping) {
+    return null;
+  }
+
+  for (let index = messages.length - 1; index >= 1; index -= 1) {
+    const message = messages[index];
+    const previousMessage = messages[index - 1];
+
+    if (
+      message.role === 'assistant' &&
+      previousMessage?.role === 'user' &&
+      message.id !== 'notebook-chat-init' &&
+      !message.suggestedPrompts?.length &&
+      message.grounded !== false &&
+      message.text.trim()
+    ) {
+      return {
+        answer: message.text,
+        citations: message.citations || [],
+        question: previousMessage.text,
+        replyId: message.id,
+      };
+    }
+  }
+
+  return null;
 }
 
 function createInitialMessage(notebookName: string): ChatMessage {
@@ -35,7 +73,10 @@ export default function NotebookChatPanel({
   notebookName,
   color,
   hasFiles = false,
+  savedReplyKey,
+  savingReplyKey,
   onAddLink,
+  onSaveReply,
   onUploadFile,
 }: NotebookChatPanelProps) {
   const storageKey = `lumiere_notebook_grounded_chat_${notebookId}`;
@@ -54,6 +95,7 @@ export default function NotebookChatPanel({
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const colorTone = color ? getNotebookColorTone(color) : null;
+  const latestSaveableReply = getLatestSaveableReply(messages, isTyping);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -237,7 +279,13 @@ export default function NotebookChatPanel({
             </div>
           </div>
         ) : (
-          messages.map((msg) => (
+          messages.map((msg) => {
+            const canSaveReply = latestSaveableReply?.replyId === msg.id && Boolean(onSaveReply);
+            const replyKey = `notebook:${msg.id}`;
+            const isSavingReply = savingReplyKey === replyKey;
+            const isSavedReply = savedReplyKey === replyKey;
+
+            return (
             <div
               key={msg.id}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -249,6 +297,33 @@ export default function NotebookChatPanel({
                     : 'rounded-tl-sm border-border-subtle bg-bg-elevated/60 text-text-primary'
                 }`}
               >
+                {canSaveReply && latestSaveableReply ? (
+                  <div className="mb-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => void onSaveReply?.({
+                        answer: latestSaveableReply.answer,
+                        citations: latestSaveableReply.citations,
+                        question: latestSaveableReply.question,
+                        replyKey,
+                        scopeType: 'notebook',
+                      })}
+                      disabled={isSavingReply}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-subtle bg-bg-base/60 text-text-muted transition hover:border-accent/35 hover:text-accent-hover disabled:cursor-wait disabled:opacity-60"
+                      title={isSavedReply ? 'Saved answer' : 'Save latest answer'}
+                      aria-label={isSavedReply ? 'Saved answer' : 'Save latest answer'}
+                    >
+                      {isSavingReply ? (
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                      ) : isSavedReply ? (
+                        <BookmarkCheck className="h-3.5 w-3.5 text-success" />
+                      ) : (
+                        <Bookmark className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                ) : null}
+
                 {msg.role === 'assistant' ? (
                   <ChatMarkdown content={msg.text} />
                 ) : (
@@ -301,7 +376,8 @@ export default function NotebookChatPanel({
                 )}
               </div>
             </div>
-          ))
+          );
+          })
         )}
         {isTyping && (
           <div className="flex justify-start">

@@ -106,6 +106,19 @@ export interface GroundedChatResponse {
   scope: ChatGroundingScope;
 }
 
+export interface SavedChatReply {
+  id: string;
+  notebookId: string;
+  question: string;
+  answer: string;
+  fileId?: string;
+  fileName?: string;
+  scopeType: 'notebook' | 'file';
+  citations: Citation[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ConceptNode {
   id: string;
   label: string;
