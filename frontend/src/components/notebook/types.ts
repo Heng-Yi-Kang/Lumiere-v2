@@ -16,6 +16,7 @@ export interface NotebookViewProps {
   onEditNotebook?: (notebook: Notebook) => void;
   onDeleteNotebook?: (notebookId: string) => Promise<void> | void;
   onCreateNotebookRequested?: () => void;
+  onFullscreenChatChange?: (isFullscreen: boolean) => void;
 }
 
 export type UploadPhase = 'idle' | 'validating' | 'uploading' | 'extracting' | 'success';

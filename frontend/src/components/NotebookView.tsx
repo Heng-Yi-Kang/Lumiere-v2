@@ -49,6 +49,7 @@ export default function NotebookView({
   onEditNotebook,
   onDeleteNotebook,
   onCreateNotebookRequested,
+  onFullscreenChatChange,
 }: NotebookViewProps) {
   const [selectedMaterial, setSelectedMaterial] = useState<FileItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -117,6 +118,11 @@ export default function NotebookView({
     notebookId: notebook?.id || 'no-notebook',
     notebookName: notebook?.name || 'Notebook',
   });
+
+  const setNotebookChatFullscreen = (isFullscreen: boolean) => {
+    setIsNotebookChatFullscreen(isFullscreen);
+    onFullscreenChatChange?.(isFullscreen);
+  };
 
   const activePreview = previewState.activePreview;
   const selectedViewerUrl = getViewerUrl(activePreview?.sourceUrl);
@@ -197,13 +203,13 @@ export default function NotebookView({
       return;
     }
 
-    setIsNotebookChatFullscreen(false);
+    setNotebookChatFullscreen(false);
     setSelectedMaterial(sourceFile);
     setFileDetailTab('chat');
   };
 
   const handleOpenFullscreenMaterial = (file: FileItem) => {
-    setIsNotebookChatFullscreen(false);
+    setNotebookChatFullscreen(false);
     setSelectedMaterial(file);
     setFileDetailTab('chat');
   };
@@ -216,8 +222,12 @@ export default function NotebookView({
     linkActions.setPendingLink(null);
     savedReplyActions.resetSavedReplies();
     setNotebookPanelTab('chat');
-    setIsNotebookChatFullscreen(false);
+    setNotebookChatFullscreen(false);
   }, [notebook?.id]);
+
+  useEffect(() => {
+    return () => onFullscreenChatChange?.(false);
+  }, [onFullscreenChatChange]);
 
   useEffect(() => {
     if (!isNotebookChatFullscreen) {
@@ -366,7 +376,7 @@ export default function NotebookView({
           onClearSavedChatReply={() => void savedReplyActions.handleClearSavedChatReply()}
           onDeleteSavedChatReply={(replyId) => void savedReplyActions.handleDeleteSavedChatReply(replyId)}
           onOpenCitationSource={handleOpenCitationSource}
-          onOpenFullscreenChat={() => setIsNotebookChatFullscreen(true)}
+          onOpenFullscreenChat={() => setNotebookChatFullscreen(true)}
           onSaveReply={savedReplyActions.handleSaveChatReply}
           onUploadFile={onUploadFile}
           notebookNotesApi={notebookNotesApi}
@@ -387,10 +397,10 @@ export default function NotebookView({
           chat={notebookChat}
           notebook={notebook}
           onAddLink={onAddLink ? () => {
-            setIsNotebookChatFullscreen(false);
+            setNotebookChatFullscreen(false);
             linkActions.setIsAddLinkModalOpen(true);
           } : undefined}
-          onClose={() => setIsNotebookChatFullscreen(false)}
+          onClose={() => setNotebookChatFullscreen(false)}
           onOpenCitationSource={handleOpenCitationSource}
           onOpenMaterial={handleOpenFullscreenMaterial}
           onSaveReply={savedReplyActions.handleSaveChatReply}

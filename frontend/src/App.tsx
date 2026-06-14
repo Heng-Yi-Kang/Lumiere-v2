@@ -71,6 +71,7 @@ export default function App() {
   const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState<boolean>(false);
   const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
   const [isStudyBuddyOpen, setIsStudyBuddyOpen] = useState<boolean>(false);
+  const [isNotebookChatFullscreen, setIsNotebookChatFullscreen] = useState<boolean>(false);
   const [chatGroundingScope, setChatGroundingScope] = useState<ChatGroundingScope | undefined>(undefined);
   const [rateLimitDialogMessage, setRateLimitDialogMessage] = useState('');
   const [uploadRecoveryDialogMessage, setUploadRecoveryDialogMessage] = useState('');
@@ -654,15 +655,17 @@ export default function App() {
       )}
 
       {/* Floating Left Navigation Dock */}
-      <FloatingDock 
-        currentPage={currentPage} 
-        setCurrentPage={setCurrentPage} 
-        goals={goals}
-        onAddGoal={handleAddGoal}
-        onToggleGoal={handleToggleGoal}
-        onSetPriorityGoal={handleSetPriorityGoal}
-        onDeleteGoal={handleDeleteGoal}
-      />
+      {!isNotebookChatFullscreen ? (
+        <FloatingDock
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          goals={goals}
+          onAddGoal={handleAddGoal}
+          onToggleGoal={handleToggleGoal}
+          onSetPriorityGoal={handleSetPriorityGoal}
+          onDeleteGoal={handleDeleteGoal}
+        />
+      ) : null}
 
       {/* Top Priority Goal — Lower Left */}
       <PriorityGoalBox goal={goals.find(g => g.isPriority)} />
@@ -720,6 +723,7 @@ export default function App() {
                   onEditNotebook={(entry) => setEditingNotebook(entry)}
                   onDeleteNotebook={handleDeleteNotebook}
                   onCreateNotebookRequested={() => setIsNewNotebookModalOpen(true)}
+                  onFullscreenChatChange={setIsNotebookChatFullscreen}
                 />
               )}
             />
