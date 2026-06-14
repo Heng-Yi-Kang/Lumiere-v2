@@ -1,21 +1,32 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Edit3, Save, X, Clock, FileText } from 'lucide-react';
-import { FileNote } from '../types';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import MarkdownEditor, { renderMarkdown } from './MarkdownEditor';
 
+interface NoteItem {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface FileNotesPanelProps {
-  fileId: string;
-  fileName: string;
-  notes: FileNote[];
+  scopeId: string;
+  scopeName: string;
+  notes: NoteItem[];
   notebookColor?: string;
+  title?: string;
+  countLabel?: string;
+  addButtonLabel?: string;
+  emptyLabel?: string;
   isLoading?: boolean;
   isMutating?: boolean;
   error?: string;
   onRetry?: () => void;
-  onAdd: (fileId: string, title: string, body: string) => Promise<void>;
-  onUpdate: (fileId: string, noteId: string, title: string, body: string) => Promise<void>;
-  onDelete: (fileId: string, noteId: string) => Promise<void>;
+  onAdd: (scopeId: string, title: string, body: string) => Promise<void>;
+  onUpdate: (scopeId: string, noteId: string, title: string, body: string) => Promise<void>;
+  onDelete: (scopeId: string, noteId: string) => Promise<void>;
 }
 
 function formatDate(iso: string) {
@@ -29,10 +40,14 @@ function formatDate(iso: string) {
 }
 
 export default function FileNotesPanel({
-  fileId,
-  fileName,
+  scopeId,
+  scopeName,
   notes,
   notebookColor,
+  title = 'Notes',
+  countLabel,
+  addButtonLabel = 'Add note',
+  emptyLabel,
   isLoading = false,
   isMutating = false,
   error = '',
@@ -52,7 +67,7 @@ export default function FileNotesPanel({
     setDraftBody('');
   };
 
-  const startEdit = (note: FileNote) => {
+  const startEdit = (note: NoteItem) => {
     setEditingId(note.id);
     setDraftTitle(note.title);
     setDraftBody(note.body);
@@ -71,9 +86,9 @@ export default function FileNotesPanel({
     }
 
     if (editingId === 'new') {
-      await onAdd(fileId, draftTitle, draftBody);
+      await onAdd(scopeId, draftTitle, draftBody);
     } else if (editingId) {
-      await onUpdate(fileId, editingId, draftTitle, draftBody);
+      await onUpdate(scopeId, editingId, draftTitle, draftBody);
     }
 
     setEditingId(null);
@@ -83,6 +98,8 @@ export default function FileNotesPanel({
 
   const isFormOpen = editingId !== null;
   const isDisabled = isMutating || Boolean(error);
+  const resolvedCountLabel = countLabel || `${notes.length} note${notes.length === 1 ? '' : 's'} for ${scopeName}`;
+  const resolvedEmptyLabel = emptyLabel || `No notes yet for ${scopeName}.`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -90,10 +107,10 @@ export default function FileNotesPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-text-primary font-mono">
             <FileText className="h-4 w-4 text-accent-hover" />
-            Notes
+            {title}
           </div>
           <p className="mt-1 truncate text-[10px] text-text-muted">
-            {notes.length} note{notes.length === 1 ? '' : 's'} for {fileName}
+            {resolvedCountLabel}
           </p>
         </div>
         <button
@@ -103,7 +120,7 @@ export default function FileNotesPanel({
           className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-40 ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
         >
           <Plus className="h-3.5 w-3.5" />
-          Add note
+          {addButtonLabel}
         </button>
       </div>
 
@@ -174,7 +191,7 @@ export default function FileNotesPanel({
         {!isLoading && !error && notes.length === 0 && !isFormOpen && (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border-default px-4 py-10 text-center">
             <FileText className="h-8 w-8 text-text-muted" />
-            <p className="text-sm text-text-muted">No notes yet for this file.</p>
+            <p className="text-sm text-text-muted">{resolvedEmptyLabel}</p>
             <button
               type="button"
               onClick={startNew}
@@ -182,7 +199,7 @@ export default function FileNotesPanel({
               className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${colorTone?.button || 'border-accent-border bg-accent-subtle text-accent-hover hover:bg-accent/20'}`}
             >
               <Plus className="h-3.5 w-3.5" />
-              Add your first note
+              {addButtonLabel}
             </button>
           </div>
         )}
@@ -215,7 +232,7 @@ export default function FileNotesPanel({
                 <button
                   type="button"
                   onClick={() => {
-                    void onDelete(fileId, note.id);
+                    void onDelete(scopeId, note.id);
                   }}
                   disabled={isFormOpen || isDisabled}
                   className="flex h-7 w-7 items-center justify-center rounded-lg border border-error/20 bg-error-subtle text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-40"

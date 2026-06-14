@@ -53,7 +53,7 @@ export interface LatestSaveableFileReply {
   replyId: string;
 }
 
-export type NotebookPanelTab = 'chat' | 'saved';
-export type FileDetailTab = 'chat' | 'notes';
+export type NotebookPanelTab = 'chat' | 'saved' | 'notes';
+export type FileDetailTab = 'chat' | 'saved' | 'notes';
 
 export type { ChatMessage, FileItem, Notebook, SavedChatReply };

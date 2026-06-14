@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import AddLinkModal from './AddLinkModal';
 import AddYoutubeLinkModal from './AddYoutubeLinkModal';
 import { useFileNotes } from '../hooks/useFileNotes';
+import { useNotebookNotes } from '../hooks/useNotebookNotes';
 import { getNotebookColorTone } from '../lib/notebookColors';
 import type { FileItem, NotebookViewProps, NotebookPanelTab, FileDetailTab } from './notebook/types';
 import { AllNotebooksView } from './notebook/AllNotebooksView';
+import { NotebookChatFullscreenOverlay } from './notebook/NotebookChatFullscreenOverlay';
 import { FilePreviewDrawer } from './notebook/FilePreviewDrawer';
 import { MaterialsDirectory } from './notebook/MaterialsDirectory';
 import {
@@ -23,6 +25,7 @@ import {
   notebookMatchesSearch,
 } from './notebook/notebookHelpers';
 import { useFileScopedChat } from './notebook/useFileScopedChat';
+import { useNotebookChat } from './notebook/useNotebookChat';
 import { useNotebookFilePreview } from './notebook/useNotebookFilePreview';
 import { useNotebookLinks } from './notebook/useNotebookLinks';
 import { useNotebookMaterialActions } from './notebook/useNotebookMaterialActions';
@@ -56,6 +59,7 @@ export default function NotebookView({
   const [renameError, setRenameError] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleteNotebookModalOpen, setIsDeleteNotebookModalOpen] = useState(false);
+  const [isNotebookChatFullscreen, setIsNotebookChatFullscreen] = useState(false);
   const [notebookPanelTab, setNotebookPanelTab] = useState<NotebookPanelTab>('chat');
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const [summaryRetryError, setSummaryRetryError] = useState('');
@@ -67,6 +71,7 @@ export default function NotebookView({
   const saveToastTimeoutRef = useRef<number | null>(null);
 
   const fileNoteApi = useFileNotes(notebook?.id, selectedMaterial?.id);
+  const notebookNotesApi = useNotebookNotes(notebook?.id);
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
   const isSearchActive = Boolean(normalizedSearchQuery);
   const colorTone = notebook ? getNotebookColorTone(notebook.color) : null;
@@ -105,6 +110,12 @@ export default function NotebookView({
   } = useSavedNotebookReplies({
     notebook,
     saveToastTimeoutRef,
+  });
+
+  const notebookChat = useNotebookChat({
+    hasFiles: Boolean(notebook?.files.length),
+    notebookId: notebook?.id || 'no-notebook',
+    notebookName: notebook?.name || 'Notebook',
   });
 
   const activePreview = previewState.activePreview;
@@ -152,6 +163,15 @@ export default function NotebookView({
   const totalFileMatchCount = isSearchActive
     ? allNotebooks.reduce((total, entry) => total + countMatchingFiles(entry, normalizedSearchQuery), 0)
     : 0;
+  const fileSavedChatReplies = useMemo(() => {
+    if (!selectedMaterial) {
+      return [];
+    }
+
+    return savedReplyState.savedChatReplies.filter((reply) =>
+      reply.scopeType === 'file' && reply.fileId === selectedMaterial.id,
+    );
+  }, [savedReplyState.savedChatReplies, selectedMaterial?.id]);
 
   const summaryStatus = activePreview?.summaryStatus || selectedMaterial?.summaryStatus || 'idle';
   const summaryError = activePreview?.summaryError || selectedMaterial?.summaryError;
@@ -177,7 +197,14 @@ export default function NotebookView({
       return;
     }
 
+    setIsNotebookChatFullscreen(false);
     setSelectedMaterial(sourceFile);
+    setFileDetailTab('chat');
+  };
+
+  const handleOpenFullscreenMaterial = (file: FileItem) => {
+    setIsNotebookChatFullscreen(false);
+    setSelectedMaterial(file);
     setFileDetailTab('chat');
   };
 
@@ -189,7 +216,21 @@ export default function NotebookView({
     linkActions.setPendingLink(null);
     savedReplyActions.resetSavedReplies();
     setNotebookPanelTab('chat');
+    setIsNotebookChatFullscreen(false);
   }, [notebook?.id]);
+
+  useEffect(() => {
+    if (!isNotebookChatFullscreen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isNotebookChatFullscreen]);
 
   useEffect(() => {
     setFileDetailTab('chat');
@@ -317,14 +358,19 @@ export default function NotebookView({
         />
 
         <NotebookStudyPanel
+          chat={notebookChat}
           fileInputRef={fileInputRef}
           notebook={notebook}
           notebookPanelTab={notebookPanelTab}
           onAddLink={onAddLink}
           onClearSavedChatReply={() => void savedReplyActions.handleClearSavedChatReply()}
+          onDeleteSavedChatReply={(replyId) => void savedReplyActions.handleDeleteSavedChatReply(replyId)}
           onOpenCitationSource={handleOpenCitationSource}
+          onOpenFullscreenChat={() => setIsNotebookChatFullscreen(true)}
           onSaveReply={savedReplyActions.handleSaveChatReply}
           onUploadFile={onUploadFile}
+          notebookNotesApi={notebookNotesApi}
+          deletingSavedChatReplyId={savedReplyState.deletingSavedChatReplyId}
           savedChatReplies={savedReplyState.savedChatReplies}
           savedChatReplyClearing={savedReplyState.savedChatReplyClearing}
           savedChatReplyError={savedReplyState.savedChatReplyError}
@@ -335,6 +381,24 @@ export default function NotebookView({
           setNotebookPanelTab={setNotebookPanelTab}
         />
       </div>
+
+      {isNotebookChatFullscreen ? (
+        <NotebookChatFullscreenOverlay
+          chat={notebookChat}
+          notebook={notebook}
+          onAddLink={onAddLink ? () => {
+            setIsNotebookChatFullscreen(false);
+            linkActions.setIsAddLinkModalOpen(true);
+          } : undefined}
+          onClose={() => setIsNotebookChatFullscreen(false)}
+          onOpenCitationSource={handleOpenCitationSource}
+          onOpenMaterial={handleOpenFullscreenMaterial}
+          onSaveReply={savedReplyActions.handleSaveChatReply}
+          onUploadFile={onUploadFile ? () => fileInputRef.current?.click() : undefined}
+          savedReplyKeys={savedReplyState.savedChatReplyKeys}
+          savingReplyKey={savedReplyState.savingReplyKey}
+        />
+      ) : null}
 
       {selectedMaterial ? (
         <FilePreviewDrawer
@@ -360,9 +424,14 @@ export default function NotebookView({
           notebook={notebook}
           onRenameFile={onRenameFile}
           onRetryFileSummary={onRetryFileSummary}
+          onDeleteSavedChatReply={(replyId) => void savedReplyActions.handleDeleteSavedChatReply(replyId)}
           onSaveChatReply={savedReplyActions.handleSaveChatReply}
           previewError={previewState.previewError}
           previewLoading={previewState.previewLoading}
+          fileSavedChatReplies={fileSavedChatReplies}
+          savedChatReplyDeletingId={savedReplyState.deletingSavedChatReplyId}
+          savedChatReplyError={savedReplyState.savedChatReplyError}
+          savedChatReplyLoading={savedReplyState.savedChatReplyLoading}
           savedChatReplyKeys={savedReplyState.savedChatReplyKeys}
           savingReplyKey={savedReplyState.savingReplyKey}
           selectedMaterial={selectedMaterial}

@@ -1,20 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkCheck, Link as LinkIcon, LoaderCircle, Send, Sparkles, StickyNote, Trash2, Upload } from 'lucide-react';
-import { ChatMessage, Citation } from '../types';
+import React, { useEffect, useRef } from 'react';
+import { Bookmark, BookmarkCheck, Link as LinkIcon, LoaderCircle, Maximize2, Send, Sparkles, StickyNote, Trash2, Upload } from 'lucide-react';
+import { Citation } from '../types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { CitationEvidenceList } from './CitationEvidenceList';
 import { getNotebookColorTone } from '../lib/notebookColors';
-import { askGroundedNotebookChatStream } from '../lib/notebooksApi';
-import { getGroundedChatErrorMessage } from '../lib/apiErrors';
+import type { NotebookChatController } from './notebook/useNotebookChat';
 
 interface NotebookChatPanelProps {
-  notebookId: string;
+  chat: NotebookChatController;
   notebookName: string;
   color?: string;
   hasFiles?: boolean;
+  isFullscreen?: boolean;
   savedReplyKeys?: string[];
   savingReplyKey?: string | null;
   onAddLink?: () => void;
+  onExpand?: () => void;
   onSaveReply?: (input: {
     answer: string;
     citations: Citation[];
@@ -26,169 +27,40 @@ interface NotebookChatPanelProps {
   onUploadFile?: () => void;
 }
 
-function getLatestSaveableReply(messages: ChatMessage[], isTyping: boolean) {
-  if (isTyping) {
-    return null;
-  }
-
-  for (let index = messages.length - 1; index >= 1; index -= 1) {
-    const message = messages[index];
-    const previousMessage = messages[index - 1];
-
-    if (
-      message.role === 'assistant' &&
-      previousMessage?.role === 'user' &&
-      message.id !== 'notebook-chat-init' &&
-      !message.suggestedPrompts?.length &&
-      message.grounded !== false &&
-      message.text.trim()
-    ) {
-      return {
-        answer: message.text,
-        citations: message.citations || [],
-        question: previousMessage.text,
-        replyId: message.id,
-      };
-    }
-  }
-
-  return null;
-}
-
-function createInitialMessage(notebookName: string): ChatMessage {
-  return {
-    id: 'notebook-chat-init',
-    role: 'assistant',
-    text: `Ask questions about "${notebookName}". Answers are grounded across all indexed files uploaded to this notebook and will show references when context is found.`,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    grounded: true,
-    suggestedPrompts: [
-      'Summarize the uploaded files in this notebook',
-      'What are the likely exam angles from this material?',
-      'Make a revision checklist from the grounded context',
-    ],
-  };
-}
-
 export default function NotebookChatPanel({
-  notebookId,
+  chat,
   notebookName,
   color,
   hasFiles = false,
+  isFullscreen = false,
   savedReplyKeys = [],
   savingReplyKey,
   onAddLink,
+  onExpand,
   onOpenCitationSource,
   onSaveReply,
   onUploadFile,
 }: NotebookChatPanelProps) {
-  const storageKey = `lumiere_notebook_grounded_chat_${notebookId}`;
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (_) {
-      // ignore
-    }
-    return [createInitialMessage(notebookName)];
-  });
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const colorTone = color ? getNotebookColorTone(color) : null;
-  const latestSaveableReply = getLatestSaveableReply(messages, isTyping);
+  const {
+    clearHistory,
+    handleSend,
+    input,
+    isTyping,
+    latestSaveableReply,
+    messages,
+    setInput,
+  } = chat;
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-    localStorage.setItem(storageKey, JSON.stringify(messages));
-  }, [messages, isTyping, storageKey]);
-
-  const handleSend = async (text: string) => {
-    if (!hasFiles || !text.trim() || isTyping) {
-      return;
-    }
-    const submittedQuestion = text.trim();
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const userMsg: ChatMessage = {
-      id: `usr-${Date.now()}`,
-      role: 'user',
-      text: submittedQuestion,
-      timestamp,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
-    setIsTyping(true);
-
-    const assistantMessageId = `bot-${Date.now()}`;
-    const assistantMessage: ChatMessage = {
-      id: assistantMessageId,
-      role: 'assistant',
-      text: '',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      citations: [],
-      grounded: true,
-    };
-    setMessages((prev) => [...prev, assistantMessage]);
-
-    try {
-      const response = await askGroundedNotebookChatStream(
-        {
-          notebookId,
-          question: submittedQuestion,
-        },
-        {
-          onDelta: (delta) => {
-            setMessages((prev) => prev.map((message) => (
-              message.id === assistantMessageId
-                ? { ...message, text: `${message.text}${delta}` }
-                : message
-            )));
-          },
-        },
-      );
-
-      setMessages((prev) => prev.map((message) => (
-        message.id === assistantMessageId
-          ? {
-              ...message,
-              citations: response.citations,
-              grounded: response.grounded,
-              text: response.answer,
-            }
-          : message
-      )));
-    } catch (error) {
-      setMessages((prev) => prev.map((message) => (
-        message.id === assistantMessageId
-          ? {
-              ...message,
-              citations: [],
-              grounded: false,
-              text: getGroundedChatErrorMessage(error),
-            }
-          : message
-      )));
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  const clearHistory = () => {
-    if (!hasFiles) {
-      return;
-    }
-
-    if (window.confirm('Clear chat history for this notebook?')) {
-      setMessages([createInitialMessage(notebookName)]);
-    }
-  };
+  }, [messages, isTyping]);
 
   return (
-    <div className={`surface-card flex h-[38rem] min-h-0 flex-col rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow || ''}`}>
+    <div className={`surface-card flex min-h-0 flex-col ${isFullscreen ? 'h-full rounded-none border-0 p-4 shadow-none md:p-6' : `h-[38rem] rounded-3xl p-5 md:p-6 ${colorTone?.borderGlow || ''}`}`}>
       <div className="flex items-center justify-between border-b border-border-subtle pb-4">
         <div className="flex items-center gap-2">
           <div className={`flex h-8 w-8 items-center justify-center rounded-xl border ${colorTone?.subtleBlock || 'border-cta/25 bg-cta-subtle text-cta'}`}>
@@ -199,15 +71,28 @@ export default function NotebookChatPanel({
             <p className="text-[10px] text-text-muted">Grounded on all notebook files</p>
           </div>
         </div>
-        <button
-          onClick={clearHistory}
-          disabled={!hasFiles}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-error disabled:cursor-not-allowed disabled:opacity-30"
-          title="Clear history"
-          type="button"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onExpand ? (
+            <button
+              onClick={onExpand}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              title="Expand chat"
+              aria-label="Expand chat"
+              type="button"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+          <button
+            onClick={clearHistory}
+            disabled={!hasFiles}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-error disabled:cursor-not-allowed disabled:opacity-30"
+            title="Clear history"
+            type="button"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       <div

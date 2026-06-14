@@ -122,6 +122,15 @@ export interface SavedChatReply {
   updatedAt: string;
 }
 
+export interface NotebookNote {
+  id: string;
+  notebookId: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ConceptNode {
   id: string;
   label: string;

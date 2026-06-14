@@ -26,7 +26,9 @@ import { CitationEvidenceList } from '../CitationEvidenceList';
 import FileNotesPanel from '../FileNotesPanel';
 import HlsVideoPlayer from '../HlsVideoPlayer';
 import { LabeledProgressBar } from '../ProgressBar';
+import { SavedAnswerPanel } from './SavedAnswerPanel';
 import type { ChatMessage, FileDetailTab, FileItem, LatestSaveableFileReply, Notebook, SaveChatReplyInput } from './types';
+import type { SavedChatReply } from '../../types';
 import { getFileIcon } from './notebookHelpers';
 
 function VideoPlayerBlock({
@@ -117,11 +119,16 @@ export function FilePreviewDrawer({
   notebook,
   onRenameFile,
   onRetryFileSummary,
+  onDeleteSavedChatReply,
   onSaveChatReply,
   previewError,
   previewLoading,
   savedChatReplyKeys,
   savingReplyKey,
+  fileSavedChatReplies,
+  savedChatReplyDeletingId,
+  savedChatReplyError,
+  savedChatReplyLoading,
   selectedMaterial,
   selectedViewerUrl,
   setFileChatInput,
@@ -157,11 +164,16 @@ export function FilePreviewDrawer({
   notebook: Notebook;
   onRenameFile?: (notebookId: string, fileId: string, name: string) => Promise<void> | void;
   onRetryFileSummary?: (notebookId: string, fileId: string) => Promise<void> | void;
+  onDeleteSavedChatReply: (replyId: string) => void;
   onSaveChatReply: (input: SaveChatReplyInput) => Promise<void>;
   previewError: string;
   previewLoading: boolean;
   savedChatReplyKeys: string[];
   savingReplyKey: string | null;
+  fileSavedChatReplies: SavedChatReply[];
+  savedChatReplyDeletingId: string | null;
+  savedChatReplyError: string;
+  savedChatReplyLoading: boolean;
   selectedMaterial: FileItem;
   selectedViewerUrl?: string;
   setFileChatInput: (input: string) => void;
@@ -431,6 +443,14 @@ export function FilePreviewDrawer({
             </button>
             <button
               type="button"
+              onClick={() => setFileDetailTab('saved')}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${fileDetailTab === 'saved' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary hover:bg-bg-elevated/60 hover:text-text-primary'}`}
+            >
+              <BookmarkCheck className="h-3.5 w-3.5" />
+              Saved
+            </button>
+            <button
+              type="button"
               onClick={() => setFileDetailTab('notes')}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${fileDetailTab === 'notes' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary hover:bg-bg-elevated/60 hover:text-text-primary'}`}
             >
@@ -591,10 +611,27 @@ export function FilePreviewDrawer({
                   </button>
                 </form>
               </>
+            ) : fileDetailTab === 'saved' ? (
+              <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                <SavedAnswerPanel
+                  deletingReplyId={savedChatReplyDeletingId}
+                  emptyLabel="No saved answers for this file yet."
+                  isClearing={false}
+                  isLoading={savedChatReplyLoading}
+                  onDelete={onDeleteSavedChatReply}
+                  onOpenCitationSource={handleOpenCitationSource}
+                  savedChatReplies={fileSavedChatReplies}
+                />
+                {savedChatReplyError ? (
+                  <div className="mt-3 rounded-2xl border border-error/20 bg-error-subtle px-4 py-3 text-xs font-semibold text-error">
+                    {savedChatReplyError}
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <FileNotesPanel
-                fileId={selectedMaterial.id}
-                fileName={selectedMaterial.name}
+                scopeId={selectedMaterial.id}
+                scopeName={selectedMaterial.name}
                 notes={fileNoteApi.getNotesForFile(selectedMaterial.id)}
                 isLoading={fileNoteApi.isLoadingFile(selectedMaterial.id)}
                 isMutating={fileNoteApi.isMutatingFile(selectedMaterial.id)}

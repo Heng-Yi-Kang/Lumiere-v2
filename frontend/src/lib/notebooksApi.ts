@@ -1,4 +1,4 @@
-import type { AiProviderStatusResponse, Citation, FileNote, GroundedChatResponse, HlsStatus, Notebook, NotebookFilePreview, SavedChatReply } from '../types';
+import type { AiProviderStatusResponse, Citation, FileNote, GroundedChatResponse, HlsStatus, Notebook, NotebookFilePreview, NotebookNote, SavedChatReply } from '../types';
 
 export const NOTEBOOKS_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
 
@@ -25,6 +25,12 @@ type GroundedChatApiResponse = GroundedChatResponse & {
 type FileNotesResponse = {
   notes?: FileNote[];
   note?: FileNote;
+  error?: string;
+};
+
+type NotebookNotesResponse = {
+  notes?: NotebookNote[];
+  note?: NotebookNote;
   error?: string;
 };
 
@@ -303,6 +309,15 @@ export async function clearSavedChatReply(notebookId: string) {
   });
 }
 
+export async function deleteSavedChatReply(notebookId: string, replyId: string) {
+  await requestJson<void>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/saved-chat-reply/${encodeURIComponent(replyId)}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
 export async function askGroundedNotebookChat(input: {
   fileId?: string;
   notebookId: string;
@@ -477,6 +492,68 @@ export async function updateFileNote(
 export async function deleteFileNote(notebookId: string, fileId: string, noteId: string) {
   await requestJson<void>(
     `/api/notebooks/${encodeURIComponent(notebookId)}/files/${encodeURIComponent(fileId)}/notes/${encodeURIComponent(noteId)}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
+export async function fetchNotebookNotes(notebookId: string) {
+  const payload = await requestJson<NotebookNotesResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/notes`,
+  );
+
+  return payload.notes || [];
+}
+
+export async function createNotebookNote(
+  notebookId: string,
+  input: {
+    title: string;
+    body: string;
+  },
+) {
+  const payload = await requestJson<NotebookNotesResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/notes`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!payload.note) {
+    throw new Error('Created note was not returned by the API');
+  }
+
+  return payload.note;
+}
+
+export async function updateNotebookNote(
+  notebookId: string,
+  noteId: string,
+  input: {
+    title: string;
+    body: string;
+  },
+) {
+  const payload = await requestJson<NotebookNotesResponse>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/notes/${encodeURIComponent(noteId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!payload.note) {
+    throw new Error('Updated note was not returned by the API');
+  }
+
+  return payload.note;
+}
+
+export async function deleteNotebookNote(notebookId: string, noteId: string) {
+  await requestJson<void>(
+    `/api/notebooks/${encodeURIComponent(notebookId)}/notes/${encodeURIComponent(noteId)}`,
     {
       method: 'DELETE',
     },

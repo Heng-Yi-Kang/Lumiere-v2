@@ -1,6 +1,7 @@
 import { RefObject, useEffect, useState } from 'react';
 import {
   clearSavedChatReply,
+  deleteSavedChatReply,
   fetchSavedChatReply,
   saveChatReply,
 } from '../../lib/notebooksApi';
@@ -18,6 +19,7 @@ export function useSavedNotebookReplies({
   const [savingReplyKey, setSavingReplyKey] = useState<string | null>(null);
   const [savedChatReplyLoading, setSavedChatReplyLoading] = useState(false);
   const [savedChatReplyClearing, setSavedChatReplyClearing] = useState(false);
+  const [deletingSavedChatReplyId, setDeletingSavedChatReplyId] = useState<string | null>(null);
   const [savedChatReplyError, setSavedChatReplyError] = useState('');
   const [isSaveToastVisible, setIsSaveToastVisible] = useState(false);
 
@@ -127,6 +129,30 @@ export function useSavedNotebookReplies({
     }
   };
 
+  const handleDeleteSavedChatReply = async (replyId: string) => {
+    if (!notebook || deletingSavedChatReplyId) {
+      return;
+    }
+
+    setDeletingSavedChatReplyId(replyId);
+    setSavedChatReplyError('');
+
+    try {
+      const deletedReply = savedChatReplies.find((reply) => reply.id === replyId);
+      await deleteSavedChatReply(notebook.id, replyId);
+      setSavedChatReplies((replies) => replies.filter((reply) => reply.id !== replyId));
+      if (deletedReply?.scopeType === 'file' && deletedReply.fileId) {
+        setSavedChatReplyKeys((replyKeys) => replyKeys.filter((replyKey) => !replyKey.startsWith(`file:${deletedReply.fileId}:`)));
+      } else if (deletedReply?.scopeType === 'notebook') {
+        setSavedChatReplyKeys((replyKeys) => replyKeys.filter((replyKey) => !replyKey.startsWith('notebook:')));
+      }
+    } catch (error) {
+      setSavedChatReplyError(error instanceof Error ? error.message : 'Failed to delete saved answer.');
+    } finally {
+      setDeletingSavedChatReplyId(null);
+    }
+  };
+
   const dismissSaveToast = () => {
     setIsSaveToastVisible(false);
     if (saveToastTimeoutRef.current !== null) {
@@ -139,12 +165,14 @@ export function useSavedNotebookReplies({
     actions: {
       dismissSaveToast,
       handleClearSavedChatReply,
+      handleDeleteSavedChatReply,
       handleSaveChatReply,
       resetSavedReplies,
       setSavedChatReplyError,
     },
     state: {
       isSaveToastVisible,
+      deletingSavedChatReplyId,
       savedChatReplies,
       savedChatReplyClearing,
       savedChatReplyError,

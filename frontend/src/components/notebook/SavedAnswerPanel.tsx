@@ -5,15 +5,21 @@ import type { SavedChatReply } from './types';
 import { formatSavedReplyDate } from './notebookHelpers';
 
 export function SavedAnswerPanel({
+  deletingReplyId,
+  emptyLabel = 'No answers are saved for this notebook yet.',
   isClearing,
   isLoading,
   onClear,
+  onDelete,
   onOpenCitationSource,
   savedChatReplies,
 }: {
+  deletingReplyId?: string | null;
+  emptyLabel?: string;
   isClearing: boolean;
   isLoading: boolean;
-  onClear: () => void;
+  onClear?: () => void;
+  onDelete?: (replyId: string) => void;
   onOpenCitationSource?: (fileId: string) => void;
   savedChatReplies: SavedChatReply[];
 }) {
@@ -29,7 +35,7 @@ export function SavedAnswerPanel({
             {savedChatReplies.length > 0 ? `${savedChatReplies.length} saved answer${savedChatReplies.length === 1 ? '' : 's'}` : 'Save completed AI answers from notebook or file chat.'}
           </p>
         </div>
-        {savedChatReplies.length > 0 ? (
+        {savedChatReplies.length > 0 && onClear ? (
           <button
             type="button"
             onClick={onClear}
@@ -74,6 +80,26 @@ export function SavedAnswerPanel({
                     </span>
                   </span>
                 </span>
+                {onDelete ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onDelete(savedChatReply.id);
+                    }}
+                    disabled={deletingReplyId === savedChatReply.id}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-muted transition hover:bg-error-subtle hover:text-error disabled:cursor-wait disabled:opacity-50"
+                    title="Delete saved answer"
+                    aria-label="Delete saved answer"
+                  >
+                    {deletingReplyId === savedChatReply.id ? (
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                ) : null}
               </summary>
               <div className="space-y-3 border-t border-border-subtle px-3 pb-3 pt-3">
                 <div className="rounded-2xl border border-border-subtle bg-bg-base/35 p-3">
@@ -94,7 +120,7 @@ export function SavedAnswerPanel({
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-border-default bg-bg-elevated/25 p-4 text-sm leading-relaxed text-text-secondary">
-          No answers are saved for this notebook yet.
+          {emptyLabel}
         </div>
       )}
     </div>

@@ -19,6 +19,7 @@ model Notebook {
   updatedAt    DateTime       @updatedAt
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   files        NotebookFile[]
+  notes        NotebookNote[]
   savedChatReplies NotebookSavedChatReply[]
 
   @@index([userId])
@@ -184,6 +185,19 @@ model FileNote {
   notebookFile   NotebookFile @relation(fields: [notebookFileId], references: [id], onDelete: Cascade)
 
   @@index([notebookFileId])
+}
+
+model NotebookNote {
+  id         String   @id @default(cuid())
+  notebookId String
+  title      String
+  body       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  notebook   Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+
+  @@index([notebookId])
 }
 
 model NotebookFileChunk {
